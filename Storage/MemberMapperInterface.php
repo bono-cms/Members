@@ -31,6 +31,15 @@ interface MemberMapperInterface
     public function isFree($email);
 
     /**
+     * Updates a profile
+     * 
+     * @param string $id Member ID
+     * @param array $data Data to be updated
+     * @return boolean
+     */
+    public function updateProfile($id, array $data);
+
+    /**
      * Updates a password
      * 
      * @param string $key Confirmation key

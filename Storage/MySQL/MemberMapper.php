@@ -57,6 +57,20 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
     }
 
     /**
+     * Updates a profile
+     * 
+     * @param string $id Member ID
+     * @param array $data Data to be updated
+     * @return boolean
+     */
+    public function updateProfile($id, array $data)
+    {
+        return $this->db->update(self::getTableName(), $data)
+                        ->whereEquals('id', $id)
+                        ->execute();
+    }
+
+    /**
      * Updates a password
      * 
      * @param string $key Confirmation key
