@@ -23,9 +23,13 @@ return array(
     ),
     
     '/login' => array(
-        'controller' => 'Login@indexAction'
+        'controller' => 'Auth@indexAction'
     ),
 
+    '/logout' => array(
+        'controller' => 'Auth@logoutAction'
+    ),
+    
     '/recovery' => array(
         'controller' => 'Recovery@indexAction'
     )

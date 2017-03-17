@@ -14,7 +14,7 @@ namespace Members\Controller;
 use Site\Controller\AbstractController;
 use Krystal\Validate\Pattern;
 
-final class Login extends AbstractController
+final class Auth extends AbstractController
 {
     /**
      * Renders login page
@@ -28,6 +28,19 @@ final class Login extends AbstractController
         } else {
             return $this->formAction();
         }
+    }
+
+    /**
+     * Log outs a member
+     * 
+     * @return void
+     */
+    public function logoutAction()
+    {
+        $memberManager = $this->getModuleService('memberManager');
+        $memberManager->logout();
+
+        $this->response->redirect('/');
     }
 
     /**
