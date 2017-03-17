@@ -14,6 +14,13 @@ namespace Members\Service;
 interface MemberManagerInterface
 {
     /**
+     * Logouts a member
+     * 
+     * @return boolean
+     */
+    public function logout();
+
+    /**
      * Checks whether member is logged in
      * 
      * @return boolean

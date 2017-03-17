@@ -37,6 +37,21 @@ final class MemberManager implements MemberManagerInterface
     }
 
     /**
+     * Logouts a member
+     * 
+     * @return boolean
+     */
+    public function logout()
+    {
+        if ($this->sessionBag->has('member')) {
+            $this->sessionBag->remove('member');
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
      * Checks whether member is logged in
      * 
      * @return boolean
