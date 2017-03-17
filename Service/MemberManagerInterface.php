@@ -53,6 +53,22 @@ interface MemberManagerInterface
     public function confirm($key);
 
     /**
+     * Resets a password
+     * 
+     * @param string $key
+     * @return string|boolean
+     */
+    public function resetPassword($key);
+
+    /**
+     * Resets the secure code by email
+     * 
+     * @param string $email
+     * @return string|boolean
+     */
+    public function resetKey($email);
+
+    /**
      * Registers a member
      * 
      * @param array $input

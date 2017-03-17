@@ -128,6 +128,41 @@ final class MemberManager implements MemberManagerInterface
     }
 
     /**
+     * Resets a password
+     * 
+     * @param string $key
+     * @return string|boolean
+     */
+    public function resetPassword($key)
+    {
+        $password = uniqid();
+
+        if ($this->memberMapper->updatePassword($key, sha1($password)) != 0) {
+            return $password;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Resets the secure code by email
+     * 
+     * @param string $email
+     * @return string|boolean
+     */
+    public function resetKey($email)
+    {
+        // Create very unique key
+        $key = md5(uniqid());
+
+        if ($this->memberMapper->updateKey($email, $key) != 0) {
+            return $key;
+        } else {
+            return false;
+        }
+    }
+
+    /**
      * Registers a member
      * 
      * @param array $input
