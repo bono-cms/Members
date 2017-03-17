@@ -17,6 +17,14 @@ return array(
     '/confirm/(:var)' => array(
         'controller' => 'Register@confirmAction'
     ),
+
+    '/recovery' => array(
+        'controller' => 'Recovery@indexAction'
+    ),
+    
+    '/recovery/confirm/(:var)' => array(
+        'controller' => 'Recovery@resetAction'
+    ),
     
     '/register' => array(
         'controller' => 'Register@indexAction'
