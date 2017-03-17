@@ -14,6 +14,14 @@ namespace Members\Service;
 interface MemberManagerInterface
 {
     /**
+     * Updates a member
+     * 
+     * @param array $input
+     * @return boolean
+     */
+    public function update(array $input);
+
+    /**
      * Logouts a member
      * 
      * @return boolean

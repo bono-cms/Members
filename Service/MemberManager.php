@@ -37,6 +37,37 @@ final class MemberManager implements MemberManagerInterface
     }
 
     /**
+     * Updates a member
+     * 
+     * @param array $input
+     * @return boolean
+     */
+    public function update(array $input)
+    {
+        // There's no such field, so this one must be removed if present
+        if (isset($input['password_confirm'])) {
+            unset($input['password_confirm']);
+        }
+
+        // If password is empty, then it should not be updated
+        if (empty($input['password'])) {
+            unset($input['password']);
+        } else {
+            $input['password'] = sha1($input['password']);
+        }
+
+        $id = $this->getMember('id');
+
+        // Update a profile
+        $this->memberMapper->updateProfile($id, $input);
+
+        // Update data in session as well
+        $this->sessionBag->set('member', $this->memberMapper->findByPk($id));
+
+        return true;
+    }
+
+    /**
      * Logouts a member
      * 
      * @return boolean
