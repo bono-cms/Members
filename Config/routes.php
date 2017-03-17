@@ -13,6 +13,10 @@ return array(
     '/%s/module/members' => array(
         'controller' => 'Admin:Members@indexAction'
     ),
+
+    '/confirm/(:var)' => array(
+        'controller' => 'Register@confirmAction'
+    ),
     
     '/register' => array(
         'controller' => 'Register@indexAction'
