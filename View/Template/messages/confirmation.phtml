@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+ <title><?php $this->show('Account confirmation'); ?></title>
+ <style>
+
+    body {
+        background: black;
+        color: #fff;
+        text-align: center;
+    }
+
+ </style>
+</head>
+<body>
+
+<?php if ($confirmed): ?>
+<h3><?php $this->show('You have successfully confirmed your account. Now you can simply login with your email and password'); ?></h3>
+
+<?php else: ?>
+<h3><?php $this->show('Invalid confirmation code. It either invalid or expired'); ?></h3>
+
+<?php endif; ?>
+
+</body>
+</html>
