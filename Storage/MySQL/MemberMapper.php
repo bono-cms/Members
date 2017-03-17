@@ -57,6 +57,36 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
     }
 
     /**
+     * Updates a password
+     * 
+     * @param string $key Confirmation key
+     * @param string $password New password
+     * @return boolean
+     */
+    public function updatePassword($key, $password)
+    {
+        return $this->db->update(self::getTableName(), array('password' => $password))
+                        ->whereEquals('key', $key)
+                        ->andWhereEquals('confirmed', '1')
+                        ->execute(true);
+    }
+
+    /**
+     * Updates a key
+     * 
+     * @param string $email
+     * @param string $key
+     * @return integer
+     */
+    public function updateKey($email, $key)
+    {
+        return $this->db->update(self::getTableName(), array('key' => $key))
+                        ->whereEquals('email', $email)
+                        ->andWhereEquals('confirmed', '1')
+                        ->execute(true);
+    }
+
+    /**
      * Confirms a user by their provided hash
      * 
      * @param string $key

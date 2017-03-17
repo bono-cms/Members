@@ -31,6 +31,24 @@ interface MemberMapperInterface
     public function isFree($email);
 
     /**
+     * Updates a password
+     * 
+     * @param string $key Confirmation key
+     * @param string $password New password
+     * @return boolean
+     */
+    public function updatePassword($key, $password);
+
+    /**
+     * Updates a key
+     * 
+     * @param string $email
+     * @param string $key
+     * @return integer
+     */
+    public function updateKey($email, $key);
+
+    /**
      * Confirms a user by their provided hash
      * 
      * @param string $key
