@@ -1,0 +1,11 @@
+
+<?php if ($password !== false): ?>
+
+<p><?php $this->show('Your password has been reset to'); ?>: <strong><?php echo $password; ?></strong></p>
+<p><?php $this->show('Please change it later'); ?></p>
+
+<?php else: ?>
+
+<p><?php $this->show('Invalid confirmation code'); ?></p>
+
+<?php endif; ?>
