@@ -37,6 +37,7 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
                         ->from(self::getTableName())
                         ->whereEquals('email', $email)
                         ->andWhereEquals('password', $password)
+                        ->andWhereEquals('confirmed', '1')
                         ->query();
     }
 
