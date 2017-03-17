@@ -10,6 +10,15 @@
  */
 
 return array(
+    
+    '/profile' => array(
+        'controller' => 'Profile@indexAction'
+    ),
+
+    '/profile/update' => array(
+        'controller' => 'Profile@updateAction'
+    ),
+    
     '/%s/module/members' => array(
         'controller' => 'Admin:Members@indexAction'
     ),
