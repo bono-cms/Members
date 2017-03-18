@@ -13,6 +13,8 @@ namespace Members\Service;
 
 use Members\Storage\MemberMapperInterface;
 use Krystal\Session\SessionBagInterface;
+use Krystal\Stdlib\ArrayUtils;
+use Krystal\Stdlib\VirtualEntity;
 
 final class MemberManager implements MemberManagerInterface
 {
@@ -34,6 +36,42 @@ final class MemberManager implements MemberManagerInterface
     {
         $this->memberMapper = $memberMapper;
         $this->sessionBag = $sessionBag;
+    }
+
+    /**
+     * Returns prepared paginator instance
+     * 
+     * @return \Krystal\Paginate\Paginator
+     */
+    public function getPaginator()
+    {
+        return $this->memberMapper->getPaginator();
+    }
+
+    /**
+     * Fetch all members
+     * 
+     * @param integer $pageNumber Page number
+     * @param integer $itemsPerPage Per page count
+     * @return array
+     */
+    public function fetchAll($page, $itemsPerPage)
+    {
+        return ArrayUtils::filterArray($this->memberMapper->fetchAll($page, $itemsPerPage), function($row){
+
+            // Create the entity
+            $entity = new VirtualEntity();
+            $entity->setId($row['id'], VirtualEntity::FILTER_INT)
+                   ->setName($row['name'], VirtualEntity::FILTER_TAGS)
+                   ->setEmail($row['email'], VirtualEntity::FILTER_TAGS)
+                   ->setLogin($row['login'], VirtualEntity::FILTER_TAGS)
+                   ->setPhone($row['phone'], VirtualEntity::FILTER_TAGS)
+                   ->setAddress($row['address'])
+                   ->setSubscriber($row['subscriber'], VirtualEntity::FILTER_BOOL)
+                   ->setConfirmed($row['confirmed'], VirtualEntity::FILTER_BOOL);
+
+            return $entity;
+        });
     }
 
     /**

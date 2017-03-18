@@ -14,6 +14,22 @@ namespace Members\Service;
 interface MemberManagerInterface
 {
     /**
+     * Returns prepared paginator instance
+     * 
+     * @return \Krystal\Paginate\Paginator
+     */
+    public function getPaginator();
+
+    /**
+     * Fetch all members
+     * 
+     * @param integer $pageNumber Page number
+     * @param integer $itemsPerPage Per page count
+     * @return array
+     */
+    public function fetchAll($page, $itemsPerPage);
+
+    /**
      * Updates a member
      * 
      * @param array $input
