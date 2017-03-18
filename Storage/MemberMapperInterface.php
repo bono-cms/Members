@@ -14,6 +14,15 @@ namespace Members\Storage;
 interface MemberMapperInterface
 {
     /**
+     * Fetch all members
+     * 
+     * @param integer $pageNumber Current page number
+     * @param integer $itemPerPage Per page count
+     * @return array
+     */
+    public function fetchAll($pageNumber, $itemsPerPage);
+
+    /**
      * Finds a member
      * 
      * @param string $email

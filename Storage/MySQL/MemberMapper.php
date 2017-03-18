@@ -25,6 +25,23 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
     }
 
     /**
+     * Fetch all members
+     * 
+     * @param integer $pageNumber Current page number
+     * @param integer $itemPerPage Per page count
+     * @return array
+     */
+    public function fetchAll($pageNumber, $itemsPerPage)
+    {
+        return $this->db->select('*')
+                        ->from(self::getTableName())
+                        ->orderBy($this->getPk())
+                        ->desc()
+                        ->paginate($pageNumber, $itemsPerPage)
+                        ->queryAll();
+    }
+
+    /**
      * Finds a member
      * 
      * @param string $email
