@@ -23,6 +23,10 @@ return array(
         'controller' => 'Admin:Members@indexAction'
     ),
 
+    '/%s/module/members/page/(:var)' => array(
+        'controller' => 'Admin:Members@indexAction'
+    ),
+    
     '/confirm/(:var)' => array(
         'controller' => 'Register@confirmAction'
     ),
