@@ -6,5 +6,5 @@ return array(
     'route' => 'Members:Admin:Members@indexAction',
     'icon' => 'fa fa-users fa-5x',
     'order' => 15,
-    'description' => 'Advice module allows you to manage advices on your site'
+    'description' => 'This module lets you manage membership system on your site'
 );
