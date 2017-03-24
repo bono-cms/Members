@@ -39,4 +39,19 @@ final class Members extends AbstractController
             'paginator' => $paginator
         ));
     }
+
+    /**
+     * Deletes a member
+     * 
+     * @param string $id Member id
+     * @return string
+     */
+    public function deleteAction($id)
+    {
+        $memberManager = $this->getModuleService('memberManager');
+        $memberManager->deleteById($id);
+
+        $this->flashBag->set('success', 'Selected member has been removed successfully');
+        return 1;
+    }
 }

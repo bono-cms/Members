@@ -26,6 +26,10 @@ return array(
     '/%s/module/members/page/(:var)' => array(
         'controller' => 'Admin:Members@indexAction'
     ),
+
+    '/%s/module/members/delete/(:var)' => array(
+        'controller' => 'Admin:Members@deleteAction'
+    ),
     
     '/confirm/(:var)' => array(
         'controller' => 'Register@confirmAction'
