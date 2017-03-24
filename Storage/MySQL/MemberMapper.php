@@ -25,6 +25,17 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
     }
 
     /**
+     * Deletes a member by their associated id
+     * 
+     * @param string $id Member id
+     * @return boolean
+     */
+    public function deleteById($id)
+    {
+        return $this->deleteByPk($id);
+    }
+
+    /**
      * Fetch all members
      * 
      * @param integer $pageNumber Current page number
