@@ -14,6 +14,14 @@ namespace Members\Service;
 interface MemberManagerInterface
 {
     /**
+     * Deletes a member by their associated id
+     * 
+     * @param string $id Member id
+     * @return string
+     */
+    public function deleteById($id);
+
+    /**
      * Returns prepared paginator instance
      * 
      * @return \Krystal\Paginate\Paginator

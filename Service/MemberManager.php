@@ -49,6 +49,17 @@ final class MemberManager implements MemberManagerInterface
     }
 
     /**
+     * Deletes a member by their associated id
+     * 
+     * @param string $id Member id
+     * @return string
+     */
+    public function deleteById($id)
+    {
+        return $this->memberMapper->deleteById($id);
+    }
+
+    /**
      * Fetch all members
      * 
      * @param integer $pageNumber Page number
