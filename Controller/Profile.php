@@ -53,7 +53,7 @@ final class Profile extends AbstractController
                 'input' => array(
                     'source' => $input,
                     'definition' => array(
-                        'name' => new Pattern\name()
+                        'name' => new Pattern\Name()
                     )
                 )
             ));
