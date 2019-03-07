@@ -8,15 +8,14 @@ defined('KRYSTAL') or die;
 
 ?>
 
-<?php $this->loadPartial('items-per-page', array('caption' => 'Members')); ?>
-
-<form>
+<div class="card">
+    <?php $this->loadPartial('items-per-page', array('caption' => 'Members')); ?>
     <div class="table-responsive">
         <?= $this->widget(new GridViewWidget($members, array(
-            'tableClass' => 'table table-hover table-bordered table-striped table-condensed',
+            'tableClass' => 'table table-hover table-bordered table-striped',
             'rowAttributes' => array(
                 'class' => function($member){
-                    return $member->getConfirmed() ? null : 'warning';
+                    return $member->getConfirmed() ? null : 'table-warning';
                 }
             ),
 
@@ -66,12 +65,12 @@ defined('KRYSTAL') or die;
 
         ))); ?>
 
-		<?php if (empty($members)): ?>
-		<div class="center-block">
+        <?php if (empty($members)): ?>
+        <div class="center-block">
             <h2 class="text-center text-muted"><i class="glyphicon glyphicon-remove"></i> <?php $this->show('No members'); ?></h2>
-		</div>
-		<?php endif; ?>
-	</div>
-</form>
+        </div>
+        <?php endif; ?>
+    </div>
 
-<?php $this->loadPartial('paginator'); ?>
+    <?php $this->loadPartial('paginator'); ?>
+</div>
