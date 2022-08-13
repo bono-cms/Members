@@ -15,8 +15,9 @@ use Members\Storage\MemberMapperInterface;
 use Krystal\Session\SessionBagInterface;
 use Krystal\Stdlib\ArrayUtils;
 use Krystal\Stdlib\VirtualEntity;
+use Cms\Service\AbstractManager;
 
-final class MemberManager implements MemberManagerInterface
+final class MemberManager extends AbstractManager implements MemberManagerInterface
 {
     /**
      * Any compliant member mapper
@@ -36,6 +37,35 @@ final class MemberManager implements MemberManagerInterface
     {
         $this->memberMapper = $memberMapper;
         $this->sessionBag = $sessionBag;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    protected function toEntity(array $row)
+    {
+        $entity = new VirtualEntity();
+        $entity->setId($row['id'], VirtualEntity::FILTER_INT)
+               ->setName($row['name'], VirtualEntity::FILTER_TAGS)
+               ->setEmail($row['email'], VirtualEntity::FILTER_TAGS)
+               ->setLogin($row['login'], VirtualEntity::FILTER_TAGS)
+               ->setPhone($row['phone'], VirtualEntity::FILTER_TAGS)
+               ->setAddress($row['address'])
+               ->setSubscriber($row['subscriber'], VirtualEntity::FILTER_BOOL)
+               ->setConfirmed($row['confirmed'], VirtualEntity::FILTER_BOOL);
+
+        return $entity;
+    }
+
+    /**
+     * Fetches member by id
+     * 
+     * @param string $id Member id
+     * @return string
+     */
+    public function fetchById($id)
+    {
+        return $this->prepareResult($this->memberMapper->findByPk($id));
     }
 
     /**
@@ -68,21 +98,7 @@ final class MemberManager implements MemberManagerInterface
      */
     public function fetchAll($page, $itemsPerPage)
     {
-        return ArrayUtils::filterArray($this->memberMapper->fetchAll($page, $itemsPerPage), function($row){
-
-            // Create the entity
-            $entity = new VirtualEntity();
-            $entity->setId($row['id'], VirtualEntity::FILTER_INT)
-                   ->setName($row['name'], VirtualEntity::FILTER_TAGS)
-                   ->setEmail($row['email'], VirtualEntity::FILTER_TAGS)
-                   ->setLogin($row['login'], VirtualEntity::FILTER_TAGS)
-                   ->setPhone($row['phone'], VirtualEntity::FILTER_TAGS)
-                   ->setAddress($row['address'])
-                   ->setSubscriber($row['subscriber'], VirtualEntity::FILTER_BOOL)
-                   ->setConfirmed($row['confirmed'], VirtualEntity::FILTER_BOOL);
-
-            return $entity;
-        });
+        return $this->prepareResults($this->memberMapper->fetchAll($page, $itemsPerPage));
     }
 
     /**
