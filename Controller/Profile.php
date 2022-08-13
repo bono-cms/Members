@@ -35,7 +35,8 @@ final class Profile extends AbstractController
         $this->loadSitePlugins();
 
         return $this->view->render('member-profile', array(
-            'page' => $page
+            'page' => $page,
+            'languages' => $this->getService('Cms', 'languageManager')->fetchAll(true),
         ));
     }
 

@@ -52,7 +52,9 @@ final class Recovery extends AbstractController
      */
     private function formAction()
     {
-        return $this->view->render('recovery-form');
+        return $this->view->render('recovery-form', [
+            'languages' => $this->getService('Cms', 'languageManager')->fetchAll(true),
+        ]);
     }
 
     /**

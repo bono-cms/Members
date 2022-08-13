@@ -50,7 +50,9 @@ final class Auth extends AbstractController
      */
     private function formAction()
     {
-        return $this->view->render('member-login');
+        return $this->view->render('member-login', [
+            'languages' => $this->getService('Cms', 'languageManager')->fetchAll(true),
+        ]);
     }
 
     /**
