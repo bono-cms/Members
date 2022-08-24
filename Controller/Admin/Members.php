@@ -12,9 +12,77 @@
 namespace Members\Controller\Admin;
 
 use Cms\Controller\Admin\AbstractController;
+use Krystal\Stdlib\VirtualEntity;
 
 final class Members extends AbstractController
 {
+    /**
+     * Renders form
+     * 
+     * @param \Krystal\Stdlib\VirtualEntity $member
+     * @return string
+     */
+    private function createForm($member)
+    {
+        // Append a breadcrumb
+        $this->view->getBreadcrumbBag()
+                   ->addOne('Members', 'Members:Admin:Members@indexAction')
+                   ->addOne($member->getId() ? 'Update the member' : 'Add new member');
+
+        return $this->view->render('form', [
+            'member' => $member
+        ]);
+    }
+
+    /**
+     * Adds a member
+     * 
+     * @return string
+     */
+    public function addAction()
+    {
+        $member = new VirtualEntity();
+        $member->setConfirmed(1);
+
+        return $this->createForm($member);
+    }
+
+    /**
+     * Renders edit form
+     * 
+     * @param string $id Member id
+     * @return string
+     */
+    public function editAction($id)
+    {
+        $member = $this->getModuleService('memberManager')->fetchById($id);
+
+        if ($member !== false) {
+            return $this->createForm($member);
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * Saves form data
+     * 
+     * @return strings
+     */
+    public function saveAction()
+    {
+        $data = $this->request->getPost();
+
+        $memberManager = $this->getModuleService('memberManager');
+        $memberManager->save($data['member']);
+
+        $new = empty($data['member']['id']);
+
+        $this->flashBag->set('success', $new ? 'Member profile has been registered successfully' : 'Member profile has been updated successfully');
+
+        return $new ? $memberManager->getLastId() : 1;
+    }
+
     /**
      * Renders the grid
      * 

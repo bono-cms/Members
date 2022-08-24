@@ -10,7 +10,6 @@
  */
 
 return array(
-    
     '/profile' => array(
         'controller' => 'Profile@indexAction'
     ),
@@ -21,6 +20,18 @@ return array(
     
     '/%s/module/members' => array(
         'controller' => 'Admin:Members@indexAction'
+    ),
+
+    '/%s/module/members/save' => array(
+        'controller' => 'Admin:Members@saveAction'
+    ),
+    
+    '/%s/module/members/add' => array(
+        'controller' => 'Admin:Members@addAction'
+    ),
+
+    '/%s/module/members/edit/(:var)' => array(
+        'controller' => 'Admin:Members@editAction'
     ),
 
     '/%s/module/members/page/(:var)' => array(
