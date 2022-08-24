@@ -58,6 +58,27 @@ final class MemberManager extends AbstractManager implements MemberManagerInterf
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function getLastId()
+    {
+        return $this->memberMapper->getLastId();
+    }
+
+    /**
+     * Persists a member
+     * 
+     * @param array $input Raw input data
+     * @return boolean
+     */
+    public function save(array $input)
+    {
+        $input['confirmed'] = 1;
+
+        return $this->memberMapper->persist($input);
+    }
+
+    /**
      * Fetches member by id
      * 
      * @param string $id Member id
