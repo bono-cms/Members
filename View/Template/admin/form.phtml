@@ -1,0 +1,62 @@
+<?php
+
+use Krystal\Form\Element;
+
+?>
+
+<form class="card" data-group="member" autocomplete="off">
+    <?= Element::hidden('member[id]', $member->getId()); ?>
+
+    <div class="row">
+        <div class="col-lg-4">
+            <div class="form-group">
+                <label><?php $this->show('Name'); ?></label>
+                <?= Element::text('member[name]', $member->getName(), ['class' => 'form-control']); ?>
+            </div>
+        </div>
+        
+        <div class="col-lg-3">
+            <div class="form-group">
+                <label><?php $this->show('Phone'); ?></label>
+                <?= Element::text('member[phone]', $member->getPhone(), ['class' => 'form-control']); ?>
+            </div>
+        </div>
+        
+        <div class="col-lg-3">
+            <div class="form-group">
+                <label><?php $this->show('Email'); ?></label>
+                <?= Element::text('member[email]', $member->getEmail(), ['class' => 'form-control']); ?>
+            </div>
+        </div>
+    </div>
+
+    <div class="form-group">
+        <label><?php $this->show('Address'); ?></label>
+        <?= Element::textarea('member[address]', $member->getAddress(), ['class' => 'form-control']); ?>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="form-group">
+                <label><?php $this->show('Login'); ?></label>
+                <?= Element::text('member[login]', $member->getLogin(), ['class' => 'form-control']); ?>
+            </div>
+        </div>
+        
+        <div class="col-lg-6">
+            <div class="form-group">
+                <label><?php $this->show('Password'); ?></label>
+                <?= Element::text('member[password]', $member->getPassword(), ['class' => 'form-control']); ?>
+            </div>
+        </div>
+    </div>
+
+    <?php $this->loadPartial('actions', [
+        'new' => !$member->getId(),
+        'add' => 'Members:Admin:Members@addAction',
+        'edit' => 'Members:Admin:Members@editAction',
+        'save' => 'Members:Admin:Members@saveAction',
+        'cancel' => 'Members:Admin:Members@indexAction'
+    ]); ?>
+    
+</form>

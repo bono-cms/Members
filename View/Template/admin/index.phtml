@@ -8,6 +8,10 @@ defined('KRYSTAL') or die;
 
 ?>
 
+<p>
+    <a class="btn btn-primary" href="<?= $this->url('Members:Admin:Members@addAction'); ?>"><?= $this->translate('Add new member'); ?></a>
+</p>
+
 <div class="card">
     <?php $this->loadPartial('items-per-page', array('caption' => 'Members')); ?>
     <div class="table-responsive">
@@ -55,7 +59,14 @@ defined('KRYSTAL') or die;
             ),
 
             'actions' => array(
-                'remove' => function($member){
+                function($member){
+                    return Icon::edit(
+                        $this->url('Members:Admin:Members@editAction', $member->getId()),
+                        $this->translate('Edit this member')
+                    );
+                },
+
+                function($member){
                     return Icon::remove(
                         $this->url('Members:Admin:Members@deleteAction', $member->getId()),
                         $this->translate('Remove this member')
