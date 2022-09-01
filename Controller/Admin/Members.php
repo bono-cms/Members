@@ -86,11 +86,12 @@ final class Members extends AbstractController
     /**
      * Renders the grid
      * 
-     * @param integer $pageNumber Current page number
      * @return string
      */
-    public function indexAction($pageNumber = 1)
+    public function indexAction()
     {
+        $pageNumber = $this->request->getQuery('page', 1);
+
         // Append a breadcrumb
         $this->view->getBreadcrumbBag()
                    ->addOne('Members');
@@ -98,13 +99,9 @@ final class Members extends AbstractController
         $memberManager = $this->getModuleService('memberManager');
         $members = $memberManager->fetchAll($pageNumber, $this->getSharedPerPageCount());
 
-        // Configure pagination instance
-        $paginator = $memberManager->getPaginator();
-        $paginator->setUrl($this->createUrl('Members:Admin:Members@indexAction', array(), 1));
-
         return $this->view->render('index', array(
             'members' => $members,
-            'paginator' => $paginator
+            'paginator' => $memberManager->getPaginator()
         ));
     }
 

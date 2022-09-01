@@ -34,10 +34,6 @@ return array(
         'controller' => 'Admin:Members@editAction'
     ),
 
-    '/%s/module/members/page/(:var)' => array(
-        'controller' => 'Admin:Members@indexAction'
-    ),
-
     '/%s/module/members/delete/(:var)' => array(
         'controller' => 'Admin:Members@deleteAction'
     ),
