@@ -3,66 +3,60 @@
 /**
  * This file is part of the Bono CMS
  * 
- * Copyright (c) No Global State Lab
- * 
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code.
  */
 
-return array(
-    '/profile' => array(
+return [
+    '/profile' => [
         'controller' => 'Profile@indexAction'
-    ),
+    ],
 
-    '/profile/update' => array(
+    '/profile/update' => [
         'controller' => 'Profile@updateAction'
-    ),
+    ],
     
-    '/%s/module/members' => array(
+    '/%s/module/members' => [
         'controller' => 'Admin:Members@indexAction'
-    ),
+    ],
 
-    '/%s/module/members/save' => array(
+    '/%s/module/members/save' => [
         'controller' => 'Admin:Members@saveAction'
-    ),
+    ],
     
-    '/%s/module/members/add' => array(
+    '/%s/module/members/add' => [
         'controller' => 'Admin:Members@addAction'
-    ),
+    ],
 
-    '/%s/module/members/edit/(:var)' => array(
+    '/%s/module/members/edit/(:var)' => [
         'controller' => 'Admin:Members@editAction'
-    ),
+    ],
 
-    '/%s/module/members/delete/(:var)' => array(
+    '/%s/module/members/delete/(:var)' => [
         'controller' => 'Admin:Members@deleteAction'
-    ),
+    ],
     
-    '/confirm/(:var)' => array(
+    '/confirm/(:var)' => [
         'controller' => 'Register@confirmAction'
-    ),
+    ],
 
-    '/recovery' => array(
+    '/recovery' => [
         'controller' => 'Recovery@indexAction'
-    ),
+    ],
     
-    '/recovery/confirm/(:var)' => array(
+    '/recovery/confirm/(:var)' => [
         'controller' => 'Recovery@resetAction'
-    ),
+    ],
     
-    '/register' => array(
+    '/register' => [
         'controller' => 'Register@indexAction'
-    ),
+    ],
     
-    '/login' => array(
+    '/login' => [
         'controller' => 'Auth@indexAction'
-    ),
+    ],
 
-    '/logout' => array(
+    '/logout' => [
         'controller' => 'Auth@logoutAction'
-    ),
-    
-    '/recovery' => array(
-        'controller' => 'Recovery@indexAction'
-    )
-);
+    ]
+];

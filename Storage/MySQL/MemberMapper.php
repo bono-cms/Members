@@ -3,8 +3,6 @@
 /**
  * This file is part of the Bono CMS
  * 
- * Copyright (c) No Global State Lab
- * 
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code.
  */
@@ -107,7 +105,7 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
      */
     public function updatePassword($key, $password)
     {
-        return $this->db->update(self::getTableName(), array('password' => $password))
+        return $this->db->update(self::getTableName(), ['password' => $password])
                         ->whereEquals('key', $key)
                         ->andWhereEquals('confirmed', '1')
                         ->execute(true);
@@ -122,7 +120,7 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
      */
     public function updateKey($email, $key)
     {
-        return $this->db->update(self::getTableName(), array('key' => $key))
+        return $this->db->update(self::getTableName(), ['key' => $key])
                         ->whereEquals('email', $email)
                         ->andWhereEquals('confirmed', '1')
                         ->execute(true);
@@ -136,7 +134,7 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
      */
     public function confirm($key)
     {
-        return $this->db->update(self::getTableName(), array('confirmed' => '1'))
+        return $this->db->update(self::getTableName(), ['confirmed' => '1'])
                         ->whereEquals('key', $key)
                         ->execute(true);
     }

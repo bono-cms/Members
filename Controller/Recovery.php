@@ -3,15 +3,11 @@
 /**
  * This file is part of the Bono CMS
  * 
- * Copyright (c) No Global State Lab
- * 
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code.
  */
 
 namespace Members\Controller;
-
-use Krystal\Validate\Pattern;
 
 final class Recovery extends AbstractController
 {
@@ -40,9 +36,9 @@ final class Recovery extends AbstractController
         $memberManager = $this->getModuleService('memberManager');
         $password = $memberManager->resetPassword($key);
 
-        return $this->renderMessage('recovery-reset', array(
+        return $this->renderMessage('recovery-reset', [
             'password' => $password
-        ));
+        ]);
     }
 
     /**
@@ -66,9 +62,9 @@ final class Recovery extends AbstractController
      */
     private function sendConfirmationLink($email, $key)
     {
-        $body = $this->renderMessage('recovery-confirm', array(
-            'link' => $this->request->getBaseUrl() . $this->createUrl('Members:Recovery@resetAction', array($key))
-        ));
+        $body = $this->renderMessage('recovery-confirm', [
+            'link' => $this->request->getBaseUrl() . $this->createUrl('Members:Recovery@resetAction', [$key])
+        ]);
 
         $subject = $this->translator->translate('Please confirm password recovery');
         $mailer = $this->getService('Cms', 'mailer');
@@ -83,30 +79,35 @@ final class Recovery extends AbstractController
      */
     private function recoveryAction()
     {
-        $input = $this->request->getPost();
+        $validator = $this->createValidation();
 
-        $formValidator = $this->createValidator(array(
-            'input' => array(
-                'source' => $input,
-                'definition' => array(
-                    'email' => new Pattern\Email()
-                )
-            )
-        ));
+        $validator->field('email')
+                  ->required()
+                  ->addRule('email');
 
-        if ($formValidator->isValid()) {
+        if ($validator->isPassed()) {
+            $input = $this->request->getPost();
+
             $memberManager = $this->getModuleService('memberManager');
             $key = $memberManager->resetKey($input['email']);
 
             if ($key !== false) {
                 $this->sendConfirmationLink($input['email'], $key);
-                return 1;
+                return $this->json([
+                    'refresh' => true
+                ]);
             } else {
-                return 0;
+                return $this->json([
+                    'errors' => [
+                        'email' => 'No account was found with this email'
+                    ]
+                ]);
             }
 
         } else {
-            return $formValidator->getErrors();
+            return $this->json([
+                'errors' => $validator->getErrors()
+            ]);
         }
     }
 }

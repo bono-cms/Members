@@ -3,15 +3,11 @@
 /**
  * This file is part of the Bono CMS
  * 
- * Copyright (c) No Global State Lab
- * 
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code.
  */
 
 namespace Members\Controller;
-
-use Krystal\Validate\Pattern;
 
 final class Register extends AbstractController
 {
@@ -39,9 +35,9 @@ final class Register extends AbstractController
     {
         $memberManager = $this->getModuleService('memberManager');
 
-        return $this->renderMessage('confirmation', array(
+        return $this->renderMessage('confirmation', [
             'confirmed' => $memberManager->confirm($key)
-        ));
+        ]);
     }
 
     /**
@@ -63,7 +59,7 @@ final class Register extends AbstractController
     private function sendConfirmationCode(array $vars)
     {
         // Append confirmation URL
-        $vars['link'] = $this->request->getBaseUrl() . $this->createUrl('Members:Register@confirmAction', array($vars['key']));
+        $vars['link'] = $this->request->getBaseUrl() . $this->createUrl('Members:Register@confirmAction', [$vars['key']]);
 
         $body = $this->renderMessage('register', $vars);
         $subject = $this->translator->translate('Please confirm your account');
@@ -82,31 +78,45 @@ final class Register extends AbstractController
     {
         $input = $this->request->getPost();
 
-        $formValidator = $this->createValidator(array(
-            'input' => array(
-                'source' => $input,
-                'definition' => array(
-                    'name' => new Pattern\Name(),
-                    'email' => new Pattern\Email(),
-                    'password' => new Pattern\Password(),
-                    'password_confirm' => new Pattern\PasswordConfirmation($input['password'])
-                )
-            )
-        ));
+        $validator = $this->createValidation();
 
-        if ($formValidator->isValid()) {
+        $validator->field('name')
+                  ->required()
+                  ->addRule('minlength', null, ['min' => 2]);
+
+        $validator->field('email')
+                  ->required()
+                  ->addRule('email');
+
+        $validator->field('password')
+                  ->required()
+                  ->addRule('minlength', null, ['min' => 6]);
+
+        $validator->field('password_confirm')
+                  ->required()
+                  ->addRule('identity', null, ['value' => $input['password']]);
+
+        if ($validator->isPassed()) {
             $memberManager = $this->getModuleService('memberManager');
             $member = $memberManager->register($input);
 
             if ($member !== false) {
                 $this->sendConfirmationCode($member);
-                return 1;
+                return $this->json([
+                    'refresh' => true
+                ]);
             } else {
-                return 0;
+                return $this->json([
+                    'errors' => [
+                        'email' => 'An account with this email already exists'
+                    ]
+                ]);
             }
 
         } else {
-            return $formValidator->getErrors();
+            return $this->json([
+                'errors' => $validator->getErrors()
+            ]);
         }
     }
 }

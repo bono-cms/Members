@@ -3,8 +3,6 @@
 /**
  * This file is part of the Bono CMS
  * 
- * Copyright (c) No Global State Lab
- * 
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code.
  */
@@ -12,7 +10,6 @@
 namespace Members\Controller;
 
 use Site\Controller\AbstractController;
-use Krystal\Validate\Pattern;
 
 final class Auth extends AbstractController
 {
@@ -62,25 +59,34 @@ final class Auth extends AbstractController
      */
     private function loginAction()
     {
-        $input = $this->request->getPost();
+        $validator = $this->createValidation();
 
-        $formValidator = $this->createValidator(array(
-            'input' => array(
-                'source' => $input,
-                'definition' => array(
-                    'email' => new Pattern\Email(),
-                    'password' => new Pattern\Password()
-                )
-            )
-        ));
+        $validator->field('email')
+                  ->required()
+                  ->addRule('email');
 
-        if ($formValidator->isValid()) {
+        $validator->field('password')
+                  ->required();
+
+        if ($validator->isPassed()) {
+            $input = $this->request->getPost();
 
             $memberManager = $this->getModuleService('memberManager');
-            return $memberManager->login($input['email'], $input['password']) ? 1 : 0;
+
+            $success = $memberManager->login($input['email'], $input['password']);
+
+            return $success ? $this->json([
+                'refresh' => true
+            ]) : $this->json([
+                'errors' => [
+                    'email' => 'Invalid email or password'
+                ]
+            ]);
 
         } else {
-            return $formValidator->getErrors();
+            return $this->json([
+                'errors' => $validator->getErrors()
+            ]);
         }
     }
 }

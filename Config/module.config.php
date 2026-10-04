@@ -4,17 +4,17 @@
  * Module configuration container
  */
 
-return array(
+return [
     'name' => 'Members',
     'description' => 'This module lets you manage membership system on your site',
-    'menu' => array(
+    'menu' => [
         'name' => 'Members',
         'icon' => 'fas fa-users',
-        'items' => array(
-            array(
+        'items' => [
+            [
                 'route' => 'Members:Admin:Members@indexAction',
                 'name' => 'View all members'
-            )
-        )
-    )
-);
+            ]
+        ]
+    ]
+];

@@ -3,30 +3,28 @@
 /**
  * This file is part of the Bono CMS
  * 
- * Copyright (c) No Global State Lab
- * 
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code.
  */
 
 namespace Members\Service;
 
-final class SiteService implements SiteServiceInterface
+final class SiteService
 {
     /**
      * Member manager service
      * 
-     * @var \Members\Service\MemberManagerInterface
+     * @var \Members\Service\MemberManager
      */
     private $memberManager;
 
     /**
      * State initialization
      * 
-     * @param \Members\Service\MemberManagerInterface $memberManager
+     * @param \Members\Service\MemberManager $memberManager
      * @return void
      */
-    public function __construct(MemberManagerInterface $memberManager)
+    public function __construct(MemberManager $memberManager)
     {
         $this->memberManager = $memberManager;
     }

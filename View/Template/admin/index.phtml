@@ -13,52 +13,52 @@ defined('KRYSTAL') or die;
 </p>
 
 <div class="card">
-    <?php $this->loadPartial('items-per-page', array('caption' => 'Members')); ?>
+    <?php $this->loadPartial('items-per-page', ['caption' => 'Members']); ?>
     <div class="table-responsive">
-        <?= $this->widget(new GridViewWidget($members, array(
+        <?= $this->widget(new GridViewWidget($members, [
             'tableClass' => 'table table-hover table-bordered table-striped',
-            'rowAttributes' => array(
+            'rowAttributes' => [
                 'class' => function($member){
                     return $member->getConfirmed() ? null : 'table-warning';
                 }
-            ),
+            ],
 
-            'columns' => array(
-                array(
+            'columns' => [
+                [
                     'column' => 'id',
                     'label' => '#'
-                ),
+                ],
 
-                array(
+                [
                     'column' => 'name'
-                ),
+                ],
 
-                array(
+                [
                     'column' => 'email'
-                ),
+                ],
 
-                array(
+                [
                     'column' => 'login'
-                ),
+                ],
 
-                array(
+                [
                     'column' => 'phone'
-                ),
+                ],
 
-                array(
+                [
                     'column' => 'address'
-                ),
+                ],
 
-                array(
+                [
                     'column' => 'subscriber',
                     'translateable' => true,
                     'value' => function($member){
                         return $member->getSubscriber() ? 'Yes' : 'No';
                     }
-                )
-            ),
+                ]
+            ],
 
-            'actions' => array(
+            'actions' => [
                 function($member){
                     return Icon::edit(
                         $this->url('Members:Admin:Members@editAction', $member->getId()),
@@ -72,9 +72,9 @@ defined('KRYSTAL') or die;
                         $this->translate('Remove this member')
                     );
                 }
-            )
+            ]
 
-        ))); ?>
+        ])); ?>
 
         <?php if (empty($members)): ?>
         <div class="center-block">

@@ -3,8 +3,6 @@
 /**
  * This file is part of the Bono CMS
  * 
- * Copyright (c) No Global State Lab
- * 
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code.
  */
@@ -13,7 +11,6 @@ namespace Members\Controller;
 
 use Site\Controller\AbstractController;
 use Krystal\Stdlib\VirtualEntity;
-use Krystal\Validate\Pattern;
 
 final class Profile extends AbstractController
 {
@@ -34,10 +31,10 @@ final class Profile extends AbstractController
 
         $this->loadSitePlugins();
 
-        return $this->view->render('member-profile', array(
+        return $this->view->render('member-profile', [
             'page' => $page,
             'languages' => $this->getService('Cms', 'languageManager')->fetchAll(true),
-        ));
+        ]);
     }
 
     /**
@@ -48,27 +45,28 @@ final class Profile extends AbstractController
     public function updateAction()
     {
         if ($this->request->isPost()) {
-            $input = $this->request->getPost();
+            $validator = $this->createValidation();
 
-            $formValidator = $this->createValidator(array(
-                'input' => array(
-                    'source' => $input,
-                    'definition' => array(
-                        'name' => new Pattern\Name()
-                    )
-                )
-            ));
+            $validator->field('name')
+                      ->required()
+                      ->addRule('minlength', null, ['min' => 2]);
 
-            if ($formValidator->isValid()) {
+            if ($validator->isPassed()) {
+                $input = $this->request->getPost();
+
                 // Grab a service
                 $memberManager = $this->getModuleService('memberManager');
                 $memberManager->update($input);
 
                 $this->flashBag->set('success', 'Settings have been updated successfully');
-                return 1;
+                return $this->json([
+                    'refresh' => true
+                ]);
 
             } else {
-                return $formValidator->getErrors();
+                return $this->json([
+                    'errors' => $validator->getErrors()
+                ]);
             }
         }
     }
