@@ -4,8 +4,6 @@ use Krystal\Form\Element;
 use Krystal\Widget\GridView\GridViewWidget;
 use Cms\View\Icon;
 
-defined('KRYSTAL') or die;
-
 ?>
 
 <p>
@@ -78,7 +76,7 @@ defined('KRYSTAL') or die;
 
         <?php if (empty($members)): ?>
         <div class="center-block">
-            <h2 class="text-center text-muted"><i class="glyphicon glyphicon-remove"></i> <?php $this->show('No members'); ?></h2>
+            <h2 class="text-center text-muted"><i class="bi bi-x-circle"></i> <?= $this->translate('No members'); ?></h2>
         </div>
         <?php endif; ?>
     </div>
