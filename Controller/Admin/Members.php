@@ -15,9 +15,9 @@ use Krystal\Stdlib\VirtualEntity;
 final class Members extends AbstractController
 {
     /**
-     * Renders form
+     * Creates and renders the member form
      * 
-     * @param \Krystal\Stdlib\VirtualEntity $member
+     * @param \Krystal\Stdlib\VirtualEntity|array $member Base member entity or array of entities (one per language)
      * @return string
      */
     private function createForm($member)
@@ -25,7 +25,7 @@ final class Members extends AbstractController
         // Append a breadcrumb
         $this->view->getBreadcrumbBag()
                    ->addOne('Members', 'Members:Admin:Members@indexAction')
-                   ->addOne($member->getId() ? 'Update the member' : 'Add new member');
+                   ->addOne('Update the member');
 
         return $this->view->render('form', [
             'member' => $member
@@ -33,7 +33,7 @@ final class Members extends AbstractController
     }
 
     /**
-     * Adds a member
+     * Renders an empty form for a new member
      * 
      * @return string
      */
@@ -41,34 +41,52 @@ final class Members extends AbstractController
     {
         $member = new VirtualEntity();
         $member->setConfirmed(1);
+        $member->setTranslatable(true);
 
-        return $this->createForm($member);
+        // Append a breadcrumb
+        $this->view->getBreadcrumbBag()
+                   ->addOne('Members', 'Members:Admin:Members@indexAction')
+                   ->addOne('Add new member');
+
+        return $this->view->render('form', [
+            'member' => $member
+        ]);
     }
 
     /**
-     * Renders edit form
+     * Renders the edit form for an existing member
      * 
      * @param string $id Member id
-     * @return string
+     * @return string|boolean
      */
     public function editAction($id)
     {
-        $member = $this->getModuleService('memberManager')->fetchById($id);
+        $memberManager = $this->getModuleService('memberManager');
+        $member = $memberManager->fetchById($id, true);
 
-        if ($member !== false) {
-            return $this->createForm($member);
-        } else {
+        if ($member === false) {
             return false;
         }
+
+        // Append a breadcrumb
+        $this->view->getBreadcrumbBag()
+                   ->addOne('Members', 'Members:Admin:Members@indexAction')
+                   ->addOne('Update the member');
+
+        return $this->view->render('form', [
+            'member' => $member
+        ]);
     }
 
     /**
-     * Saves form data
+     * Persists member data (both base fields and translations)
      * 
-     * @return strings
+     * @return string
      */
     public function saveAction()
     {
+        $input = $this->request->getPost('member');
+
         $validator = $this->createValidation();
 
         $validator->field('member.name')
@@ -83,25 +101,26 @@ final class Members extends AbstractController
                   ->required();
 
         $validator->field('member.password')
-                  ->required(null, empty($this->request->getPost('member')['id']))
-                  ->addRule('minlength', null, ['min' => 3]);
+                  ->required(null, empty($input['id']))
+                  ->addRule('minlength', null, ['min' => 6]);
 
         if ($validator->isPassed()) {
-            $data = $this->request->getPost();
-
             $memberManager = $this->getModuleService('memberManager');
-            $memberManager->save($data['member']);
+            $memberManager->save($this->request->getPost());
 
-            $new = empty($data['member']['id']);
+            if (!empty($input['id'])) {
+                $this->flashBag->set('success', 'The element has been updated successfully');
 
-            $this->flashBag->set('success', $new ? 'Member profile has been registered successfully' : 'Member profile has been updated successfully');
+                return $this->json([
+                    'refresh' => true
+                ]);
+            } else {
+                $this->flashBag->set('success', 'The element has been created successfully');
 
-            return $new ? $this->json([
-                'redirect' => $this->createUrl('Members:Admin:Members@editAction', [$memberManager->getLastId()]),
-            ]) : $this->json([
-                'refresh' => true
-            ]);
-
+                return $this->json([
+                    'redirect' => $this->createUrl('Members:Admin:Members@editAction', [$memberManager->getLastId()])
+                ]);
+            }
         } else {
             return $this->json([
                 'errors' => $validator->getErrors()
@@ -110,7 +129,7 @@ final class Members extends AbstractController
     }
 
     /**
-     * Renders the grid
+     * Renders the members grid
      * 
      * @return string
      */
@@ -132,7 +151,7 @@ final class Members extends AbstractController
     }
 
     /**
-     * Deletes a member
+     * Deletes a member by their associated id
      * 
      * @param string $id Member id
      * @return string
@@ -143,6 +162,7 @@ final class Members extends AbstractController
         $memberManager->deleteById($id);
 
         $this->flashBag->set('success', 'Selected member has been removed successfully');
+
         return $this->json([
             'refresh' => true
         ]);

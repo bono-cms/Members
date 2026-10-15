@@ -9,114 +9,99 @@
 
 namespace Members\Controller;
 
+use Krystal\Stdlib\VirtualEntity;
+
 final class Register extends AbstractController
 {
     /**
-     * Renders register page
+     * Renders registration page or handles submission
      * 
      * @return string
      */
     public function indexAction()
     {
         if ($this->request->isPost()) {
-            return $this->registerAction();
-        } else {
-            return $this->formAction();
+            return $this->saveAction();
         }
+
+        $page = new VirtualEntity();
+        $page->setTitle($this->translator->translate('Registration'))
+             ->setSeo(false);
+
+        $this->loadSitePlugins();
+
+        return $this->view->render('member-register', [
+            'page' => $page,
+            'languages' => $this->getService('Cms', 'languageManager')->fetchAll(true)
+        ]);
     }
 
     /**
-     * Confirms an account
+     * Confirms user account by activation key
      * 
-     * @param string $key Confirmation key
+     * @param string $key
      * @return string
      */
     public function confirmAction($key)
     {
         $memberManager = $this->getModuleService('memberManager');
+        $confirmed = $memberManager->confirm($key);
 
         return $this->renderMessage('confirmation', [
-            'confirmed' => $memberManager->confirm($key)
+            'confirmed' => $confirmed
         ]);
     }
 
     /**
-     * Renders the form
+     * Handles member registration submission
      * 
      * @return string
      */
-    private function formAction()
+    private function saveAction()
     {
-        return $this->view->render('member-registration');
-    }
-
-    /**
-     * Sends confirmation code
-     * 
-     * @param array $vars
-     * @return boolean
-     */
-    private function sendConfirmationCode(array $vars)
-    {
-        // Append confirmation URL
-        $vars['link'] = $this->request->getBaseUrl() . $this->createUrl('Members:Register@confirmAction', [$vars['key']]);
-
-        $body = $this->renderMessage('register', $vars);
-        $subject = $this->translator->translate('Please confirm your account');
-
-        $mailer = $this->getService('Cms', 'mailer');
-
-        return $mailer->sendTo($vars['email'], $subject, $body);
-    }
-
-    /**
-     * Performs a registration
-     * 
-     * @return string
-     */
-    private function registerAction()
-    {
-        $input = $this->request->getPost();
-
         $validator = $this->createValidation();
 
-        $validator->field('name')
+        $validator->field('member.name')
                   ->required()
                   ->addRule('minlength', null, ['min' => 2]);
 
-        $validator->field('email')
+        $validator->field('member.email')
                   ->required()
                   ->addRule('email');
 
-        $validator->field('password')
+        $validator->field('member.login')
+                  ->required();
+
+        $validator->field('member.password')
                   ->required()
                   ->addRule('minlength', null, ['min' => 6]);
 
-        $validator->field('password_confirm')
-                  ->required()
-                  ->addRule('identity', null, ['value' => $input['password']]);
-
-        if ($validator->isPassed()) {
-            $memberManager = $this->getModuleService('memberManager');
-            $member = $memberManager->register($input);
-
-            if ($member !== false) {
-                $this->sendConfirmationCode($member);
-                return $this->json([
-                    'refresh' => true
-                ]);
-            } else {
-                return $this->json([
-                    'errors' => [
-                        'email' => 'An account with this email already exists'
-                    ]
-                ]);
-            }
-
-        } else {
+        if (!$validator->isPassed()) {
             return $this->json([
                 'errors' => $validator->getErrors()
             ]);
         }
+
+        $input = $this->request->getPost();
+        $memberManager = $this->getModuleService('memberManager');
+
+        if (!$memberManager->isFree($input['member']['email'])) {
+            return $this->json([
+                'errors' => [
+                    'member.email' => 'This email is already taken'
+                ]
+            ]);
+        }
+
+        // New registrations default to unconfirmed
+        $input['member']['confirmed'] = '0';
+        $input['member']['subscriber'] = '0';
+
+        // Pass the whole payload so translations are persisted too
+        $memberManager->save($input);
+
+        return $this->json([
+            'success' => 'Registration successful. Please check your email to confirm your account.'
+        ]);
     }
 }

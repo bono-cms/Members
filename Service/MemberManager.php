@@ -9,296 +9,305 @@
 
 namespace Members\Service;
 
-use Members\Storage\MemberMapperInterface;
-use Krystal\Session\SessionBagInterface;
-use Krystal\Stdlib\ArrayUtils;
+use Krystal\Application\Model\AbstractService;
 use Krystal\Stdlib\VirtualEntity;
-use Cms\Service\AbstractManager;
+use Members\Storage\MySQL\MemberMapper;
+use Members\Storage\MySQL\MemberTranslationMapper;
 
-final class MemberManager extends AbstractManager
+final class MemberManager extends AbstractService
 {
     /**
-     * Any compliant member mapper
+     * Member mapper
      * 
-     * @var \Members\Storage\MemberMapperInterface
+     * @var \Members\Storage\MySQL\MemberMapper
      */
-    private $memberMapper;
+    private $mapper;
+
+    /**
+     * Member translation mapper
+     * 
+     * @var \Members\Storage\MySQL\MemberTranslationMapper
+     */
+    private $translationMapper;
+
+    /**
+     * Session bag component
+     * 
+     * @var mixed
+     */
+    private $sessionBag;
 
     /**
      * State initialization
      * 
-     * @param \Members\Storage\MemberMapperInterface $memberMapper
-     * @param \Krystal\Session\SessionBagInterface $sessionBag
+     * @param \Members\Storage\MySQL\MemberMapper $mapper
+     * @param \Members\Storage\MySQL\MemberTranslationMapper $translationMapper
+     * @param mixed $sessionBag
      * @return void
      */
-    public function __construct(MemberMapperInterface $memberMapper, SessionBagInterface $sessionBag)
+    public function __construct(MemberMapper $mapper, MemberTranslationMapper $translationMapper, $sessionBag)
     {
-        $this->memberMapper = $memberMapper;
+        $this->mapper = $mapper;
+        $this->translationMapper = $translationMapper;
         $this->sessionBag = $sessionBag;
     }
 
     /**
-     * {@inheritDoc}
+     * Converts a database row into a Member entity object.
+     * Excludes password hash for security.
+     *
+     * @param array $row
+     * @return \Krystal\Stdlib\VirtualEntity
      */
-    protected function toEntity(array $row)
+    protected function toEntity(array $row): VirtualEntity
     {
-        $entity = new VirtualEntity();
-        $entity->setId($row['id'], VirtualEntity::FILTER_INT)
-               ->setName($row['name'], VirtualEntity::FILTER_TAGS)
-               ->setEmail($row['email'], VirtualEntity::FILTER_TAGS)
-               ->setLogin($row['login'], VirtualEntity::FILTER_TAGS)
-               ->setPhone($row['phone'], VirtualEntity::FILTER_TAGS)
-               ->setAddress($row['address'])
-               ->setSubscriber($row['subscriber'], VirtualEntity::FILTER_BOOL)
-               ->setConfirmed($row['confirmed'], VirtualEntity::FILTER_BOOL);
+        $member = new VirtualEntity();
+        $member->setId((int) $row['id'])
+               ->setName($row['name'])
+               ->setEmail($row['email'])
+               ->setLogin($row['login'])
+               ->setPhone(isset($row['phone']) ? $row['phone'] : null)
+               ->setCountry(isset($row['country']) ? $row['country'] : null)
+               ->setAddress(isset($row['address']) ? $row['address'] : null)
+               ->setAvatar(isset($row['avatar']) ? $row['avatar'] : null)
+               ->setSubscriber(isset($row['subscriber']) ? $row['subscriber'] : null)
+               ->setConfirmed(isset($row['confirmed']) ? $row['confirmed'] : null)
+               ->setCreatedAt(isset($row['created_at']) ? $row['created_at'] : null)
+               // Translation columns (present only when $withTranslations = true)
+               ->setLangId(isset($row['lang_id']) ? (int) $row['lang_id'] : 0)
+               ->setTitle(isset($row['title']) ? $row['title'] : null)
+               ->setCompany(isset($row['company']) ? $row['company'] : null)
+               ->setBio(isset($row['bio']) ? $row['bio'] : null);
 
-        return $entity;
+        return $member;
     }
 
     /**
-     * {@inheritDoc}
-     */
-    public function getLastId()
-    {
-        return $this->memberMapper->getLastId();
-    }
-
-    /**
-     * Persists a member
-     * 
-     * @param array $input Raw input data
-     * @return boolean
-     */
-    public function save(array $input)
-    {
-        $input['confirmed'] = 1;
-
-        return $this->memberMapper->persist($input);
-    }
-
-    /**
-     * Fetches member by id
-     * 
-     * @param string $id Member id
-     * @return string
-     */
-    public function fetchById($id)
-    {
-        return $this->prepareResult($this->memberMapper->findByPk($id));
-    }
-
-    /**
-     * Returns prepared paginator instance
-     * 
-     * @return \Krystal\Paginate\Paginator
-     */
-    public function getPaginator()
-    {
-        return $this->memberMapper->getPaginator();
-    }
-
-    /**
-     * Deletes a member by their associated id
-     * 
-     * @param string $id Member id
-     * @return string
-     */
-    public function deleteById($id)
-    {
-        return $this->memberMapper->deleteById($id);
-    }
-
-    /**
-     * Fetch all members
-     * 
-     * @param integer $pageNumber Page number
-     * @param integer $itemsPerPage Per page count
+     * Fetches all members with pagination.
+     *
+     * @param int $pageNumber
+     * @param int $itemsPerPage
      * @return array
      */
-    public function fetchAll($page, $itemsPerPage)
+    public function fetchAll($pageNumber, $itemsPerPage): array
     {
-        return $this->prepareResults($this->memberMapper->fetchAll($page, $itemsPerPage));
+        return $this->prepareResults($this->mapper->fetchAll($pageNumber, $itemsPerPage));
     }
 
     /**
-     * Updates a member
+     * Fetches member's entity by its associated ID
      * 
-     * @param array $input
-     * @return boolean
+     * @param string $id
+     * @param boolean $withTranslations Whether to fetch translations or not
+     * @return \Krystal\Stdlib\VirtualEntity|array|boolean
      */
-    public function update(array $input)
+    public function fetchById($id, $withTranslations = false)
     {
-        // There's no such field, so this one must be removed if present
-        if (isset($input['password_confirm'])) {
-            unset($input['password_confirm']);
-        }
-
-        // If password is empty, then it should not be updated
-        if (empty($input['password'])) {
-            unset($input['password']);
+        if ($withTranslations == true) {
+            return $this->prepareResults($this->mapper->fetchById($id, true));
         } else {
-            $input['password'] = sha1($input['password']);
+            return $this->prepareResult($this->mapper->findByPk($id));
         }
-
-        $id = $this->getMember('id');
-
-        // Update a profile
-        $this->memberMapper->updateProfile($id, $input);
-
-        // Update data in session as well
-        $this->sessionBag->set('member', $this->memberMapper->findByPk($id));
-
-        return true;
     }
 
     /**
-     * Logouts a member
+     * Saves a member record and its translations (insert or update).
      * 
-     * @return boolean
+     * @param array $input Full POST array with 'member' and 'translation' keys
+     * @return bool
+     */
+    public function save(array $input): bool
+    {
+        $data = isset($input['member']) ? $input['member'] : $input;
+        $translations = isset($input['translation']) ? $input['translation'] : [];
+
+        $data['subscriber'] = !empty($data['subscriber']) ? '1' : '0';
+        $data['confirmed']  = !empty($data['confirmed']) ? '1' : '0';
+
+        if (!empty($data['password'])) {
+            $data['password_hash'] = password_hash($data['password'], PASSWORD_DEFAULT);
+        }
+        unset($data['password']);
+
+        if (empty($data['id'])) {
+            $data['created_at'] = date('Y-m-d H:i:s');
+        }
+
+        return $this->mapper->saveEntity($data, $translations);
+    }
+
+    /**
+     * Updates an existing member profile.
+     *
+     * @param array $input
+     * @return bool
+     */
+    public function update(array $input): bool
+    {
+        $id = isset($input['id']) ? $input['id'] : $this->getMember('id');
+
+        if (!$id) {
+            return false;
+        }
+
+        if (!empty($input['password'])) {
+            $input['password_hash'] = password_hash($input['password'], PASSWORD_DEFAULT);
+        }
+        unset($input['password']);
+
+        return $this->mapper->updateProfile($id, $input);
+    }
+
+    /**
+     * Deletes a member and their translations by ID.
+     *
+     * @param int $id
+     * @return bool
+     */
+    public function deleteById($id): bool
+    {
+        return $this->mapper->deleteEntity($id);
+    }
+
+    /**
+     * Authenticates a member by identifier (email or login) and password.
+     *
+     * @param string $identifier
+     * @param string $password
+     * @return bool
+     */
+    public function login(string $identifier, string $password): bool
+    {
+        $row = $this->mapper->findByEmail($identifier);
+
+        if (!$row) {
+            $row = $this->mapper->findByLogin($identifier);
+        }
+
+        if ($row && password_verify($password, $row['password_hash'])) {
+            $this->sessionBag->set('member', [
+                'id' => $row['id'],
+                'name' => $row['name'],
+                'email' => $row['email'],
+                'login' => $row['login']
+            ]);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Logs out the current member.
+     *
+     * @return void
      */
     public function logout()
     {
-        if ($this->sessionBag->has('member')) {
-            $this->sessionBag->remove('member');
-            return true;
-        } else {
-            return false;
-        }
+        $this->sessionBag->remove('member');
     }
 
     /**
-     * Checks whether member is logged in
-     * 
-     * @return boolean
-     */ 
-    public function isLoggedIn()
+     * Checks whether a member is logged in.
+     *
+     * @return bool
+     */
+    public function isLoggedIn(): bool
     {
         return $this->sessionBag->has('member');
     }
 
     /**
-     * Returns member data
-     * 
-     * @param string $key Optional filtering key
-     * @return array|boolean
+     * Retrieves session data for the logged-in member.
+     *
+     * @param string|null $key
+     * @return mixed
      */
     public function getMember($key = null)
     {
-        if ($this->sessionBag->has('member')) {
-            $data = $this->sessionBag->get('member');
+        $member = $this->sessionBag->get('member');
 
-            if ($key === null) {
-                return $data;
-            } else {
-                return $data[$key];
-            }
-
-        } else {
-            return false;
+        if ($key === null) {
+            return $member;
         }
+
+        return isset($member[$key]) ? $member[$key] : null;
     }
 
     /**
-     * Attempts to login
-     * 
+     * Generates and stores a password recovery key for an email.
+     *
      * @param string $email
-     * @param string $password
-     * @return boolean
-     */
-    public function login($email, $password)
-    {
-        $row = $this->findMember($email, $password);
-
-        if (!empty($row)) {
-            $this->sessionBag->set('member', $row);
-            return true;
-        } else {
-            return false;
-        }
-    }
-
-    /**
-     * Finds a member
-     * 
-     * @param string $email
-     * @param string $password
-     * @return array
-     */
-    private function findMember($email, $password)
-    {
-        $password = sha1($password);
-        return $this->memberMapper->findMember($email, $password);
-    }
-
-    /**
-     * Confirms a member by their associated key
-     * 
-     * @param string $key
-     * @return boolean
-     */
-    public function confirm($key)
-    {
-        $count = $this->memberMapper->confirm($key);
-        return $count !== 0;
-    }
-
-    /**
-     * Resets a password
-     * 
-     * @param string $key
-     * @return string|boolean
-     */
-    public function resetPassword($key)
-    {
-        $password = uniqid();
-
-        if ($this->memberMapper->updatePassword($key, sha1($password)) != 0) {
-            return $password;
-        } else {
-            return false;
-        }
-    }
-
-    /**
-     * Resets the secure code by email
-     * 
-     * @param string $email
-     * @return string|boolean
+     * @return string|false
      */
     public function resetKey($email)
     {
-        // Create very unique key
-        $key = md5(uniqid());
+        $row = $this->mapper->findByEmail($email);
 
-        if ($this->memberMapper->updateKey($email, $key) != 0) {
-            return $key;
-        } else {
+        if (!$row) {
             return false;
         }
+
+        $key = md5(uniqid(rand(), true));
+        $affected = $this->mapper->updateKey($email, $key);
+
+        return $affected ? $key : false;
     }
 
     /**
-     * Registers a member
-     * 
-     * @param array $input
-     * @return array|boolean False if email already exists, array with meta data on success
+     * Resets a member's password using an activation key.
+     *
+     * @param string $key
+     * @return string|false New plain text password or false on failure
      */
-    public function register(array $input)
+    public function resetPassword($key)
     {
-        if ($this->memberMapper->isFree($input['email'])) {
-            // Create very unique key
-            $key = md5(uniqid());
+        $newPassword = substr(md5(uniqid(rand(), true)), 0, 8);
+        $hash = password_hash($newPassword, PASSWORD_DEFAULT);
+        $affected = $this->mapper->updatePasswordByKey($key, $hash);
 
-            unset($input['password_confirm']);
+        return $affected ? $newPassword : false;
+    }
 
-            $input['password'] = sha1($input['password']);
-            $input['key'] = $key;
-            $input['confirmed'] = '0'; // Not confirmed by default
+    /**
+     * Confirms a member account by activation key.
+     *
+     * @param string $key
+     * @return bool
+     */
+    public function confirm($key): bool
+    {
+        return (bool) $this->mapper->confirm($key);
+    }
 
-            return $this->memberMapper->persistRow($input);
+    /**
+     * Checks if an email is available for registration.
+     *
+     * @param string $email
+     * @return bool
+     */
+    public function isFree($email): bool
+    {
+        return $this->mapper->isFree($email);
+    }
 
-        } else {
-            return false;
-        }
+    /**
+     * Gets the last inserted record ID.
+     *
+     * @return int
+     */
+    public function getLastId()
+    {
+        return $this->mapper->getLastId();
+    }
+
+    /**
+     * Gets the paginator instance.
+     *
+     * @return mixed
+     */
+    public function getPaginator()
+    {
+        return $this->mapper->getPaginator();
     }
 }

@@ -1,5 +1,6 @@
 <?php
 
+use Krystal\Iso\ISO3166\Country;
 use Krystal\Form\Element;
 use Krystal\Widget\GridView\GridViewWidget;
 use Cms\View\Icon;
@@ -7,76 +8,127 @@ use Cms\View\Icon;
 ?>
 
 <p>
-    <a class="btn btn-primary" href="<?= $this->url('Members:Admin:Members@addAction'); ?>"><?= $this->translate('Add new member'); ?></a>
+    <a class="btn btn-primary" href="<?= $this->url('Members:Admin:Members@addAction'); ?>">
+        <i class="bi bi-person-plus"></i> <?= $this->translate('Add new member'); ?>
+    </a>
 </p>
 
 <div class="card">
     <?php $this->loadPartial('items-per-page', ['caption' => 'Members']); ?>
+
     <div class="table-responsive">
         <?= $this->widget(new GridViewWidget($members, [
-            'tableClass' => 'table table-hover table-bordered table-striped',
+            'tableClass' => 'table table-hover table-bordered table-striped align-middle',
             'rowAttributes' => [
-                'class' => function($member){
+                'class' => function ($member) {
                     return $member->getConfirmed() ? null : 'table-warning';
                 }
             ],
-
             'columns' => [
                 [
-                    'column' => 'id',
-                    'label' => '#'
+                    'column' => 'name',
+                    'label' => 'Member',
+                    'value' => function ($member) {
+                        $avatar = $member->getAvatar();
+                        $img = $avatar
+                            ? '<img src="' . htmlspecialchars($avatar) . '" class="rounded-circle me-2" style="width:28px;height:28px;object-fit:cover;" alt="">'
+                            : '<i class="bi bi-person-circle me-2 text-muted" style="font-size:28px;"></i>';
+
+                        $name = htmlspecialchars((string) $member->getName());
+                        if ($name === '') {
+                            $name = '<em class="text-muted">' . $this->translate('Unnamed') . '</em>';
+                        }
+
+                        return $img . $name;
+                    }
                 ],
 
                 [
-                    'column' => 'name'
+                    'column' => 'email',
+                    'value' => function ($member) {
+                        $email = (string) $member->getEmail();
+                        return Element::linkEmail($email);
+                    }
                 ],
 
                 [
-                    'column' => 'email'
+                    'column' => 'country',
+                    'value' => function ($member) {
+                        $code = $member->getCountry();
+                        if (!$code) {
+                            return '—';
+                        }
+
+                        return (new Country())->getCountryByCode($code);
+                    }
                 ],
 
                 [
-                    'column' => 'login'
-                ],
-
-                [
-                    'column' => 'phone'
-                ],
-
-                [
-                    'column' => 'address'
+                    'column' => 'confirmed',
+                    'label' => 'Status',
+                    'value' => function ($member) {
+                        if ($member->getConfirmed()) {
+                            return '<span class="badge bg-success">'
+                                 . $this->translate('Confirmed')
+                                 . '</span>';
+                        }
+                        return '<span class="badge bg-warning text-dark">'
+                             . $this->translate('Unconfirmed')
+                             . '</span>';
+                    }
                 ],
 
                 [
                     'column' => 'subscriber',
-                    'translateable' => true,
-                    'value' => function($member){
-                        return $member->getSubscriber() ? 'Yes' : 'No';
+                    'label' => 'Newsletter',
+                    'value' => function ($member) {
+                        return $member->getSubscriber()
+                            ? '<i class="bi bi-check-circle-fill text-success" title="'
+                                . $this->translate('Subscribed') . '"></i>'
+                            : '<i class="bi bi-dash-circle text-muted" title="'
+                                . $this->translate('Not subscribed') . '"></i>';
+                    }
+                ],
+
+                [
+                    'column' => 'created_at',
+                    'label' => 'Joined',
+                    'value' => function ($member) {
+                        $ts = $member->getCreatedAt();
+                        if (!$ts) {
+                            return '—';
+                        }
+
+                        return date('M j, Y', strtotime($ts));
                     }
                 ]
             ],
 
             'actions' => [
-                function($member){
+                function ($member) {
                     return Icon::edit(
                         $this->url('Members:Admin:Members@editAction', $member->getId()),
                         $this->translate('Edit this member')
                     );
                 },
 
-                function($member){
+                function ($member) {
                     return Icon::remove(
                         $this->url('Members:Admin:Members@deleteAction', $member->getId()),
                         $this->translate('Remove this member')
                     );
                 }
             ]
-
         ])); ?>
 
         <?php if (empty($members)): ?>
-        <div class="center-block">
-            <h2 class="text-center text-muted"><i class="bi bi-x-circle"></i> <?= $this->translate('No members'); ?></h2>
+        <div class="text-center py-5">
+            <i class="bi bi-people text-muted" style="font-size:3rem;"></i>
+            <h3 class="text-muted mt-3"><?= $this->translate('No members yet'); ?></h3>
+            <p class="text-muted"><?= $this->translate('Get started by adding your first member.'); ?></p>
+            <a class="btn btn-primary mt-2" href="<?= $this->url('Members:Admin:Members@addAction'); ?>">
+                <i class="bi bi-person-plus"></i> <?= $this->translate('Add new member'); ?>
+            </a>
         </div>
         <?php endif; ?>
     </div>

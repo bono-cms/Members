@@ -14,7 +14,7 @@ use Site\Controller\AbstractController;
 final class Auth extends AbstractController
 {
     /**
-     * Renders login page
+     * Renders login page or handles login submission
      * 
      * @return string
      */
@@ -22,13 +22,13 @@ final class Auth extends AbstractController
     {
         if ($this->request->isPost()) {
             return $this->loginAction();
-        } else {
-            return $this->formAction();
         }
+
+        return $this->formAction();
     }
 
     /**
-     * Log outs a member
+     * Logs out the current member and redirects to home
      * 
      * @return void
      */
@@ -41,14 +41,14 @@ final class Auth extends AbstractController
     }
 
     /**
-     * Renders the form
+     * Renders the login form
      * 
      * @return string
      */
     private function formAction()
     {
         return $this->view->render('member-login', [
-            'languages' => $this->getService('Cms', 'languageManager')->fetchAll(true),
+            'languages' => $this->getService('Cms', 'languageManager')->fetchAll(true)
         ]);
     }
 
@@ -61,32 +61,33 @@ final class Auth extends AbstractController
     {
         $validator = $this->createValidation();
 
-        $validator->field('email')
-                  ->required()
-                  ->addRule('email');
+        $validator->field('identifier')
+                  ->required();
 
         $validator->field('password')
                   ->required();
 
-        if ($validator->isPassed()) {
-            $input = $this->request->getPost();
-
-            $memberManager = $this->getModuleService('memberManager');
-
-            $success = $memberManager->login($input['email'], $input['password']);
-
-            return $success ? $this->json([
-                'refresh' => true
-            ]) : $this->json([
-                'errors' => [
-                    'email' => 'Invalid email or password'
-                ]
-            ]);
-
-        } else {
+        if (!$validator->isPassed()) {
             return $this->json([
                 'errors' => $validator->getErrors()
             ]);
         }
+
+        $input = $this->request->getPost();
+
+        $memberManager = $this->getModuleService('memberManager');
+        $success = $memberManager->login($input['identifier'], $input['password']);
+
+        if (!$success) {
+            return $this->json([
+                'errors' => [
+                    'identifier' => 'Invalid email or password'
+                ]
+            ]);
+        }
+
+        return $this->json([
+            'redirect' => $this->createUrl('Members:Profile@indexAction')
+        ]);
     }
 }

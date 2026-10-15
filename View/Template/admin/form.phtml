@@ -1,62 +1,288 @@
 <?php
 
 use Krystal\Form\Element;
+use Krystal\Security\Filter;
+use Krystal\Iso\ISO3166\Country;
+use Krystal\Stdlib\VirtualEntity;
+use Cms\Service\LanguageManager;
+
+$entity = isset($member[0]) ? $member[0] : $member;
+$isNew  = !$entity->getId();
 
 ?>
 
 <form class="card" autocomplete="off">
-    <?= Element::hidden('member[id]', $member->getId()); ?>
+    <?= Element::hidden('member[id]', $entity->getId()); ?>
 
-    <div class="row">
-        <div class="col-lg-4">
-            <div class="mb-3">
-                <label class="form-label"><?= $this->translate('Name'); ?></label>
-                <?= Element::text('member[name]', $member->getName(), ['class' => 'form-control']); ?>
-            </div>
-        </div>
-        
-        <div class="col-lg-3">
-            <div class="mb-3">
-                <label class="form-label"><?= $this->translate('Phone'); ?></label>
-                <?= Element::text('member[phone]', $member->getPhone(), ['class' => 'form-control']); ?>
-            </div>
-        </div>
-        
-        <div class="col-lg-3">
-            <div class="mb-3">
-                <label class="form-label"><?= $this->translate('Email'); ?></label>
-                <?= Element::text('member[email]', $member->getEmail(), ['class' => 'form-control']); ?>
-            </div>
-        </div>
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" role="tablist">
+            <li role="presentation" class="nav-item">
+                <a class="nav-link active" href="#account" role="tab" data-bs-toggle="tab">
+                    <i class="bi bi-person-badge"></i> <?= $this->translate('Account & Profile'); ?>
+                </a>
+            </li>
+
+            <?php foreach ($languages as $language): ?>
+            <li role="presentation" class="nav-item">
+                <a class="nav-link" href="#language-<?= $language->getId(); ?>" role="tab" data-bs-toggle="tab">
+                    <i class="bi bi-translate"></i> <?= $language->getName(); ?>
+                </a>
+            </li>
+            <?php endforeach; ?>
+
+            <li role="presentation" class="nav-item">
+                <a class="nav-link" href="#configuration" role="tab" data-bs-toggle="tab">
+                    <i class="bi bi-gear"></i> <?= $this->translate('Configuration'); ?>
+                </a>
+            </li>
+        </ul>
     </div>
 
-    <div class="mb-3">
-        <label class="form-label"><?= $this->translate('Address'); ?></label>
-        <?= Element::textarea('member[address]', $member->getAddress(), ['class' => 'form-control']); ?>
-    </div>
+    <div class="card-body tab-content">
+        <!-- Tab 1: Account & Personal Data -->
+        <div class="tab-pane fade show active" id="account" role="tabpanel">
+            <h5 class="mb-3 text-secondary">
+                <i class="bi bi-shield-lock"></i> <?= $this->translate('Credentials & Access'); ?>
+            </h5>
 
-    <div class="row">
-        <div class="col-lg-6">
-            <div class="mb-3">
-                <label class="form-label"><?= $this->translate('Login'); ?></label>
-                <?= Element::text('member[login]', $member->getLogin(), ['class' => 'form-control']); ?>
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Login'); ?></label>
+                <div class="col-lg-10">
+                    <div class="input-group">
+                        <?= Element::text('member[login]', $entity->getLogin(), [
+                            'class' => 'form-control',
+                            'placeholder' => $this->translate('Username'),
+                            'readonly' => !$isNew
+                        ]); ?>
+                        <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+                    </div>
+                    <?php if (!$isNew): ?>
+                    <small class="text-muted"><?= $this->translate('Login cannot be changed after creation.'); ?></small>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Email'); ?></label>
+                <div class="col-lg-10">
+                    <div class="input-group">
+                        <?= Element::text('member[email]', $entity->getEmail(), [
+                            'class' => 'form-control',
+                            'placeholder' => 'example@domain.com',
+                            'readonly' => !$isNew
+                        ]); ?>
+                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                    </div>
+                    <?php if (!$isNew): ?>
+                    <small class="text-muted"><?= $this->translate('Email cannot be changed after creation.'); ?></small>
+                    <?php endif; ?>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Name'); ?></label>
+                <div class="col-lg-10">
+                    <div class="input-group">
+                        <?= Element::text('member[name]', $entity->getName(), [
+                            'class' => 'form-control',
+                            'placeholder' => $this->translate('Full name')
+                        ]); ?>
+                        <span class="input-group-text"><i class="bi bi-pencil"></i></span>
+                    </div>
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <h5 class="mb-3 text-secondary">
+                <i class="bi bi-person-lines-fill"></i> <?= $this->translate('Personal Details'); ?>
+            </h5>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Phone'); ?></label>
+                <div class="col-lg-10">
+                    <div class="input-group">
+                        <?= Element::text('member[phone]', $entity->getPhone(), [
+                            'class' => 'form-control',
+                            'placeholder' => ''
+                        ]); ?>
+                        <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Country'); ?></label>
+                <div class="col-lg-10">
+                    <?= Element::select('member[country]', (new Country())->getAll(), $entity->getCountry(), [
+                        'class' => 'form-select',
+                        'data-live-search' => 'true'
+                    ], ''); ?>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Address'); ?></label>
+                <div class="col-lg-10">
+                    <?= Element::textarea('member[address]', $entity->getAddress(), [
+                        'class' => 'form-control',
+                        'rows' => 3,
+                        'placeholder' => $this->translate('Street, City, Postal code')
+                    ]); ?>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Avatar'); ?></label>
+                <div class="col-lg-10">
+                    <?php if ($entity->getAvatar()): ?>
+                    <div class="mb-2">
+                        <img src="<?= $entity->getAvatar(); ?>"
+                             class="img-thumbnail"
+                             style="max-height: 100px;"
+                             alt="<?= $this->translate('Current avatar'); ?>" />
+                    </div>
+                    <?php endif; ?>
+                    <div class="input-group">
+                        <?= Element::text('member[avatar]', $entity->getAvatar(), [
+                            'class' => 'form-control',
+                            'placeholder' => '/data/uploads/avatars/example.jpg'
+                        ]); ?>
+                        <span class="input-group-text"><i class="bi bi-image"></i></span>
+                    </div>
+                </div>
             </div>
         </div>
-        
-        <div class="col-lg-6">
-            <div class="mb-3">
-                <label class="form-label"><?= $this->translate('Password'); ?></label>
-                <?= Element::text('member[password]', $member->getPassword(), ['class' => 'form-control']); ?>
+
+        <!-- Tabs 2+: Multilingual Translations -->
+        <?php foreach ($languages as $language): ?>
+        <?php $translation = is_array($member) ? LanguageManager::findByLangId($language->getId(), $member): $member;
+
+        if ($translation === false || $translation === null) {
+            $translation = new VirtualEntity();
+        }
+        ?>
+
+        <div class="tab-pane fade" id="language-<?= $language->getId(); ?>" role="tabpanel">
+            <?= Element::hidden(sprintf('translation[%s][lang_id]', $language->getId()), $language->getId()); ?>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Title'); ?></label>
+                <div class="col-lg-10">
+                    <div class="input-group">
+                        <?= Element::text(
+                            sprintf('translation[%s][title]', $language->getId()),
+                            Filter::charsDecode($translation->getTitle()),
+                            ['class' => 'form-control', 'placeholder' => $this->translate('Professional title or headline')]
+                        ); ?>
+                        <span class="input-group-text"><i class="bi bi-pencil"></i></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Company'); ?></label>
+                <div class="col-lg-10">
+                    <div class="input-group">
+                        <?= Element::text(
+                            sprintf('translation[%s][company]', $language->getId()),
+                            Filter::charsDecode($translation->getCompany()),
+                            ['class' => 'form-control', 'placeholder' => $this->translate('Company or organization name')]
+                        ); ?>
+                        <span class="input-group-text"><i class="bi bi-building"></i></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Bio'); ?></label>
+                <div class="col-lg-10">
+                    <?= Element::textarea(
+                        sprintf('translation[%s][bio]', $language->getId()),
+                        $translation->getBio(),
+                        ['class' => 'form-control', 'rows' => 4, 'placeholder' => $this->translate('Short biography or summary')]
+                    ); ?>
+                </div>
+            </div>
+        </div>
+        <?php endforeach; ?>
+
+        <!-- Tab Last: Configuration & Status -->
+        <div class="tab-pane fade" id="configuration" role="tabpanel">
+            <h5 class="mb-3 text-secondary">
+                <i class="bi bi-sliders"></i> <?= $this->translate('Account Status & Settings'); ?>
+            </h5>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Confirmed'); ?></label>
+                <div class="col-lg-10">
+                    <div class="form-check form-switch mt-2">
+                        <?= Element::checkbox('member[confirmed]', $entity->getConfirmed(), [
+                            'class' => 'form-check-input',
+                            'id' => 'member_confirmed'
+                        ]); ?>
+                        <label class="form-check-label" for="member_confirmed">
+                            <?= $this->translate('Account is confirmed and active'); ?>
+                        </label>
+                    </div>
+                    <small class="text-muted">
+                        <?= $this->translate('Unconfirmed members cannot log in or recover their password.'); ?>
+                    </small>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Subscriber'); ?></label>
+                <div class="col-lg-10">
+                    <div class="form-check form-switch mt-2">
+                        <?= Element::checkbox('member[subscriber]', $entity->getSubscriber(), [
+                            'class' => 'form-check-input',
+                            'id' => 'member_subscriber'
+                        ]); ?>
+                        <label class="form-check-label" for="member_subscriber">
+                            <?= $this->translate('Subscribed to newsletter'); ?>
+                        </label>
+                    </div>
+                    <small class="text-muted">
+                        <?= $this->translate('Only applies if a newsletter module is enabled.'); ?>
+                    </small>
+                </div>
+            </div>
+
+            <hr class="my-4">
+
+            <h5 class="mb-3 text-secondary">
+                <i class="bi bi-key"></i> <?= $this->translate('Password'); ?>
+            </h5>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('New password'); ?></label>
+                <div class="col-lg-10">
+                    <div class="input-group">
+                        <?= Element::password('member[password]', '', [
+                            'class' => 'form-control',
+                            'minlength' => 6,
+                            'placeholder' => $isNew
+                                ? $this->translate('Enter password (min 6 chars)')
+                                : $this->translate('Leave blank to keep current password')
+                        ]); ?>
+                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                    </div>
+                    <?php if (!$isNew): ?>
+                    <small class="text-muted">
+                        <?= $this->translate('Leave blank to keep the current password unchanged.'); ?>
+                    </small>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
     </div>
 
     <?php $this->loadPartial('actions', [
-        'new' => !$member->getId(),
+        'new' => $isNew,
         'add' => 'Members:Admin:Members@addAction',
         'edit' => 'Members:Admin:Members@editAction',
         'save' => 'Members:Admin:Members@saveAction',
         'cancel' => 'Members:Admin:Members@indexAction'
     ]); ?>
-    
 </form>

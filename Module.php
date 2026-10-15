@@ -21,7 +21,8 @@ final class Module extends AbstractCmsModule
     public function getServiceProviders()
     {
         $memberManager = new MemberManager(
-            $this->getMapper('/Members/Storage/MySQL/MemberMapper'), 
+            $this->getMapper('/Members/Storage/MySQL/MemberMapper'),
+            $this->getMapper('/Members/Storage/MySQL/MemberTranslationMapper'),
             $this->getServiceLocator()->get('sessionBag')
         );
 

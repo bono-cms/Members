@@ -1,0 +1,126 @@
+<?php
+
+use Krystal\Form\Element;
+use Krystal\Iso\ISO3166\Country;
+use Cms\Service\LanguageManager;
+
+$entity = isset($member[0]) ? $member[0] : $member;
+
+?>
+
+<form class="card" autocomplete="off" id="profile-form">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" role="tablist">
+            <li role="presentation" class="nav-item">
+                <a class="nav-link active" href="#data" role="tab" data-bs-toggle="tab">
+                    <i class="bi bi-person"></i> <?= $this->translate('Data'); ?>
+                </a>
+            </li>
+
+            <?php foreach ($languages as $language): ?>
+            <li role="presentation" class="nav-item">
+                <a class="nav-link" href="#language-<?= $language->getId(); ?>" role="tab" data-bs-toggle="tab">
+                    <i class="bi bi-translate"></i> <?= $language->getName(); ?>
+                </a>
+            </li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+
+    <div class="card-body tab-content">
+        <div class="tab-pane fade show active" id="data" role="tabpanel">
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Name'); ?></label>
+                <div class="col-lg-10">
+                    <div class="input-group">
+                        <?= Element::text('member[name]', $entity->getName(), ['class' => 'form-control']); ?>
+                        <span class="input-group-text"><i class="bi bi-pencil"></i></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Phone'); ?></label>
+                <div class="col-lg-10">
+                    <div class="input-group">
+                        <?= Element::text('member[phone]', $entity->getPhone(), ['class' => 'form-control']); ?>
+                        <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Country'); ?></label>
+                <div class="col-lg-10">
+                    <?= Element::select('member[country]', (new Country())->getAll(), $entity->getCountry(), ['class' => 'form-select'], true); ?>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Address'); ?></label>
+                <div class="col-lg-10">
+                    <?= Element::textarea('member[address]', $entity->getAddress(), ['class' => 'form-control', 'rows' => 3]); ?>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Avatar'); ?></label>
+                <div class="col-lg-10">
+                    <div class="input-group">
+                        <?= Element::text('member[avatar]', $entity->getAvatar(), ['class' => 'form-control', 'placeholder' => '/data/uploads/avatars/example.jpg']); ?>
+                        <span class="input-group-text"><i class="bi bi-image"></i></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('New password'); ?></label>
+                <div class="col-lg-10">
+                    <div class="input-group">
+                        <?= Element::password('member[password]', '', ['class' => 'form-control', 'placeholder' => $this->translate('Leave blank to keep current password')]); ?>
+                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <?php foreach ($languages as $language): ?>
+        <?php $translation = is_array($member) ? LanguageManager::findByLangId($language->getId(), $member) : $member; ?>
+
+        <div class="tab-pane fade" id="language-<?= $language->getId(); ?>" role="tabpanel">
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Title'); ?></label>
+                <div class="col-lg-10">
+                    <div class="input-group">
+                        <?= Element::text(sprintf('translation[%s][title]', $language->getId()), $translation->getTitle(), ['class' => 'form-control']); ?>
+                        <span class="input-group-text"><i class="bi bi-pencil"></i></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Company'); ?></label>
+                <div class="col-lg-10">
+                    <div class="input-group">
+                        <?= Element::text(sprintf('translation[%s][company]', $language->getId()), $translation->getCompany(), ['class' => 'form-control']); ?>
+                        <span class="input-group-text"><i class="bi bi-building"></i></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Bio'); ?></label>
+                <div class="col-lg-10">
+                    <?= Element::textarea(sprintf('translation[%s][bio]', $language->getId()), $translation->getBio(), ['class' => 'form-control', 'rows' => 4]); ?>
+                </div>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+
+    <div class="card-footer">
+        <button type="submit" class="btn btn-primary" data-button="save" data-url="<?= $this->url('Members:Profile@updateAction'); ?>">
+            <i class="bi bi-save"></i> <?= $this->translate('Save changes'); ?>
+        </button>
+    </div>
+</form>

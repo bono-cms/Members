@@ -19,7 +19,8 @@ final class Dropper extends AbstractStorageDropper
     protected function getTables()
     {
         return [
-            MemberMapper::getTableName()
+            MemberMapper::getTableName(),
+            MemberTranslationMapper::getTableName()
         ];
     }
 }
