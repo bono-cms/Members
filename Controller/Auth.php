@@ -9,6 +9,8 @@
 
 namespace Members\Controller;
 
+use Krystal\Stdlib\VirtualEntity;
+
 final class Auth extends AbstractController
 {
     /**
@@ -22,7 +24,13 @@ final class Auth extends AbstractController
             return $this->loginAction();
         }
 
-        return $this->view->render('member-login');
+        $page = new VirtualEntity();
+        $page->setTitle($this->translator->translate('Login'))
+             ->setSeo(false);
+
+        return $this->view->render('member-login', [
+            'page' => $page
+        ]);
     }
 
     /**

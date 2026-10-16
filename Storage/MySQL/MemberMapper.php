@@ -199,9 +199,7 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
      */
     public function updatePasswordByKey($key, $passwordHash)
     {
-        $db = $this->db->update(self::getTableName(), [
-            'password_hash' => $passwordHash
-        ])
+        $db = $this->db->update(self::getTableName(), ['password_hash' => $passwordHash])
                        ->whereEquals('activation_key', $key)
                        ->andWhereEquals('confirmed', '1');
 
@@ -217,9 +215,7 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
      */
     public function updateKey($email, $key)
     {
-        $db = $this->db->update(self::getTableName(), [
-            'activation_key' => $key
-        ])
+        $db = $this->db->update(self::getTableName(), ['activation_key' => $key])
                        ->whereEquals('email', $email)
                        ->andWhereEquals('confirmed', '1');
 
