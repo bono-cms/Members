@@ -29,8 +29,7 @@ final class Register extends AbstractController
              ->setSeo(false);
 
         return $this->view->render('member-register', [
-            'page' => $page,
-            'languages' => $this->getService('Cms', 'languageManager')->fetchAll(true)
+            'page' => $page
         ]);
     }
 

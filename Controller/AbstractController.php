@@ -20,15 +20,18 @@ abstract class AbstractController extends SiteController
     {
         parent::bootstrap($action);
 
-        $this->loadSitePlugins();
+        // View is required only for GET request
+        if ($this->request->isGet()) {
+            $this->loadSitePlugins();
 
-        $this->view->setModule($this->moduleName)
-                   ->setTheme('site');
-        
-        $this->view->addVariables([
-            'languages' => $this->getService('Cms', 'languageManager')->fetchAll(true),
-            'isLoggedIn' => $this->getModuleService('memberManager')->isLoggedIn()
-        ]);
+            $this->view->setModule($this->moduleName)
+                       ->setTheme('site');
+            
+            $this->view->addVariables([
+                'languages' => $this->getService('Cms', 'languageManager')->fetchAll(true),
+                'isLoggedIn' => $this->getModuleService('memberManager')->isLoggedIn()
+            ]);
+        }
     }
     
     /**
