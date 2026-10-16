@@ -80,8 +80,14 @@ final class Auth extends AbstractController
             ]);
         }
 
+        // Honor the intended destination stashed by AuthRequiredMiddleware,
+        // falling back to the profile page on a direct login.
+        $redirect = $this->sessionBag->has('login_redirect')
+            ? $this->sessionBag->getFlashed('login_redirect')
+            : $this->createUrl('Members:Profile@indexAction');
+
         return $this->json([
-            'redirect' => $this->createUrl('Members:Profile@indexAction')
+            'redirect' => $redirect
         ]);
     }
 }

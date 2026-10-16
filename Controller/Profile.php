@@ -21,21 +21,7 @@ final class Profile extends AbstractController
     public function indexAction()
     {
         $memberManager = $this->getModuleService('memberManager');
-
-        if (!$memberManager->isLoggedIn()) {
-            $this->sessionBag->set('login_redirect', $this->request->getUri());
-            $this->response->redirect($this->createUrl('Members:Auth@indexAction'));
-            return null;
-        }
-
-        $memberId = $memberManager->getMember('id');
-        $member = $memberManager->fetchById($memberId);
-
-        if ($member === false) {
-            $memberManager->logout();
-            $this->response->redirect($this->createUrl('Members:Auth@indexAction'));
-            return null;
-        }
+        $member = $memberManager->fetchById($memberManager->getMember('id'));
 
         $page = new VirtualEntity();
         $page->setTitle($this->translator->translate('My account'))
@@ -55,21 +41,7 @@ final class Profile extends AbstractController
     public function editAction()
     {
         $memberManager = $this->getModuleService('memberManager');
-
-        if (!$memberManager->isLoggedIn()) {
-            $this->sessionBag->set('login_redirect', $this->request->getUri());
-            $this->response->redirect($this->createUrl('Members:Auth@indexAction'));
-            return null;
-        }
-
-        $memberId = $memberManager->getMember('id');
-        $member = $memberManager->fetchById($memberId, true);
-
-        if ($member === false) {
-            $memberManager->logout();
-            $this->response->redirect($this->createUrl('Members:Auth@indexAction'));
-            return null;
-        }
+        $member = $memberManager->fetchById($memberManager->getMember('id'), true);
 
         $page = new VirtualEntity();
         $page->setTitle($this->translator->translate('Edit profile'))
@@ -93,12 +65,6 @@ final class Profile extends AbstractController
         }
 
         $memberManager = $this->getModuleService('memberManager');
-
-        if (!$memberManager->isLoggedIn()) {
-            $this->flashBag->set('danger', $this->translator->translate('You must be logged in to update your profile'));
-            $this->response->redirect($this->createUrl('Members:Auth@indexAction'));
-            return null;
-        }
 
         $input = $this->request->getPost();
 

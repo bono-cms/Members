@@ -8,6 +8,7 @@
  */
 
 use Members\Middleware\GuestOnlyMiddleware;
+use Members\Middleware\AuthRequiredMiddleware;
 
 return [
     // Admin area
@@ -33,15 +34,18 @@ return [
 
     // Site area
     '/member/profile' => [
-        'controller' => 'Profile@indexAction'
+        'controller' => 'Profile@indexAction',
+        'middleware' => [AuthRequiredMiddleware::class]
     ],
 
     '/member/profile/edit' => [
-        'controller' => 'Profile@editAction'
+        'controller' => 'Profile@editAction',
+        'middleware' => [AuthRequiredMiddleware::class]
     ],
 
     '/member/profile/update' => [
-        'controller' => 'Profile@updateAction'
+        'controller' => 'Profile@updateAction',
+        'middleware' => [AuthRequiredMiddleware::class]
     ],
     
     // Recovery
@@ -78,7 +82,8 @@ return [
     ],
 
     '/member/register/resend' => [
-        'controller' => 'Register@resendAction'
+        'controller' => 'Register@resendAction',
+        'middleware' => [AuthRequiredMiddleware::class]
     ],
     
     // Auth

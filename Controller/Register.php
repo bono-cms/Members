@@ -73,26 +73,17 @@ final class Register extends AbstractController
     /**
      * Re-sends the confirmation email to the currently logged-in member
      * 
-     * Requires an authenticated session. A fresh activation key is
-     * generated on each call so that stale or lost keys from a previous
-     * registration attempt do not silently break the flow. Redirects to
-     * the profile page when the account is already confirmed, or when
-     * the visitor is not logged in.
+     * Authentication and existence of the member row are guaranteed by
+     * AuthRequiredMiddleware (see Config/routes.php).
      * 
      * @return void
      */
     public function resendAction()
     {
         $memberManager = $this->getModuleService('memberManager');
+        $member = $memberManager->fetchById($memberManager->getMember('id'));
 
-        if (!$memberManager->isLoggedIn()) {
-            return $this->response->redirect($this->createUrl('Members:Auth@indexAction'));
-        }
-
-        $memberId = $memberManager->getMember('id');
-        $member = $memberManager->fetchById($memberId);
-
-        if ($member === false || $member->getConfirmed()) {
+        if ($member->getConfirmed()) {
             $this->flashBag->set('info', $this->translator->translate('Your account is already confirmed.'));
             return $this->response->redirect($this->createUrl('Members:Profile@indexAction'));
         }
@@ -100,7 +91,7 @@ final class Register extends AbstractController
         // Generate a fresh key (old one might have been lost)
         $key = md5(uniqid(rand(), true));
 
-        $memberManager->refreshActivationKey($memberId, $key);
+        $memberManager->refreshActivationKey($member->getId(), $key);
 
         $this->sendConfirmationEmail(
             $member->getEmail(),
