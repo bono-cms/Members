@@ -14,6 +14,24 @@ use Site\Controller\AbstractController as SiteController;
 abstract class AbstractController extends SiteController
 {
     /**
+     * {@inheritDoc}
+     */
+    protected function bootstrap($action)
+    {
+        parent::bootstrap($action);
+
+        $this->loadSitePlugins();
+
+        $this->view->setModule($this->moduleName)
+                   ->setTheme('site');
+        
+        $this->view->addVariables([
+            'languages' => $this->getService('Cms', 'languageManager')->fetchAll(true),
+            'isLoggedIn' => $this->getModuleService('memberManager')->isLoggedIn()
+        ]);
+    }
+    
+    /**
      * Renders a message
      * 
      * @param string $template
