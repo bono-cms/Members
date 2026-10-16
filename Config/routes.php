@@ -81,6 +81,11 @@ return [
         'middleware' => [GuestOnlyMiddleware::class]
     ],
 
+    '/member/register/submit' => [
+        'controller' => 'Register@saveAction',
+        'middleware' => [GuestOnlyMiddleware::class]
+    ],
+
     '/member/register/confirm/(:var)' => [
         'controller' => 'Register@confirmAction'
     ],

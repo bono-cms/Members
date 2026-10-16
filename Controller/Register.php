@@ -20,10 +20,6 @@ final class Register extends AbstractController
      */
     public function indexAction()
     {
-        if ($this->request->isPost()) {
-            return $this->saveAction();
-        }
-
         $page = new VirtualEntity();
         $page->setTitle($this->translator->translate('Registration'))
              ->setSeo(false);
@@ -108,7 +104,7 @@ final class Register extends AbstractController
      * 
      * @return string
      */
-    private function saveAction()
+    public function saveAction()
     {
         $memberManager = $this->getModuleService('memberManager');
 
