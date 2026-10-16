@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="<?= $locale; ?>">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="csrf-token" content="<?= $csrfToken ?>">
+
+    <title><?= $page->getTitle(); ?></title>
+
+    <?php if ($page->getMetaDescription()): ?>
+    <meta name="description" content="<?= $page->getMetaDescription(); ?>">
+    <?php endif; ?>
+
+    <?php if ($page->getMetaKeywords()): ?>
+    <meta name="keywords" content="<?= $page->getMetaKeywords(); ?>">
+    <?php endif; ?>
+
+    <?php if ($page->getSeo() === false): ?>
+    <meta name="robots" content="noindex, nofollow">
+    <?php endif; ?>
+
+    <?php foreach ($this->getPluginBag()->getStylesheets() as $stylesheet): ?>
+    <link rel="stylesheet" media="screen" href="<?= $stylesheet ?>"  />
+    <?php endforeach; ?>
+</head>
+
+<body class="bg-body-tertiary d-flex flex-column min-vh-100">
+<header class="bg-white border-bottom">
+    <nav class="navbar navbar-expand-md container">
+        <a class="navbar-brand fw-semibold" href="<?= $this->url('home'); ?>">
+            <i class="bi bi-people-fill me-1"></i>
+            <?= isset($siteName) && $siteName ? $siteName : $this->translate('Members Area'); ?>
+        </a>
+
+        <button class="navbar-toggler" type="button"
+                data-bs-toggle="collapse" data-bs-target="#membersNav"
+                aria-controls="membersNav" aria-expanded="false"
+                aria-label="<?= $this->translate('Toggle navigation'); ?>">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+
+        <div class="collapse navbar-collapse" id="membersNav">
+            <ul class="navbar-nav ms-auto">
+                <?php if ($isLoggedIn): ?>
+                    <li class="nav-item">
+                        <a class="nav-link" href="<?= $this->url('Members:Profile@indexAction'); ?>">
+                            <i class="bi bi-person-circle"></i>
+                            <?= $this->translate('My profile'); ?>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="<?= $this->url('Members:Auth@logoutAction'); ?>">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <?= $this->translate('Logout'); ?>
+                        </a>
+                    </li>
+                <?php else: ?>
+                    <li class="nav-item">
+                        <a class="nav-link" href="<?= $this->url('Members:Auth@indexAction'); ?>">
+                            <i class="bi bi-box-arrow-in-right"></i>
+                            <?= $this->translate('Login'); ?>
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link" href="<?= $this->url('Members:Register@indexAction'); ?>">
+                            <i class="bi bi-person-plus"></i>
+                            <?= $this->translate('Register'); ?>
+                        </a>
+                    </li>
+                <?php endif; ?>
+            </ul>
+        </div>
+    </nav>
+</header>
+
+<?php $this->loadPartialIfPossible('flash-messages'); ?>
+
+<main class="flex-grow-1 d-flex justify-content-center align-items-start py-5">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="<?= !empty($wide) ? 'col-12' : 'col-12 col-md-8 col-lg-6 col-xl-5'; ?>">
+                <?= $fragment; ?>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer class="flex-shrink-0 py-4 text-center text-body-secondary small">
+    <div class="container">
+        <?= date('Y'); ?> &copy;
+        <?= isset($siteName) && $siteName ? $siteName : $this->translate('Members Area'); ?>
+        — <?= $this->translate('All rights reserved.'); ?>
+    </div>
+</footer>
+
+<?php foreach ($this->getPluginBag()->getScripts() as $script): ?>
+<script src="<?= $script ?>"></script>
+<?php endforeach; ?>
+
+</body>
+</html>
