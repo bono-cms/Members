@@ -1,0 +1,77 @@
+<?php
+
+use Krystal\Stdlib\VirtualEntity;
+
+?>
+
+<div class="row g-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body p-4">
+                <div class="d-flex align-items-center gap-3">
+                    <?php if ($member->getAvatar()): ?>
+                    <img src="<?= $member->getAvatar(); ?>" class="rounded-circle" style="width:64px;height:64px;object-fit:cover;" alt="">
+                    <?php else: ?>
+                    <i class="bi bi-person-circle text-body-secondary" style="font-size:64px;"></i>
+                    <?php endif; ?>
+
+                    <div>
+                        <h1 class="h4 mb-1">
+                            <?= $this->translate('Hello, %s', $member->getName()); ?>
+                        </h1>
+                        <p class="text-body-secondary mb-0">
+                            <?= $member->getEmail(); ?>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-person-badge text-primary"></i>
+                    <?= $this->translate('Profile'); ?>
+                </h5>
+                <p class="text-body-secondary">
+                    <?= $this->translate('View and update your personal details, contact information, and public profile.'); ?>
+                </p>
+                <a href="<?= $this->url('Members:Profile@editAction'); ?>" class="btn btn-outline-primary">
+                    <i class="bi bi-pencil"></i>
+                    <?= $this->translate('Edit profile'); ?>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title">
+                    <i class="bi bi-shield-lock text-primary"></i>
+                    <?= $this->translate('Security'); ?>
+                </h5>
+                <p class="text-body-secondary">
+                    <?= $this->translate('Change your password to keep your account secure.'); ?>
+                </p>
+                <a href="<?= $this->url('Members:Profile@editAction'); ?>" class="btn btn-outline-primary">
+                    <i class="bi bi-key"></i>
+                    <?= $this->translate('Change password'); ?>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-end">
+                <a href="<?= $this->url('Members:Auth@logoutAction'); ?>" class="btn btn-outline-danger">
+                    <i class="bi bi-box-arrow-right"></i>
+                    <?= $this->translate('Logout'); ?>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

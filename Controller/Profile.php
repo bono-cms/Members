@@ -9,13 +9,12 @@
 
 namespace Members\Controller;
 
-use Site\Controller\AbstractController;
 use Krystal\Stdlib\VirtualEntity;
 
 final class Profile extends AbstractController
 {
     /**
-     * Renders the profile page of the currently logged in member
+     * Renders the dashboard of the currently logged in member
      * 
      * @return string
      */
@@ -24,27 +23,57 @@ final class Profile extends AbstractController
         $memberManager = $this->getModuleService('memberManager');
 
         if (!$memberManager->isLoggedIn()) {
-            $this->response->redirect('/login');
-            return;
+            $this->sessionBag->set('login_redirect', $this->request->getUri());
+            $this->response->redirect($this->createUrl('Members:Auth@indexAction'));
+            return null;
+        }
+
+        $memberId = $memberManager->getMember('id');
+        $member = $memberManager->fetchById($memberId);
+
+        if ($member === false) {
+            $memberManager->logout();
+            $this->response->redirect($this->createUrl('Members:Auth@indexAction'));
+            return null;
+        }
+
+        $page = new VirtualEntity();
+        $page->setTitle($this->translator->translate('My account'))
+             ->setSeo(false);
+
+        return $this->view->render('member-dashboard', [
+            'page' => $page,
+            'member' => $member
+        ]);
+    }
+
+    /**
+     * Renders the profile edit form
+     * 
+     * @return string
+     */
+    public function editAction()
+    {
+        $memberManager = $this->getModuleService('memberManager');
+
+        if (!$memberManager->isLoggedIn()) {
+            $this->sessionBag->set('login_redirect', $this->request->getUri());
+            $this->response->redirect($this->createUrl('Members:Auth@indexAction'));
+            return null;
         }
 
         $memberId = $memberManager->getMember('id');
         $member = $memberManager->fetchById($memberId, true);
 
         if ($member === false) {
-            $this->response->redirect('/login');
-            return;
+            $memberManager->logout();
+            $this->response->redirect($this->createUrl('Members:Auth@indexAction'));
+            return null;
         }
 
-        // Append a breadcrumb
-        $this->view->getBreadcrumbBag()
-                   ->addOne('Profile');
-
         $page = new VirtualEntity();
-        $page->setTitle($this->translator->translate('My profile'))
+        $page->setTitle($this->translator->translate('Edit profile'))
              ->setSeo(false);
-
-        $this->loadSitePlugins();
 
         return $this->view->render('member-profile', [
             'page' => $page,
@@ -53,22 +82,22 @@ final class Profile extends AbstractController
     }
 
     /**
-     * Updates the profile of the currently logged in member
+     * Handles the profile edit form submission
      * 
-     * @return string
+     * @return string|void
      */
     public function updateAction()
     {
         if (!$this->request->isPost()) {
-            return null;
+            return $this->response->redirect($this->createUrl('Members:Profile@editAction'));
         }
 
         $memberManager = $this->getModuleService('memberManager');
 
         if (!$memberManager->isLoggedIn()) {
-            return $this->json([
-                'error' => 'You must be logged in to update your profile'
-            ]);
+            $this->flashBag->set('danger', $this->translator->translate('You must be logged in to update your profile'));
+            $this->response->redirect($this->createUrl('Members:Auth@indexAction'));
+            return null;
         }
 
         $input = $this->request->getPost();
@@ -83,21 +112,18 @@ final class Profile extends AbstractController
                   ->addRule('minlength', null, ['min' => 6]);
 
         if (!$validator->isPassed()) {
-            return $this->json([
-                'errors' => $validator->getErrors()
-            ]);
+            $this->flashBag->set('danger', $this->translator->translate('Please correct the errors in the form'));
+            $this->response->redirect($this->createUrl('Members:Profile@editAction'));
+            return null;
         }
 
         // Force the logged-in member's id so a caller can't hijack another account
         $input['member']['id'] = $memberManager->getMember('id');
 
-        // Route through the same save() the admin uses — persists base fields + translations
         $memberManager->save($input);
 
-        $this->flashBag->set('success', 'Settings have been updated successfully');
-
-        return $this->json([
-            'refresh' => true
-        ]);
+        $this->flashBag->set('success', $this->translator->translate('Your profile has been updated'));
+        $this->response->redirect($this->createUrl('Members:Profile@indexAction'));
+        return null;
     }
 }
