@@ -93,42 +93,28 @@ $entity = isset($member[0]) ? $member[0] : $member;
                     <?= $this->translate('Avatar'); ?>
                 </label>
                 <div class="col-lg-9">
-                    <?php if ($entity->hasAvatar()): ?>
-                    <div class="mb-3">
-                        <img data-image="preview"
-                             src="<?= $entity->getAvatarUrl('256x256'); ?>"
-                             class="rounded-circle"
-                             style="width: 96px; height: 96px; object-fit: cover;"
-                             alt="<?= $this->translate('Current avatar'); ?>" />
-
-                        <div class="form-check mt-2">
-                            <?= Element::checkbox('member[remove_avatar]', false, [
-                                'class' => 'form-check-input',
-                                'id' => 'remove_avatar'
-                            ]); ?>
-                            <label class="form-check-label text-danger" for="remove_avatar">
-                                <?= $this->translate('Remove this avatar'); ?>
-                            </label>
-                        </div>
-                    </div>
-                    <?php else: ?>
-                    <img data-image="preview"
-                         class="rounded-circle d-none mb-3"
-                         style="width: 96px; height: 96px; object-fit: cover;" />
-                    <?php endif; ?>
-
-                    <a class="btn btn-outline-primary"
-                       data-button="upload"
-                       data-target="[name='file']"
-                       href="#">
-                        <i class="bi bi-image"></i>
-                        <?= $this->translate('Upload an avatar'); ?>
-                    </a>
+                    <img id="avatar-preview"
+                         src="<?= $entity->hasAvatar() ? $entity->getAvatarUrl('256x256') : ''; ?>"
+                         class="rounded-circle mb-3 <?= $entity->hasAvatar() ? '' : 'd-none'; ?>"
+                         style="width: 96px; height: 96px; object-fit: cover;"
+                         alt="<?= $this->translate('Avatar preview'); ?>" />
 
                     <?= Element::file('file', 'image/x-png, image/gif, image/jpeg', [
-                        'class' => 'd-none',
-                        'data-plugin' => 'preview'
+                        'class' => 'form-control',
+                        'id' => 'member_avatar'
                     ]); ?>
+
+                    <?php if ($entity->hasAvatar()): ?>
+                    <div class="form-check mt-2">
+                        <?= Element::checkbox('member[remove_avatar]', false, [
+                            'class' => 'form-check-input',
+                            'id' => 'remove_avatar'
+                        ]); ?>
+                        <label class="form-check-label text-danger" for="remove_avatar">
+                            <?= $this->translate('Remove this avatar'); ?>
+                        </label>
+                    </div>
+                    <?php endif; ?>
 
                     <?= Element::hidden('member[avatar]', $entity->getAvatar()); ?>
                 </div>
