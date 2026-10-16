@@ -111,6 +111,9 @@ final class Profile extends AbstractController
         $validator->field('member.password')
                   ->addRule('minlength', null, ['min' => 6]);
 
+        $validator->file('file')
+                  ->addRule('image');
+
         if (!$validator->isPassed()) {
             $this->flashBag->set('danger', $this->translator->translate('Please correct the errors in the form'));
             $this->response->redirect($this->createUrl('Members:Profile@editAction'));
@@ -120,7 +123,16 @@ final class Profile extends AbstractController
         // Force the logged-in member's id so a caller can't hijack another account
         $input['member']['id'] = $memberManager->getMember('id');
 
-        $memberManager->save($input);
+        // Build the payload in the service-expected shape
+        $payload = [
+            'data' => [
+                'member' => $input['member'],
+                'translation' => isset($input['translation']) ? $input['translation'] : []
+            ],
+            'files' => $this->request->getFiles()
+        ];
+
+        $memberManager->update($payload);
 
         $this->flashBag->set('success', $this->translator->translate('Your profile has been updated'));
         $this->response->redirect($this->createUrl('Members:Profile@indexAction'));

@@ -9,8 +9,11 @@ use Krystal\Stdlib\VirtualEntity;
         <div class="card border-0 shadow-sm">
             <div class="card-body p-4">
                 <div class="d-flex align-items-center gap-3">
-                    <?php if ($member->getAvatar()): ?>
-                    <img src="<?= $member->getAvatar(); ?>" class="rounded-circle" style="width:64px;height:64px;object-fit:cover;" alt="">
+                    <?php if ($member->hasAvatar()): ?>
+                    <img src="<?= $member->getAvatarUrl('128x128'); ?>"
+                         class="rounded-circle"
+                         style="width:64px;height:64px;object-fit:cover;"
+                         alt="">
                     <?php else: ?>
                     <i class="bi bi-person-circle text-body-secondary" style="font-size:64px;"></i>
                     <?php endif; ?>

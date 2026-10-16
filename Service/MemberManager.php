@@ -11,8 +11,8 @@ namespace Members\Service;
 
 use Krystal\Application\Model\AbstractService;
 use Krystal\Stdlib\VirtualEntity;
+use Krystal\Image\Tool\ImageManagerInterface;
 use Members\Storage\MySQL\MemberMapper;
-use Members\Storage\MySQL\MemberTranslationMapper;
 
 final class MemberManager extends AbstractService
 {
@@ -24,13 +24,6 @@ final class MemberManager extends AbstractService
     private $mapper;
 
     /**
-     * Member translation mapper
-     * 
-     * @var \Members\Storage\MySQL\MemberTranslationMapper
-     */
-    private $translationMapper;
-
-    /**
      * Session bag component
      * 
      * @var mixed
@@ -38,31 +31,38 @@ final class MemberManager extends AbstractService
     private $sessionBag;
 
     /**
+     * Avatar image manager
+     * 
+     * @var \Krystal\Image\Tool\ImageManagerInterface
+     */
+    private $avatarImageManager;
+
+    /**
      * State initialization
      * 
      * @param \Members\Storage\MySQL\MemberMapper $mapper
-     * @param \Members\Storage\MySQL\MemberTranslationMapper $translationMapper
      * @param mixed $sessionBag
+     * @param \Krystal\Image\Tool\ImageManagerInterface $avatarImageManager
      * @return void
      */
-    public function __construct(MemberMapper $mapper, MemberTranslationMapper $translationMapper, $sessionBag)
+    public function __construct(MemberMapper $mapper, $sessionBag, ImageManagerInterface $avatarImageManager)
     {
         $this->mapper = $mapper;
-        $this->translationMapper = $translationMapper;
         $this->sessionBag = $sessionBag;
+        $this->avatarImageManager = $avatarImageManager;
     }
 
     /**
-     * Converts a database row into a Member entity object.
-     * Excludes password hash for security.
+     * Converts a database row into a Member entity object
      *
      * @param array $row
      * @return \Krystal\Stdlib\VirtualEntity
      */
     protected function toEntity(array $row): VirtualEntity
     {
-        $member = new VirtualEntity();
-        $member->setId((int) $row['id'])
+        $entity = new MemberEntity();
+
+        $entity->setId((int) $row['id'])
                ->setName($row['name'])
                ->setEmail($row['email'])
                ->setLogin($row['login'])
@@ -73,18 +73,23 @@ final class MemberManager extends AbstractService
                ->setSubscriber(isset($row['subscriber']) ? $row['subscriber'] : null)
                ->setConfirmed(isset($row['confirmed']) ? $row['confirmed'] : null)
                ->setCreatedAt(isset($row['created_at']) ? $row['created_at'] : null)
-               // Translation columns (present only when $withTranslations = true)
                ->setLangId(isset($row['lang_id']) ? (int) $row['lang_id'] : 0)
                ->setTitle(isset($row['title']) ? $row['title'] : null)
                ->setCompany(isset($row['company']) ? $row['company'] : null)
                ->setBio(isset($row['bio']) ? $row['bio'] : null);
 
-        return $member;
+        $avatarBag = clone $this->avatarImageManager->getImageBag();
+        $avatarBag->setId((int) $row['id'])
+                  ->setCover(isset($row['avatar']) ? $row['avatar'] : '');
+
+        $entity->setAvatarBag($avatarBag);
+
+        return $entity;
     }
 
     /**
-     * Fetches all members with pagination.
-     *
+     * Fetches all members with pagination
+     * 
      * @param int $pageNumber
      * @param int $itemsPerPage
      * @return array
@@ -98,7 +103,7 @@ final class MemberManager extends AbstractService
      * Fetches member's entity by its associated ID
      * 
      * @param string $id
-     * @param boolean $withTranslations Whether to fetch translations or not
+     * @param boolean $withTranslations
      * @return \Krystal\Stdlib\VirtualEntity|array|boolean
      */
     public function fetchById($id, $withTranslations = false)
@@ -111,67 +116,113 @@ final class MemberManager extends AbstractService
     }
 
     /**
-     * Saves a member record and its translations (insert or update).
+     * Prepares raw input data for persistence
      * 
-     * @param array $input Full POST array with 'member' and 'translation' keys
-     * @return bool
+     * @param array $data Raw member data
+     * @return array
      */
-    public function save(array $input): bool
+    private function prepare(array $data)
     {
-        $data = isset($input['member']) ? $input['member'] : $input;
-        $translations = isset($input['translation']) ? $input['translation'] : [];
-
         $data['subscriber'] = !empty($data['subscriber']) ? '1' : '0';
         $data['confirmed']  = !empty($data['confirmed']) ? '1' : '0';
 
         if (!empty($data['password'])) {
             $data['password_hash'] = password_hash($data['password'], PASSWORD_DEFAULT);
         }
-        unset($data['password']);
+
+        unset($data['password'], $data['remove_avatar']);
 
         if (empty($data['id'])) {
             $data['created_at'] = date('Y-m-d H:i:s');
         }
 
-        return $this->mapper->saveEntity($data, $translations);
+        return $data;
     }
 
     /**
-     * Updates an existing member profile.
-     *
-     * @param array $input
-     * @return bool
+     * Adds a member
+     * 
+     * @param array $input Raw input data
+     * @return boolean
      */
-    public function update(array $input): bool
+    public function add(array $input)
     {
-        $id = isset($input['id']) ? $input['id'] : $this->getMember('id');
+        $data =& $input['data']['member'];
+        $file = isset($input['files']['file']) ? $input['files']['file'] : false;
 
-        if (!$id) {
-            return false;
+        // Prepare and set the avatar filename upfront
+        $data = $this->prepare($data);
+        $data['avatar'] = $file ? $file->getUniqueName() : '';
+
+        // Persist main row and translations
+        $this->mapper->saveEntity($data, isset($input['data']['translation']) ? $input['data']['translation'] : []);
+
+        // Grab the new member ID
+        $id = $this->getLastId();
+
+        // Upload the avatar if present
+        if ($file) {
+            $this->avatarImageManager->upload($id, $file);
         }
 
-        if (!empty($input['password'])) {
-            $input['password_hash'] = password_hash($input['password'], PASSWORD_DEFAULT);
-        }
-        unset($input['password']);
-
-        return $this->mapper->updateProfile($id, $input);
+        return true;
     }
 
     /**
-     * Deletes a member and their translations by ID.
-     *
+     * Updates a member
+     * 
+     * @param array $input Raw input data
+     * @return boolean
+     */
+    public function update(array $input)
+    {
+        $data =& $input['data']['member'];
+        $file = isset($input['files']['file']) ? $input['files']['file'] : false;
+
+        // Handle explicit removal first
+        if (!empty($data['remove_avatar']) && !empty($data['avatar'])) {
+            $this->avatarImageManager->delete($data['id'], $data['avatar']);
+            $data['avatar'] = '';
+        } else {
+            // Handle new upload
+            if ($file) {
+                if (!empty($data['avatar'])) {
+                    $this->avatarImageManager->delete($data['id'], $data['avatar']);
+                }
+
+                $this->avatarImageManager->upload($data['id'], $file);
+                $data['avatar'] = $file->getUniqueName();
+            }
+        }
+
+        $data = $this->prepare($data);
+
+        // Persist main row and translations
+        $this->mapper->saveEntity($data, isset($input['data']['translation']) ? $input['data']['translation'] : []);
+
+        return true;
+    }
+
+    /**
+     * Deletes a member and their avatar by ID
+     * 
      * @param int $id
      * @return bool
      */
     public function deleteById($id): bool
     {
+        $row = $this->mapper->findByPk($id);
+
+        if ($row && !empty($row['avatar'])) {
+            $this->avatarImageManager->delete($id, $row['avatar']);
+        }
+
         return $this->mapper->deleteEntity($id);
     }
 
     /**
-     * Authenticates a member by identifier (email or login) and password.
-     *
+     * Authenticates a member by identifier (email or login) and password
+     * 
      * @param string $identifier
      * @param string $password
      * @return bool
@@ -198,8 +249,8 @@ final class MemberManager extends AbstractService
     }
 
     /**
-     * Logs out the current member.
-     *
+     * Logs out the current member
+     * 
      * @return void
      */
     public function logout()
@@ -208,8 +259,8 @@ final class MemberManager extends AbstractService
     }
 
     /**
-     * Checks whether a member is logged in.
-     *
+     * Checks whether a member is logged in
+     * 
      * @return bool
      */
     public function isLoggedIn(): bool
@@ -218,8 +269,8 @@ final class MemberManager extends AbstractService
     }
 
     /**
-     * Retrieves session data for the logged-in member.
-     *
+     * Retrieves session data for the logged-in member
+     * 
      * @param string|null $key
      * @return mixed
      */
@@ -235,8 +286,8 @@ final class MemberManager extends AbstractService
     }
 
     /**
-     * Generates and stores a password recovery key for an email.
-     *
+     * Generates and stores a password recovery key for an email
+     * 
      * @param string $email
      * @return string|false
      */
@@ -255,10 +306,10 @@ final class MemberManager extends AbstractService
     }
 
     /**
-     * Resets a member's password using an activation key.
-     *
+     * Resets a member's password using an activation key
+     * 
      * @param string $key
-     * @return string|false New plain text password or false on failure
+     * @return string|false
      */
     public function resetPassword($key)
     {
@@ -283,8 +334,8 @@ final class MemberManager extends AbstractService
     }
 
     /**
-     * Confirms a member account by activation key.
-     *
+     * Confirms a member account by activation key
+     * 
      * @param string $key
      * @return bool
      */
@@ -294,8 +345,8 @@ final class MemberManager extends AbstractService
     }
 
     /**
-     * Checks if an email is available for registration.
-     *
+     * Checks if an email is available for registration
+     * 
      * @param string $email
      * @return bool
      */
@@ -305,8 +356,8 @@ final class MemberManager extends AbstractService
     }
 
     /**
-     * Gets the last inserted record ID.
-     *
+     * Gets the last inserted record ID
+     * 
      * @return int
      */
     public function getLastId()
@@ -315,8 +366,8 @@ final class MemberManager extends AbstractService
     }
 
     /**
-     * Gets the paginator instance.
-     *
+     * Gets the paginator instance
+     * 
      * @return mixed
      */
     public function getPaginator()

@@ -104,26 +104,30 @@ final class Members extends AbstractController
                   ->required(null, empty($input['id']))
                   ->addRule('minlength', null, ['min' => 6]);
 
-        if ($validator->isPassed()) {
-            $memberManager = $this->getModuleService('memberManager');
-            $memberManager->save($this->request->getPost());
+        $validator->file('file')
+                  ->addRule('image');
 
-            if (!empty($input['id'])) {
-                $this->flashBag->set('success', 'The element has been updated successfully');
-
-                return $this->json([
-                    'refresh' => true
-                ]);
-            } else {
-                $this->flashBag->set('success', 'The element has been created successfully');
-
-                return $this->json([
-                    'redirect' => $this->createUrl('Members:Admin:Members@editAction', [$memberManager->getLastId()])
-                ]);
-            }
-        } else {
+        if (!$validator->isPassed()) {
             return $this->json([
                 'errors' => $validator->getErrors()
+            ]);
+        }
+
+        $service = $this->getModuleService('memberManager');
+
+        if (!empty($input['id'])) {
+            $service->update($this->request->getAll());
+            $this->flashBag->set('success', 'The element has been updated successfully');
+
+            return $this->json([
+                'refresh' => true
+            ]);
+        } else {
+            $service->add($this->request->getAll());
+            $this->flashBag->set('success', 'The element has been created successfully');
+
+            return $this->json([
+                'redirect' => $this->createUrl('Members:Admin:Members@editAction', [$service->getLastId()])
             ]);
         }
     }

@@ -11,7 +11,7 @@ $isNew  = !$entity->getId();
 
 ?>
 
-<form class="card" autocomplete="off">
+<form class="card" autocomplete="off" enctype="multipart/form-data">
     <?= Element::hidden('member[id]', $entity->getId()); ?>
 
     <div class="card-header">
@@ -135,20 +135,45 @@ $isNew  = !$entity->getId();
             <div class="row mb-3">
                 <label class="col-lg-2 col-form-label"><?= $this->translate('Avatar'); ?></label>
                 <div class="col-lg-10">
-                    <?php if ($entity->getAvatar()): ?>
-                    <div class="mb-2">
-                        <img src="<?= $entity->getAvatar(); ?>"
-                             class="img-thumbnail"
-                             style="max-height: 100px;"
+                    <?php if ($entity->hasAvatar()): ?>
+                    <div class="mb-3">
+                        <img data-image="preview"
+                             src="<?= $entity->getAvatarUrl('256x256'); ?>"
+                             class="img-thumbnail d-block"
+                             style="max-width: 128px;"
                              alt="<?= $this->translate('Current avatar'); ?>" />
+
+                        <div class="form-check mt-2">
+                            <?= Element::checkbox('member[remove_avatar]', false, [
+                                'class' => 'form-check-input',
+                                'id' => 'remove_avatar'
+                            ]); ?>
+                            <label class="form-check-label text-danger" for="remove_avatar">
+                                <?= $this->translate('Remove this avatar'); ?>
+                            </label>
+                        </div>
                     </div>
+                    <?php else: ?>
+                    <img data-image="preview" class="img-thumbnail d-none mb-3" style="max-width: 128px;" />
                     <?php endif; ?>
-                    <div class="input-group">
-                        <?= Element::text('member[avatar]', $entity->getAvatar(), [
-                            'class' => 'form-control',
-                            'placeholder' => '/data/uploads/avatars/example.jpg'
-                        ]); ?>
-                        <span class="input-group-text"><i class="bi bi-image"></i></span>
+
+                    <a class="btn btn-outline-primary"
+                       data-button="upload"
+                       data-target="[name='file']"
+                       href="#">
+                        <i class="bi bi-image"></i>
+                        <?= $this->translate('Upload an avatar'); ?>
+                    </a>
+
+                    <?= Element::file('file', 'image/x-png, image/gif, image/jpeg', [
+                        'class' => 'd-none',
+                        'data-plugin' => 'preview'
+                    ]); ?>
+
+                    <?= Element::hidden('member[avatar]', $entity->getAvatar()); ?>
+
+                    <div class="form-text">
+                        <?= $this->translate('Square images work best.'); ?>
                     </div>
                 </div>
             </div>

@@ -120,7 +120,7 @@ final class Register extends AbstractController
         $input['member']['activation_key'] = $key;
 
         // Persist member + translations
-        if (!$memberManager->save($input)) {
+        if (!$memberManager->add($this->request->getAll())) {
             return $this->json([
                 'error' => 'An unexpected error occurred during saving'
             ]);
