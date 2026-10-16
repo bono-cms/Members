@@ -9,20 +9,24 @@
 
 namespace Members\Controller;
 
+use Krystal\Stdlib\VirtualEntity;
+
 final class Recovery extends AbstractController
 {
     /**
      * Renders recovery page or handles recovery submission
      * 
-     * @return string
+     * @return string|void
      */
     public function indexAction()
     {
-        if ($this->request->isPost()) {
-            return $this->recoveryAction();
-        }
+        $page = new VirtualEntity();
+        $page->setTitle($this->translator->translate('Password recovery'))
+             ->setSeo(false);
 
-        return $this->formAction();
+        return $this->view->render('recovery-form', [
+            'page' => $page
+        ]);
     }
 
     /**
@@ -36,20 +40,13 @@ final class Recovery extends AbstractController
         $memberManager = $this->getModuleService('memberManager');
         $password = $memberManager->resetPassword($key);
 
-        return $this->renderMessage('recovery-reset', [
-            'password' => $password
-        ]);
-    }
+        $page = new VirtualEntity();
+        $page->setTitle($this->translator->translate('Password reset'))
+             ->setSeo(false);
 
-    /**
-     * Renders the recovery form
-     * 
-     * @return string
-     */
-    private function formAction()
-    {
-        return $this->view->render('recovery-form', [
-            'languages' => $this->getService('Cms', 'languageManager')->fetchAll(true)
+        return $this->view->render('member-recovery-reset', [
+            'page' => $page,
+            'password' => $password
         ]);
     }
 
@@ -73,11 +70,15 @@ final class Recovery extends AbstractController
     }
 
     /**
-     * Handles password recovery request
+     * Handles an API password recovery request
      * 
-     * @return string
+     * The response is deliberately identical whether or not the
+     * email matches an existing account, to prevent account
+     * enumeration.
+     * 
+     * @return string JSON response
      */
-    private function recoveryAction()
+    public function processAction()
     {
         $validator = $this->createValidation();
 
@@ -87,27 +88,39 @@ final class Recovery extends AbstractController
 
         if (!$validator->isPassed()) {
             return $this->json([
+                'success' => false,
                 'errors' => $validator->getErrors()
             ]);
         }
 
-        $input = $this->request->getPost();
+        $email = $this->request->getPost('email');
 
         $memberManager = $this->getModuleService('memberManager');
-        $key = $memberManager->resetKey($input['email']);
+        $key = $memberManager->resetKey($email);
 
-        if ($key === false) {
-            return $this->json([
-                'errors' => [
-                    'email' => 'No account was found with this email'
-                ]
-            ]);
+        // Vague success in both branches
+        if ($key !== false) {
+            $this->sendConfirmationLink($email, $key);
         }
 
-        $this->sendConfirmationLink($input['email'], $key);
-
         return $this->json([
-            'refresh' => true
+            'redirect' => $this->createUrl('Members:Recovery@successAction')
         ]);
     }
+
+    /**
+     * Renders the "check your email" page shown after a recovery request
+     * 
+     * @return string
+     */
+    public function successAction()
+    {
+        $page = new VirtualEntity();
+        $page->setTitle($this->translator->translate('Recovery email sent'))
+             ->setSeo(false);
+
+        return $this->view->render('member-recovery-success', [
+            'page' => $page
+        ]);
+    }   
 }

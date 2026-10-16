@@ -8,22 +8,7 @@
  */
 
 return [
-    '/profile' => [
-        'controller' => 'Profile@indexAction'
-    ],
-
-    '/profile/edit' => [
-        'controller' => 'Profile@editAction'
-    ],
-
-    '/profile/update' => [
-        'controller' => 'Profile@updateAction'
-    ],
-
-    '/profile/update' => [
-        'controller' => 'Profile@updateAction'
-    ],
-    
+    // Admin area
     '/%s/module/members' => [
         'controller' => 'Admin:Members@indexAction'
     ],
@@ -43,27 +28,51 @@ return [
     '/%s/module/members/delete/(:var)' => [
         'controller' => 'Admin:Members@deleteAction'
     ],
-    
-    '/confirm/(:var)' => [
-        'controller' => 'Register@confirmAction'
+
+    // Site area
+    '/profile' => [
+        'controller' => 'Profile@indexAction'
     ],
 
+    '/profile/edit' => [
+        'controller' => 'Profile@editAction'
+    ],
+
+    '/profile/update' => [
+        'controller' => 'Profile@updateAction'
+    ],
+    
+    // Recovery
     '/recovery' => [
         'controller' => 'Recovery@indexAction'
+    ],
+
+    '/recovery/process' => [
+        'controller' => 'Recovery@processAction'
+    ],
+
+    '/recovery/success' => [
+        'controller' => 'Recovery@successAction'
     ],
     
     '/recovery/confirm/(:var)' => [
         'controller' => 'Recovery@resetAction'
     ],
     
+    // Register
     '/register' => [
         'controller' => 'Register@indexAction'
+    ],
+
+    '/register/confirm/(:var)' => [
+        'controller' => 'Register@confirmAction'
     ],
 
     '/register/success' => [
         'controller' => 'Register@successAction'
     ],
     
+    // Auth
     '/login' => [
         'controller' => 'Auth@indexAction'
     ],
