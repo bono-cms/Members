@@ -59,6 +59,21 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
     }
 
     /**
+     * Finds a member by their activation key
+     * 
+     * @param string $key Activation key
+     * @return array|boolean Row as array on success, false if not found
+     */
+    public function findByActivationKey($key)
+    {
+        $db = $this->db->select('*')
+                       ->from(self::getTableName())
+                       ->whereEquals('activation_key', $key);
+
+        return $db->query();
+    }
+
+    /**
      * Fetches member data by its associated ID
      * 
      * @param string $id Member ID

@@ -12,6 +12,14 @@ namespace Members\Storage;
 interface MemberMapperInterface
 {
     /**
+     * Finds a member by their activation key
+     * 
+     * @param string $key Activation key
+     * @return array|boolean Row as array on success, false if not found
+     */
+    public function findByActivationKey($key);
+
+    /**
      * Deletes a member by their associated id
      * 
      * @param string $id Member id
