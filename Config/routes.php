@@ -101,6 +101,11 @@ return [
         'middleware' => [GuestOnlyMiddleware::class]
     ],
 
+    '/member/login/submit' => [
+        'controller' => 'Auth@loginAction',
+        'middleware' => [GuestOnlyMiddleware::class]
+    ],
+
     '/member/logout' => [
         'controller' => 'Auth@logoutAction',
         'middleware' => [AuthRequiredMiddleware::class]

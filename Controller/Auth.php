@@ -20,10 +20,6 @@ final class Auth extends AbstractController
      */
     public function indexAction()
     {
-        if ($this->request->isPost()) {
-            return $this->loginAction();
-        }
-
         $page = new VirtualEntity();
         $page->setTitle($this->translator->translate('Login'))
              ->setSeo(false);
@@ -51,7 +47,7 @@ final class Auth extends AbstractController
      * 
      * @return string
      */
-    private function loginAction()
+    public function loginAction()
     {
         $memberManager = $this->getModuleService('memberManager');
         $identifier = $this->request->getPost('identifier');
