@@ -9,13 +9,7 @@ $entity = isset($member[0]) ? $member[0] : $member;
 
 ?>
 
-<form class="card shadow-sm border-0"
-      method="post"
-      action="<?= $this->url('Members:Profile@updateAction'); ?>"
-      enctype="multipart/form-data"
-      autocomplete="off"
-      id="profile-form">
-
+<form class="card shadow-sm border-0" method="POST" action="<?= $this->url('Members:Profile@updateAction'); ?>" enctype="multipart/form-data" autocomplete="off">
     <?= Element::hidden('member[id]', $entity->getId()); ?>
 
     <div class="card-header bg-white">
@@ -37,7 +31,6 @@ $entity = isset($member[0]) ? $member[0] : $member;
     </div>
 
     <div class="card-body tab-content">
-
         <!-- Tab 1: base data -->
         <div class="tab-pane fade show active" id="data" role="tabpanel">
             <div class="row mb-3">
@@ -177,6 +170,8 @@ $entity = isset($member[0]) ? $member[0] : $member;
         ?>
 
         <div class="tab-pane fade" id="language-<?= $language->getId(); ?>" role="tabpanel">
+            <?= Element::hidden(sprintf('translation[%s][lang_id]', $language->getId()), $language->getId()); ?>
+
             <div class="row mb-3">
                 <label class="col-lg-3 col-form-label"
                        for="translation_<?= $language->getId(); ?>_title">
@@ -239,7 +234,7 @@ $entity = isset($member[0]) ? $member[0] : $member;
     </div>
 
     <div class="card-footer bg-white d-flex justify-content-end">
-        <button type="submit" class="btn btn-primary">
+        <button type="submit" class="btn btn-primary" data-button="submit">
             <i class="bi bi-save"></i> <?= $this->translate('Save changes'); ?>
         </button>
     </div>

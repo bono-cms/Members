@@ -60,14 +60,6 @@ final class Profile extends AbstractController
      */
     public function updateAction()
     {
-        if (!$this->request->isPost()) {
-            return $this->response->redirect($this->createUrl('Members:Profile@editAction'));
-        }
-
-        $memberManager = $this->getModuleService('memberManager');
-
-        $input = $this->request->getPost();
-
         $validator = $this->createValidation();
 
         $validator->field('member.name')
@@ -81,27 +73,24 @@ final class Profile extends AbstractController
                   ->addRule('image');
 
         if (!$validator->isPassed()) {
-            $this->flashBag->set('danger', $this->translator->translate('Please correct the errors in the form'));
-            $this->response->redirect($this->createUrl('Members:Profile@editAction'));
-            return null;
+            return $this->json([
+                'errors' => $validator->getErrors()
+            ]);
         }
+
+        $memberManager = $this->getModuleService('memberManager');
+
+        $input = $this->request->getPost();
 
         // Force the logged-in member's id so a caller can't hijack another account
         $input['member']['id'] = $memberManager->getMember('id');
 
-        // Build the payload in the service-expected shape
-        $payload = [
-            'data' => [
-                'member' => $input['member'],
-                'translation' => isset($input['translation']) ? $input['translation'] : []
-            ],
-            'files' => $this->request->getFiles()
-        ];
-
-        $memberManager->update($payload);
+        $memberManager->update($this->request->getAll());
 
         $this->flashBag->set('success', $this->translator->translate('Your profile has been updated'));
-        $this->response->redirect($this->createUrl('Members:Profile@indexAction'));
-        return null;
+
+        return $this->json([
+            'refresh' => true
+        ]);
     }
 }
