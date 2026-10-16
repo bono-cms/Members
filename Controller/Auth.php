@@ -9,8 +9,6 @@
 
 namespace Members\Controller;
 
-use Site\Controller\AbstractController;
-
 final class Auth extends AbstractController
 {
     /**
@@ -24,7 +22,7 @@ final class Auth extends AbstractController
             return $this->loginAction();
         }
 
-        return $this->formAction();
+        return $this->view->render('member-login');
     }
 
     /**
@@ -38,18 +36,6 @@ final class Auth extends AbstractController
         $memberManager->logout();
 
         $this->response->redirect('/');
-    }
-
-    /**
-     * Renders the login form
-     * 
-     * @return string
-     */
-    private function formAction()
-    {
-        return $this->view->render('member-login', [
-            'languages' => $this->getService('Cms', 'languageManager')->fetchAll(true)
-        ]);
     }
 
     /**
