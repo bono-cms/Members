@@ -30,6 +30,20 @@ final class SiteService
     }
 
     /**
+     * Checks whether the currently logged-in member has confirmed their email
+     * 
+     * A shortcut to the same check on the member manager. Available in
+     * templates via the global $member variable, so themes can gate
+     * features on the confirmation state without reaching for services.
+     * 
+     * @return boolean
+     */
+    public function isConfirmed()
+    {
+        return $this->memberManager->isConfirmed();
+    }
+
+    /**
      * Checks whether user is logged in
      * 
      * @return boolean

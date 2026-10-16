@@ -221,6 +221,38 @@ final class MemberManager extends AbstractService
     }
 
     /**
+     * Refreshes a member's activation key
+     * 
+     * Used when a logged-in member needs to re-receive the
+     * confirmation email — for example, because the original
+     * message was lost or expired.
+     * 
+     * @param int $id Member id
+     * @param string $key New activation key
+     * @return boolean Depending on success
+     */
+    public function refreshActivationKey($id, $key)
+    {
+        return $this->mapper->updateActivationKey($id, $key);
+    }
+
+    /**
+     * Checks whether the currently logged-in member has confirmed their email
+     * 
+     * Reads from the session, which is populated at login time. Returns
+     * false when no member is logged in, or when the account exists but
+     * hasn't been confirmed yet.
+     * 
+     * @return boolean
+     */
+    public function isConfirmed(): bool
+    {
+        $member = $this->sessionBag->get('member');
+
+        return !empty($member['confirmed']) && $member['confirmed'] == '1';
+    }
+
+    /**
      * Authenticates a member by identifier (email or login) and password
      * 
      * @param string $identifier
@@ -240,8 +272,10 @@ final class MemberManager extends AbstractService
                 'id' => $row['id'],
                 'name' => $row['name'],
                 'email' => $row['email'],
-                'login' => $row['login']
+                'login' => $row['login'],
+                'confirmed' => (bool) $row['confirmed']
             ]);
+
             return true;
         }
 

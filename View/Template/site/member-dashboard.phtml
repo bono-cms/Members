@@ -4,16 +4,31 @@ use Krystal\Stdlib\VirtualEntity;
 
 ?>
 
+<?php if (!$member->getConfirmed()): ?>
+<div class="alert alert-warning d-flex align-items-start gap-3 mb-4" role="alert">
+    <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+    <div>
+        <h5 class="alert-heading mb-1">
+            <?= $this->translate('Please confirm your email address'); ?>
+        </h5>
+        <p class="mb-2">
+            <?= $this->translate('We sent a confirmation link to %s. Click the link in that email to activate all features of your account.', $member->getEmail()); ?>
+        </p>
+        <a href="<?= $this->url('Members:Register@resendAction'); ?>" class="btn btn-sm btn-warning">
+            <i class="bi bi-envelope-arrow-up"></i>
+            <?= $this->translate('Resend confirmation email'); ?>
+        </a>
+    </div>
+</div>
+<?php endif; ?>
+
 <div class="row g-4">
     <div class="col-12">
         <div class="card border-0 shadow-sm">
             <div class="card-body p-4">
                 <div class="d-flex align-items-center gap-3">
                     <?php if ($member->hasAvatar()): ?>
-                    <img src="<?= $member->getAvatarUrl('128x128'); ?>"
-                         class="rounded-circle"
-                         style="width:64px;height:64px;object-fit:cover;"
-                         alt="">
+                    <img src="<?= $member->getAvatarUrl('128x128'); ?>" class="rounded-circle" style="width:64px;height:64px;object-fit:cover;" alt="">
                     <?php else: ?>
                     <i class="bi bi-person-circle text-body-secondary" style="font-size:64px;"></i>
                     <?php endif; ?>

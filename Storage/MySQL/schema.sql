@@ -10,9 +10,9 @@ CREATE TABLE `bono_module_members` (
   `address` TEXT NULL,
   `country` CHAR(2) NULL,
   `avatar` VARCHAR(255) NULL,
-  `subscriber` VARCHAR(1) NULL,
+  `subscriber` BOOLEAN DEFAULT NULL,
   `activation_key` VARCHAR(100) NULL,
-  `confirmed` VARCHAR(1) NULL,
+  `confirmed` BOOLEAN DEFAULT NULL,
   `created_at` DATETIME NOT NULL,
   UNIQUE KEY `uq_email` (`email`),
   UNIQUE KEY `uq_login` (`login`)

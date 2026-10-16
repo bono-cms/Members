@@ -71,6 +71,10 @@ return [
     '/member/register/success' => [
         'controller' => 'Register@successAction'
     ],
+
+    '/member/register/resend' => [
+        'controller' => 'Register@resendAction'
+    ],
     
     // Auth
     '/member/login' => [

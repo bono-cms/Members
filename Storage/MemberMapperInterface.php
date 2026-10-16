@@ -12,6 +12,20 @@ namespace Members\Storage;
 interface MemberMapperInterface
 {
     /**
+     * Updates an activation key by member ID
+     * 
+     * Unlike updateKey(), this method does not filter by the
+     * "confirmed" state. It's used when a member is already
+     * authenticated and needs a fresh key to re-receive the
+     * confirmation email.
+     * 
+     * @param string $id Member id
+     * @param string $key New activation key
+     * @return boolean Depending on success
+     */
+    public function updateActivationKey($id, $key);
+
+    /**
      * Finds a member by their activation key
      * 
      * @param string $key Activation key
