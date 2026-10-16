@@ -12,6 +12,14 @@ return [
         'controller' => 'Profile@indexAction'
     ],
 
+    '/profile/edit' => [
+        'controller' => 'Profile@editAction'
+    ],
+
+    '/profile/update' => [
+        'controller' => 'Profile@updateAction'
+    ],
+
     '/profile/update' => [
         'controller' => 'Profile@updateAction'
     ],
@@ -50,6 +58,10 @@ return [
     
     '/register' => [
         'controller' => 'Register@indexAction'
+    ],
+
+    '/register/success' => [
+        'controller' => 'Register@successAction'
     ],
     
     '/login' => [
