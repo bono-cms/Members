@@ -7,6 +7,8 @@
  * the license file that was distributed with this source code.
  */
 
+use Members\Middleware\GuestOnlyMiddleware;
+
 return [
     // Admin area
     '/%s/module/members' => [
@@ -48,7 +50,8 @@ return [
     ],
 
     '/member/recovery/process' => [
-        'controller' => 'Recovery@processAction'
+        'controller' => 'Recovery@processAction',
+        'middleware' => [GuestOnlyMiddleware::class]
     ],
 
     '/member/recovery/success' => [
@@ -61,7 +64,8 @@ return [
     
     // Register
     '/member/register' => [
-        'controller' => 'Register@indexAction'
+        'controller' => 'Register@indexAction',
+        'middleware' => [GuestOnlyMiddleware::class]
     ],
 
     '/member/register/confirm/(:var)' => [
@@ -69,7 +73,8 @@ return [
     ],
 
     '/member/register/success' => [
-        'controller' => 'Register@successAction'
+        'controller' => 'Register@successAction',
+        'middleware' => [GuestOnlyMiddleware::class]
     ],
 
     '/member/register/resend' => [
@@ -78,7 +83,8 @@ return [
     
     // Auth
     '/member/login' => [
-        'controller' => 'Auth@indexAction'
+        'controller' => 'Auth@indexAction',
+        'middleware' => [GuestOnlyMiddleware::class]
     ],
 
     '/member/logout' => [
