@@ -53,7 +53,7 @@ return [
         'controller' => 'Directory@indexAction'
     ],
 
-    '/member/(:var)' => [
+    '/member/profile/(:var)' => [
         'controller' => 'Directory@profileAction'
     ],
     
@@ -102,6 +102,7 @@ return [
     ],
 
     '/member/logout' => [
-        'controller' => 'Auth@logoutAction'
+        'controller' => 'Auth@logoutAction',
+        'middleware' => [AuthRequiredMiddleware::class]
     ]
 ];

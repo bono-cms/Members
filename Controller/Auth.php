@@ -53,13 +53,22 @@ final class Auth extends AbstractController
      */
     private function loginAction()
     {
+        $memberManager = $this->getModuleService('memberManager');
+        $identifier = $this->request->getPost('identifier');
+
         $validator = $this->createValidation();
+
+        // Register a custom field rule that authenticates the submitted credentials against the member manager.
+        $validator->setFieldRule('auth', function ($password) use ($memberManager, $identifier) {
+            return $memberManager->login($identifier, $password);
+        }, 'Invalid email or password');
 
         $validator->field('identifier')
                   ->required();
 
         $validator->field('password')
-                  ->required();
+                  ->required()
+                  ->addRule('auth');
 
         if (!$validator->isPassed()) {
             return $this->json([
@@ -67,24 +76,8 @@ final class Auth extends AbstractController
             ]);
         }
 
-        $input = $this->request->getPost();
-
-        $memberManager = $this->getModuleService('memberManager');
-        $success = $memberManager->login($input['identifier'], $input['password']);
-
-        if (!$success) {
-            return $this->json([
-                'errors' => [
-                    'identifier' => 'Invalid email or password'
-                ]
-            ]);
-        }
-
-        // Honor the intended destination stashed by AuthRequiredMiddleware,
-        // falling back to the profile page on a direct login.
-        $redirect = $this->sessionBag->has('login_redirect')
-            ? $this->sessionBag->getFlashed('login_redirect')
-            : $this->createUrl('Members:Profile@indexAction');
+        // Honor the intended destination stashed by AuthRequiredMiddleware, falling back to the profile page on a direct login.
+        $redirect = $this->sessionBag->has('login_redirect') ? $this->sessionBag->getFlashed('login_redirect') : $this->createUrl('Members:Profile@indexAction');
 
         return $this->json([
             'redirect' => $redirect
