@@ -28,8 +28,6 @@ final class Register extends AbstractController
         $page->setTitle($this->translator->translate('Registration'))
              ->setSeo(false);
 
-        $this->loadSitePlugins();
-
         return $this->view->render('member-register', [
             'page' => $page,
             'languages' => $this->getService('Cms', 'languageManager')->fetchAll(true)
@@ -47,8 +45,29 @@ final class Register extends AbstractController
         $memberManager = $this->getModuleService('memberManager');
         $confirmed = $memberManager->confirm($key);
 
-        return $this->renderMessage('confirmation', [
+        $page = new VirtualEntity();
+        $page->setTitle($this->translator->translate('Account confirmation'))
+             ->setSeo(false);
+
+        return $this->view->render('member-confirmation', [
+            'page' => $page,
             'confirmed' => $confirmed
+        ]);
+    }
+
+    /**
+     * Renders the "check your email" page after successful registration
+     * 
+     * @return string|void
+     */
+    public function successAction()
+    {
+        $page = new VirtualEntity();
+        $page->setTitle($this->translator->translate('Registration complete'))
+             ->setSeo(false);
+
+        return $this->view->render('member-register-success', [
+            'page' => $page
         ]);
     }
 
@@ -93,15 +112,61 @@ final class Register extends AbstractController
             ]);
         }
 
-        // New registrations default to unconfirmed
+        // New registrations default to unconfirmed and unsubscribed
         $input['member']['confirmed'] = '0';
         $input['member']['subscriber'] = '0';
 
-        // Pass the whole payload so translations are persisted too
-        $memberManager->save($input);
+        // Generate the activation key BEFORE save() so it lands in the same INSERT
+        $key = md5(uniqid(rand(), true));
+        $input['member']['activation_key'] = $key;
+
+        // Persist member + translations
+        if (!$memberManager->save($input)) {
+            return $this->json([
+                'error' => 'An unexpected error occurred during saving'
+            ]);
+        }
+
+        // Send the confirmation email using the SAME key
+        $this->sendConfirmationEmail(
+            $input['member']['email'],
+            $input['member']['name'],
+            $key
+        );
 
         return $this->json([
-            'success' => 'Registration successful. Please check your email to confirm your account.'
+            'redirect' => $this->createUrl('Members:Register@successAction')
         ]);
+    }
+
+    /**
+     * Renders and sends the registration confirmation email
+     *
+     * @param string $email Recipient address
+     * @param string $name Recipient name
+     * @param string $key Activation key (already persisted on the member row)
+     * @return boolean
+     */
+    private function sendConfirmationEmail($email, $name, $key)
+    {
+        $body = $this->renderMessage('register', [
+            'name' => $name,
+            'link' => $this->request->getBaseUrl() . $this->createUrl('Members:Register@confirmAction', [$key])
+        ]);
+
+        $subject = $this->translator->translate('Please confirm your account');
+        $mailer = $this->getService('Cms', 'mailer');
+
+        $sent = $mailer->sendTo($email, $subject, $body);
+
+        if (!$sent) {
+            error_log(sprintf(
+                'Members: failed to send registration email to %s', $email
+            ));
+
+            return false;
+        }
+
+        return true;
     }
 }

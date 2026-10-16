@@ -1,0 +1,98 @@
+<?php
+
+use Krystal\Form\Element;
+
+?>
+
+<form class="card shadow-sm border-0" method="post" action="<?= $this->url('Members:Register@indexAction'); ?>" autocomplete="off" id="register-form">
+    <!-- Header -->
+    <div class="card-header bg-white border-0 pt-4 px-4">
+        <h4 class="mb-0">
+            <i class="bi bi-person-plus"></i>
+            <?= $this->translate('Create an account'); ?>
+        </h4>
+
+        <p class="text-body-secondary small mb-0 mt-1">
+            <?= $this->translate('Already have one?'); ?>
+
+            <a href="<?= $this->url('Members:Auth@indexAction'); ?>" class="text-decoration-none">
+                <?= $this->translate('Login'); ?>
+            </a>
+        </p>
+    </div>
+
+    <div class="card-body px-4 pb-4">
+        <div class="mb-3">
+            <label class="form-label" for="member_name">
+                <?= $this->translate('Full name'); ?>
+            </label>
+
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-person"></i></span>
+                <?= Element::text('member[name]', '', [
+                    'class' => 'form-control',
+                    'id' => 'member_name',
+                    'placeholder' => $this->translate('Full name'),
+                    'autofocus' => true,
+                    'minlength' => 2
+                ]); ?>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="member_email">
+                <?= $this->translate('Email'); ?>
+            </label>
+
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                <?= Element::text('member[email]', '', [
+                    'class' => 'form-control',
+                    'id' => 'member_email',
+                    'placeholder' => 'example@domain.com',
+                    'type' => 'email'
+                ]); ?>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="member_login">
+                <?= $this->translate('Login'); ?>
+            </label>
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
+                <?= Element::text('member[login]', '', [
+                    'class' => 'form-control',
+                    'id' => 'member_login',
+                    'placeholder' => $this->translate('Username')
+                ]); ?>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label" for="member_password">
+                <?= $this->translate('Password'); ?>
+            </label>
+
+            <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                <?= Element::password('member[password]', '', [
+                    'class' => 'form-control',
+                    'id' => 'member_password',
+                    'placeholder' => $this->translate('Enter password (min 6 chars)'),
+                    'minlength' => 6
+                ]); ?>
+            </div>
+
+            <small class="text-body-secondary">
+                <?= $this->translate('At least 6 characters.'); ?>
+            </small>
+        </div>
+    </div>
+
+    <div class="card-footer bg-white border-0 d-flex justify-content-end px-4 py-3">
+        <button type="submit" class="btn btn-primary" data-button="submit">
+            <i class="bi bi-person-plus"></i> <?= $this->translate('Register'); ?>
+        </button>
+    </div>
+</form>

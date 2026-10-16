@@ -1,0 +1,33 @@
+<?php
+
+use Krystal\Form\Element;
+
+?>
+
+<div class="card shadow-sm border-0 text-center">
+    <div class="card-body p-5">
+        <div class="mb-4">
+            <i class="bi bi-envelope-check text-success" style="font-size: 4rem;"></i>
+        </div>
+
+        <h1 class="h3 mb-3">
+            <?= $this->translate('Thank you for registering!'); ?>
+        </h1>
+
+        <p class="text-body-secondary mb-4">
+            <?= $this->translate('We have sent a confirmation link to your email address. Please check your inbox and click the link to activate your account.'); ?>
+        </p>
+
+        <div class="alert alert-info text-start" role="alert">
+            <i class="bi bi-info-circle"></i>
+            <?= $this->translate('Didn\'t receive the email? Check your spam folder, or try registering again with a different address.'); ?>
+        </div>
+    </div>
+
+    <div class="card-footer bg-white border-0 py-3">
+        <a href="<?= $this->url('Members:Auth@indexAction'); ?>" class="btn btn-primary">
+            <i class="bi bi-box-arrow-in-right"></i>
+            <?= $this->translate('Go to login'); ?>
+        </a>
+    </div>
+</div>
