@@ -262,11 +262,24 @@ final class MemberManager extends AbstractService
      */
     public function resetPassword($key)
     {
+        $row = $this->mapper->findByActivationKey($key);
+
+        if (!$row) {
+            return false;
+        }
+
         $newPassword = substr(md5(uniqid(rand(), true)), 0, 8);
         $hash = password_hash($newPassword, PASSWORD_DEFAULT);
+
         $affected = $this->mapper->updatePasswordByKey($key, $hash);
 
-        return $affected ? $newPassword : false;
+        if (!$affected) {
+            return false;
+        }
+
+        $this->mapper->touchPasswordChangedAt($row['id'], date('Y-m-d H:i:s'));
+
+        return $newPassword;
     }
 
     /**

@@ -4,6 +4,7 @@ CREATE TABLE `bono_module_members` (
   `email` VARCHAR(254) NOT NULL,
   `login` VARCHAR(254) NOT NULL,
   `password_hash` VARCHAR(254) NOT NULL,
+  `password_changed_at` DATETIME,
   `name` VARCHAR(120) NULL,
   `phone` VARCHAR(30) NULL,
   `address` TEXT NULL,
