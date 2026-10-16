@@ -110,7 +110,13 @@ final class Register extends AbstractController
      */
     private function saveAction()
     {
+        $memberManager = $this->getModuleService('memberManager');
+
         $validator = $this->createValidation();
+
+        $validator->setFieldRule('uniqueEmail', function ($email) use ($memberManager) {
+            return $memberManager->isFree($email);
+        }, $this->translator->translate('This email is already taken'));
 
         $validator->field('member.name')
                   ->required()
@@ -118,7 +124,8 @@ final class Register extends AbstractController
 
         $validator->field('member.email')
                   ->required()
-                  ->addRule('email');
+                  ->addRule('email')
+                  ->addRule('uniqueEmail');
 
         $validator->field('member.login')
                   ->required();
@@ -134,15 +141,6 @@ final class Register extends AbstractController
         }
 
         $input = $this->request->getPost();
-        $memberManager = $this->getModuleService('memberManager');
-
-        if (!$memberManager->isFree($input['member']['email'])) {
-            return $this->json([
-                'errors' => [
-                    'member.email' => 'This email is already taken'
-                ]
-            ]);
-        }
 
         // New registrations default to unconfirmed and unsubscribed
         $input['member']['confirmed'] = '0';
