@@ -48,6 +48,15 @@ return [
         'middleware' => [AuthRequiredMiddleware::class]
     ],
     
+    // Directory
+    '/members' => [
+        'controller' => 'Directory@indexAction'
+    ],
+
+    '/member/(:var)' => [
+        'controller' => 'Directory@profileAction'
+    ],
+    
     // Recovery
     '/member/recovery' => [
         'controller' => 'Recovery@indexAction'

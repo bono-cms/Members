@@ -12,6 +12,26 @@ namespace Members\Storage;
 interface MemberMapperInterface
 {
     /**
+     * Fetches a paginated list of confirmed members
+     * 
+     * @param integer $pageNumber Current page number
+     * @param integer $itemsPerPage Per page count
+     * @return array
+     */
+    public function fetchConfirmed($pageNumber, $itemsPerPage);
+
+    /**
+     * Fetches a confirmed member by their associated ID
+     * 
+     * Unconfirmed members are treated as not found. The row returned
+     * matches the currently active language.
+     * 
+     * @param string $id Member ID
+     * @return array|boolean Row as array on success, false if not found
+     */
+    public function findConfirmedById($id);
+
+    /**
      * Updates an activation key by member ID
      * 
      * Unlike updateKey(), this method does not filter by the

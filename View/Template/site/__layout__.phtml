@@ -41,6 +41,13 @@
 
         <div class="collapse navbar-collapse" id="membersNav">
             <ul class="navbar-nav ms-auto">
+                <li class="nav-item">
+                    <a class="nav-link" href="<?= $this->url('Members:Directory@indexAction'); ?>">
+                        <i class="bi bi-people"></i>
+                        <?= $this->translate('Members'); ?>
+                    </a>
+                </li>
+
                 <?php if ($isLoggedIn): ?>
                     <li class="nav-item">
                         <a class="nav-link" href="<?= $this->url('Members:Profile@indexAction'); ?>">

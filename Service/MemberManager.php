@@ -88,6 +88,35 @@ final class MemberManager extends AbstractService
     }
 
     /**
+     * Fetches a paginated list of confirmed members
+     * 
+     * @param integer $pageNumber Current page number
+     * @param integer $itemsPerPage Per page count
+     * @return array
+     */
+    public function fetchConfirmed($pageNumber, $itemsPerPage)
+    {
+        return $this->prepareResults(
+            $this->mapper->fetchConfirmed($pageNumber, $itemsPerPage)
+        );
+    }
+
+    /**
+     * Fetches a public profile of a confirmed member by ID
+     * 
+     * Unconfirmed members are treated as not found.
+     * 
+     * @param int $id Member ID
+     * @return \Krystal\Stdlib\VirtualEntity|boolean
+     */
+    public function fetchPublicProfile($id)
+    {
+        return $this->prepareResult(
+            $this->mapper->findConfirmedById($id)
+        );
+    }
+
+    /**
      * Fetches all members with pagination
      * 
      * @param int $pageNumber

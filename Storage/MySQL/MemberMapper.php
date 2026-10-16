@@ -59,6 +59,39 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
     }
 
     /**
+     * {@inheritDoc}
+     */
+    public function fetchConfirmed($pageNumber, $itemsPerPage)
+    {
+        $db = $this->db->select('*')
+                       ->from(self::getTableName())
+                       ->whereEquals('confirmed', '1')
+                       ->orderBy($this->getPk())
+                       ->desc()
+                       ->paginate($pageNumber, $itemsPerPage);
+
+        return $db->queryAll();
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public function findConfirmedById($id)
+    {
+        $db = $this->db->select($this->getColumns())
+                        ->from(self::getTableName())
+                        // Translation relation
+                        ->innerJoin(MemberTranslationMapper::getTableName(), [
+                            MemberTranslationMapper::column('id') => self::getRawColumn('id'),
+                            MemberTranslationMapper::column('lang_id') => $this->getLangId()
+                        ])
+                        ->whereEquals(self::column('id'), $id)
+                        ->andWhereEquals(self::column('confirmed'), '1');
+
+        return $db->query();
+    }
+
+    /**
      * Updates an activation key by member ID
      * 
      * Unlike updateKey(), this method does not filter by the
