@@ -30,54 +30,54 @@ return [
     ],
 
     // Site area
-    '/profile' => [
+    '/member/profile' => [
         'controller' => 'Profile@indexAction'
     ],
 
-    '/profile/edit' => [
+    '/member/profile/edit' => [
         'controller' => 'Profile@editAction'
     ],
 
-    '/profile/update' => [
+    '/member/profile/update' => [
         'controller' => 'Profile@updateAction'
     ],
     
     // Recovery
-    '/recovery' => [
+    '/member/recovery' => [
         'controller' => 'Recovery@indexAction'
     ],
 
-    '/recovery/process' => [
+    '/member/recovery/process' => [
         'controller' => 'Recovery@processAction'
     ],
 
-    '/recovery/success' => [
+    '/member/recovery/success' => [
         'controller' => 'Recovery@successAction'
     ],
     
-    '/recovery/confirm/(:var)' => [
+    '/member/recovery/confirm/(:var)' => [
         'controller' => 'Recovery@resetAction'
     ],
     
     // Register
-    '/register' => [
+    '/member/register' => [
         'controller' => 'Register@indexAction'
     ],
 
-    '/register/confirm/(:var)' => [
+    '/member/register/confirm/(:var)' => [
         'controller' => 'Register@confirmAction'
     ],
 
-    '/register/success' => [
+    '/member/register/success' => [
         'controller' => 'Register@successAction'
     ],
     
     // Auth
-    '/login' => [
+    '/member/login' => [
         'controller' => 'Auth@indexAction'
     ],
 
-    '/logout' => [
+    '/member/logout' => [
         'controller' => 'Auth@logoutAction'
     ]
 ];
