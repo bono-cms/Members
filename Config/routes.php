@@ -31,7 +31,20 @@ return [
     '/%s/module/members/delete/(:var)' => [
         'controller' => 'Admin:Members@deleteAction'
     ],
+    
+    // Changes
+    '/%s/module/members/changes' => [
+        'controller' => 'Admin:Changes@indexAction'
+    ],
 
+    '/%s/module/members/changes/approve/(:var)' => [
+        'controller' => 'Admin:Changes@approveAction'
+    ],
+
+    '/%s/module/members/changes/reject/(:var)' => [
+        'controller' => 'Admin:Changes@rejectAction'
+    ],
+    
     // Site area
     '/member/profile' => [
         'controller' => 'Profile@indexAction',
