@@ -34,14 +34,26 @@ final class PendingChangesPresenter
     private $labelResolver;
 
     /**
+     * Absolute path to the avatar staging directory
+     *
+     * Used only to verify that the staged file exists before exposing
+     * a preview URL to the reviewer.
+     *
+     * @var string
+     */
+    private $stagingDir;
+
+    /**
      * State initialization
      *
      * @param callable $labelResolver Receives a field name, returns a label
+     * @param string $stagingDir Absolute path to the avatar staging directory
      * @return void
      */
-    public function __construct(callable $labelResolver)
+    public function __construct(callable $labelResolver, $stagingDir)
     {
         $this->labelResolver = $labelResolver;
+        $this->stagingDir = rtrim($stagingDir, '/') . '/';
     }
 
     /**
@@ -141,13 +153,14 @@ final class PendingChangesPresenter
         ];
 
         if ($change['field'] === 'avatar' && !$change['newEmpty']) {
-            $shaped['isImage'] = true;
-            $shaped['previewUrl'] = ProfileChangeService::STAGING_DIR . rawurlencode($change['new']);
+            if (is_file($this->stagingDir . $change['new'])) {
+                $shaped['isImage'] = true;
+                $shaped['previewUrl'] = ProfileChangeService::STAGING_DIR . rawurlencode($change['new']);
+            }
         }
 
         return $shaped;
     }
-
 
     /**
      * Returns the human-readable language name for the given language id

@@ -9,10 +9,11 @@
 
 namespace Members\Controller\Admin;
 
+use Krystal\Text\TextUtils;
+use Cms\Controller\Admin\AbstractController;
+use Members\Service\ProfileChangeService;
 use Members\View\PendingChangesPresenter;
 use Members\Service\MemberEntity;
-use Cms\Controller\Admin\AbstractController;
-use Krystal\Text\TextUtils;
 
 final class Changes extends AbstractController
 {
@@ -42,10 +43,11 @@ final class Changes extends AbstractController
         unset($submission);
 
         $languages = $this->getService('Cms', 'languageManager')->fetchAll(true);
+        $stagingDir = $this->appConfig->getRootDir() . ProfileChangeService::STAGING_DIR;
 
         $presenter = new PendingChangesPresenter(function ($field) {
             return TextUtils::normalizeColumn($field);
-        });
+        }, $stagingDir);
 
         $rows = $presenter->present($submissions, $languages);
 

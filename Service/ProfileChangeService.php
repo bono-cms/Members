@@ -471,9 +471,9 @@ final class ProfileChangeService
      * Applies base fields to the live member row
      *
      * Handles the avatar file move when the avatar field is included.
-     * If the staged avatar file is missing (e.g. cleaned up by a cron),
-     * the avatar update is silently skipped so the column doesn't get
-     * set to a non-existent file.
+     * The final filename returned by the image manager is written back
+     * into the "avatar" column so that the live member row points at
+     * the file that actually exists on disk.
      *
      * @param int $memberId
      * @param array $fields
@@ -490,19 +490,24 @@ final class ProfileChangeService
                 if (!empty($oldAvatar)) {
                     $this->avatarImageManager->delete($memberId, $oldAvatar);
                 }
-            } elseif ($this->promoteStagedAvatar($memberId, $newAvatar)) {
-                if (!empty($oldAvatar) && $oldAvatar !== $newAvatar) {
-                    $this->avatarImageManager->delete($memberId, $oldAvatar);
-                }
+                $fields['avatar'] = '';
             } else {
-                error_log(sprintf(
-                    'Members: staged avatar %s missing for member %d; skipping',
-                    $newAvatar,
-                    $memberId
-                ));
-            }
+                $promotedName = $this->promoteStagedAvatar($memberId, $newAvatar);
 
-            unset($fields['avatar']);
+                if ($promotedName !== false) {
+                    if (!empty($oldAvatar) && $oldAvatar !== $promotedName) {
+                        $this->avatarImageManager->delete($memberId, $oldAvatar);
+                    }
+                    $fields['avatar'] = $promotedName;
+                } else {
+                    error_log(sprintf(
+                        'Members: staged avatar %s missing for member %d; skipping',
+                        $newAvatar,
+                        $memberId
+                    ));
+                    unset($fields['avatar']);
+                }
+            }
         }
 
         if (!empty($fields)) {
@@ -534,12 +539,17 @@ final class ProfileChangeService
     }
 
     /**
-     * Promotes a staged avatar into the live avatars directory and
-     * regenerates thumbnails through the image manager
+     * Promotes a staged avatar into the live avatars directory
+     *
+     * The image manager writes files under FileEntity::getUniqueName(),
+     * which may differ from the staged filename. The staged file is
+     * renamed to that final name before upload so that the filename
+     * returned here matches what actually landed on disk. The caller
+     * must persist this value into the member row.
      *
      * @param int $memberId
      * @param string $stagedName
-     * @return boolean
+     * @return string|false Final filename, or false on failure
      */
     private function promoteStagedAvatar($memberId, $stagedName)
     {
@@ -556,10 +566,23 @@ final class ProfileChangeService
                ->setSize(filesize($source))
                ->setError(UPLOAD_ERR_OK);
 
-        $this->avatarImageManager->upload($memberId, $entity);
-        @unlink($source);
+        $finalName = $entity->getUniqueName();
+        $promotedSource = $source;
 
-        return true;
+        if ($finalName !== $stagedName) {
+            $promotedSource = $this->getStagingDir() . $finalName;
+
+            if (!@rename($source, $promotedSource)) {
+                return false;
+            }
+
+            $entity->setTmpName($promotedSource);
+        }
+
+        $this->avatarImageManager->upload($memberId, $entity);
+        @unlink($promotedSource);
+
+        return $finalName;
     }
 
     /**
