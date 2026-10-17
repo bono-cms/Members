@@ -12,6 +12,7 @@ namespace Members;
 use Members\Service\SiteService;
 use Members\Service\MemberManager;
 use Members\Service\ProfileChangeService;
+use Members\Service\ChatService;
 use Cms\AbstractCmsModule;
 use Krystal\Image\Tool\ImageManager;
 
@@ -43,6 +44,11 @@ final class Module extends AbstractCmsModule
                 $changeMapper,
                 $avatarManager,
                 $moderationConfig
+            ),
+            'chatService' => new ChatService(
+                $this->getMapper('/Members/Storage/MySQL/ConversationMapper'),
+                $this->getMapper('/Members/Storage/MySQL/ParticipantMapper'),
+                $this->getMapper('/Members/Storage/MySQL/MessageMapper')
             )
         ];
     }
