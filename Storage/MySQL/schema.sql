@@ -26,3 +26,19 @@ CREATE TABLE `bono_module_members_translations` (
   `company` VARCHAR(120) NULL,
   `bio` TEXT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+DROP TABLE IF EXISTS `bono_module_members_changes`;
+CREATE TABLE `bono_module_members_changes` (
+  `id` INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+  `member_id` INT NOT NULL,
+  `payload` LONGTEXT NOT NULL,
+  `status` ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+  `reviewed_at` DATETIME NULL,
+  `rejection_reason` VARCHAR(500) NULL,
+  `created_at` DATETIME NOT NULL,
+  KEY `idx_member_status` (`member_id`, `status`),
+  KEY `idx_status_created` (`status`, `created_at`),
+  CONSTRAINT `fk_members_changes_member`
+    FOREIGN KEY (`member_id`) REFERENCES `bono_module_members` (`id`)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

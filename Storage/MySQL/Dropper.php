@@ -19,6 +19,7 @@ final class Dropper extends AbstractStorageDropper
     protected function getTables()
     {
         return [
+            MemberChangeMapper::getTableName(),   // drop first (FK child)
             MemberMapper::getTableName(),
             MemberTranslationMapper::getTableName()
         ];
