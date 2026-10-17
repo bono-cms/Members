@@ -48,6 +48,32 @@ return [
     '/%s/module/members/history/(:var)' => [
         'controller' => 'Admin:Members@historyAction'
     ],
+
+    // Chat
+    '/member/messages' => [
+        'controller' => 'Chat@inboxAction',
+        'middleware' => [AuthRequiredMiddleware::class]
+    ],
+
+    '/member/messages/with/(:var)' => [
+        'controller' => 'Chat@withAction',
+        'middleware' => [AuthRequiredMiddleware::class]
+    ],
+
+    '/member/messages/converstation/(:var)' => [
+        'controller' => 'Chat@conversationAction',
+        'middleware' => [AuthRequiredMiddleware::class]
+    ],
+
+    '/member/messages/send' => [
+        'controller' => 'Chat@sendAction',
+        'middleware' => [AuthRequiredMiddleware::class]
+    ],
+
+    '/member/messages/poll' => [
+        'controller' => 'Chat@pollAction',
+        'middleware' => [AuthRequiredMiddleware::class]
+    ],
     
     // Site area
     '/member/profile' => [
