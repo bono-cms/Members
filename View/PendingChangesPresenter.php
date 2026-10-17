@@ -11,6 +11,7 @@ namespace Members\View;
 
 use Members\Service\ChangesDiff;
 use Members\Service\MemberEntity;
+use Members\Service\ProfileChangeService;
 
 /**
  * Shapes raw pending submissions into plain arrays for the view
@@ -90,9 +91,7 @@ final class PendingChangesPresenter
             return $row;
         }
 
-        $live = isset($submission['live']) && $submission['live'] instanceof MemberEntity
-            ? $submission['live']
-            : null;
+        $live = isset($submission['live']) && $submission['live'] instanceof MemberEntity ? $submission['live'] : null;
 
         $diff = new ChangesDiff($live, $payload);
 
@@ -130,15 +129,25 @@ final class PendingChangesPresenter
      */
     private function shapeChange(array $change)
     {
-        return [
+        $shaped = [
             'label' => call_user_func($this->labelResolver, $change['field']),
             'old' => $change['old'],
             'new' => $change['new'],
             'oldEmpty' => $change['oldEmpty'],
             'newEmpty' => $change['newEmpty'],
-            'unchanged' => $change['unchanged']
+            'unchanged' => $change['unchanged'],
+            'isImage' => false,
+            'previewUrl' => null
         ];
+
+        if ($change['field'] === 'avatar' && !$change['newEmpty']) {
+            $shaped['isImage'] = true;
+            $shaped['previewUrl'] = ProfileChangeService::STAGING_DIR . rawurlencode($change['new']);
+        }
+
+        return $shaped;
     }
+
 
     /**
      * Returns the human-readable language name for the given language id

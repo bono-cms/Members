@@ -3,12 +3,22 @@
 /**
  * Renders the "before → after" fragment for a single change descriptor
  *
- * @var array $change Descriptor from ChangesDiff::baseChanges()
+ * @var array $change Descriptor from PendingChangesPresenter::shapeChange()
  */
 
 if ($change['unchanged']): ?>
 
 <em class="text-muted">—</em>
+
+<?php elseif (!empty($change['isImage']) && !empty($change['previewUrl'])): ?>
+
+<span class="text-danger text-decoration-line-through">
+    <?= $change['oldEmpty'] ? '<em class="text-muted">∅</em>' : htmlspecialchars((string) $change['old']); ?>
+</span>
+<i class="bi bi-arrow-right text-muted mx-1"></i>
+<a href="<?= htmlspecialchars($change['previewUrl']); ?>" target="_blank" rel="noopener">
+    <img src="<?= htmlspecialchars($change['previewUrl']); ?>" alt="" style="max-height:48px;max-width:48px;object-fit:cover;border-radius:4px;" />
+</a>
 
 <?php else: ?>
 
