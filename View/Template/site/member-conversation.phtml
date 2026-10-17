@@ -8,27 +8,41 @@
  * @var array $messages Raw message rows
  * @var array $senders Sender rows indexed by member id
  * @var int $meId Current member id
+ * @var string $otherName
+ * @var string|null $otherAvatar
+ * @var int $otherId
  */
-
-$presenter = new \Members\View\ChatPresenter(
-    '',
-    '/data/uploads/module/members/avatars'
-);
 
 $lastId = empty($messages) ? 0 : (int) end($messages)['id'];
 
 ?>
 
 <div class="card shadow-sm border-0">
-    <div class="card-header bg-white d-flex justify-content-between align-items-center">
-        <a href="<?= $this->url('Members:Chat@inboxAction'); ?>" class="text-decoration-none">
-            <i class="bi bi-arrow-left"></i>
-            <?= $this->translate('Back to inbox'); ?>
-        </a>
+    <div class="card-header bg-white">
+        <div class="row align-items-center g-0">
+            <div class="col-auto">
+                <a href="<?= $this->url('Members:Chat@inboxAction'); ?>" class="text-decoration-none">
+                    <i class="bi bi-arrow-left"></i>
+                    <?= $this->translate('Back to inbox'); ?>
+                </a>
+            </div>
 
-        <span class="text-muted small">
-            <?= $this->translate('Conversation'); ?>
-        </span>
+            <div class="col d-flex align-items-center justify-content-end gap-2">
+                <?php if (!empty($otherAvatar)): ?>
+                <img src="/data/uploads/module/members/avatars/<?= (int) $otherId; ?>/64x64/<?= rawurlencode($otherAvatar); ?>"
+                     class="rounded-circle"
+                     style="width:32px;height:32px;object-fit:cover;"
+                     alt="" />
+                <?php else: ?>
+                <i class="bi bi-person-circle text-secondary" style="font-size:32px;"></i>
+                <?php endif; ?>
+
+                <a href="<?= $otherId > 0 ? $this->url('Members:Directory@profileAction', [$otherId]) : '#'; ?>"
+                   class="fw-semibold text-decoration-none text-body text-truncate">
+                    <?= htmlspecialchars($otherName); ?>
+                </a>
+            </div>
+        </div>
     </div>
 
     <div class="card-body" id="thread" style="max-height:60vh; overflow-y:auto;">
@@ -103,7 +117,7 @@ $lastId = empty($messages) ? 0 : (int) end($messages)['id'];
 
     var INTERVALS = {
         burst:   2000,   // Right after sending
-        active:  10000,   // Recent traffic
+        active:  10000,  // Recent traffic
         idle:    30000,  // No traffic for 60s
         idleAfter: 60000,
         error:   60000   // After a failed poll

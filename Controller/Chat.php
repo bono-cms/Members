@@ -98,6 +98,21 @@ final class Chat extends AbstractController
             $chatService->markReadUpTo((int) $conversationId, $memberId, $lastMessageId);
         }
 
+        // Resolve the other participant for the header
+        $other = $chatService->findOtherParticipant((int) $conversationId, $memberId);
+
+        $otherName = '#?' . (int) $conversationId;
+
+        if ($other !== false) {
+            $otherName = $other['name'];
+            if (empty($otherName)) {
+                $otherName = $other['login'];
+            }
+            if (empty($otherName)) {
+                $otherName = '#' . (int) $other['member_id'];
+            }
+        }
+
         $page = new VirtualEntity();
         $page->setTitle($this->translator->translate('Conversation'))
              ->setSeo(false);
@@ -107,7 +122,10 @@ final class Chat extends AbstractController
             'conversationId' => (int) $conversationId,
             'messages' => $messages,
             'senders' => $this->collectSenders($messages),
-            'meId' => $memberId
+            'meId' => $memberId,
+            'otherName' => $otherName,
+            'otherAvatar' => $other !== false && !empty($other['avatar']) ? $other['avatar'] : null,
+            'otherId' => $other !== false ? (int) $other['member_id'] : 0
         ]);
     }
 
