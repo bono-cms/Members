@@ -69,9 +69,16 @@ $country = $member->getCountry();
 </div>
 <?php endif; ?>
 
-<div class="mt-4">
+<div class="mt-4 d-flex gap-2 flex-wrap">
     <a href="<?= $this->url('Members:Directory@indexAction'); ?>" class="btn btn-outline-secondary">
         <i class="bi bi-arrow-left"></i>
         <?= $this->translate('Back to members'); ?>
     </a>
+
+    <?php if ($isLoggedIn && (int) $member->getId() !== (int) ($meId ?? 0)): ?>
+    <a href="<?= $this->url('Members:Chat@withAction', [$member->getId()]); ?>" class="btn btn-primary">
+        <i class="bi bi-chat-dots"></i>
+        <?= $this->translate('Message this member'); ?>
+    </a>
+    <?php endif; ?>
 </div>
