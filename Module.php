@@ -11,6 +11,7 @@ namespace Members;
 
 use Members\Service\SiteService;
 use Members\Service\MemberManager;
+use Members\Service\ProfileChangeService;
 use Cms\AbstractCmsModule;
 use Krystal\Image\Tool\ImageManager;
 
@@ -21,17 +22,31 @@ final class Module extends AbstractCmsModule
      */
     public function getServiceProviders()
     {
+        $memberMapper = $this->getMapper('/Members/Storage/MySQL/MemberMapper');
+        $changeMapper = $this->getMapper('/Members/Storage/MySQL/MemberChangeMapper');
+        $avatarManager = $this->createAvatarImageManager();
+
         $memberManager = new MemberManager(
-            $this->getMapper('/Members/Storage/MySQL/MemberMapper'),
+            $memberMapper,
             $this->getServiceLocator()->get('sessionBag'),
-            $this->createAvatarImageManager()
+            $avatarManager
         );
 
+        $config = $this->getConfig();
+        $moderationConfig = isset($config['moderation']) ? $config['moderation'] : [];
+
         return [
-            'memberManager' => $memberManager,
-            'siteService' => new SiteService($memberManager)
+            'memberManager'        => $memberManager,
+            'siteService'          => new SiteService($memberManager),
+            'profileChangeService' => new ProfileChangeService(
+                $memberMapper,
+                $changeMapper,
+                $avatarManager,
+                $moderationConfig
+            )
         ];
     }
+
 
     /**
      * Builds avatar image manager service
