@@ -215,11 +215,8 @@ final class ProfileChangeService
      *
      * Fields classified as "auto" (skip bucket or moderation off) are
      * applied to the live row immediately. Fields classified as
-     * "moderate" are staged for approval.
-     *
-     * Translation edits are processed per-language, because the form
-     * submits all language tabs at once regardless of the active
-     * language.
+     * "moderate" are staged for approval with both their old and new
+     * values captured in the payload.
      *
      * @param array $input Input data in the standard profile form shape
      * @return array
@@ -270,7 +267,10 @@ final class ProfileChangeService
             if ($this->isSkipped($field) || !$this->shouldStageBase($field)) {
                 $autoFields[$field] = $value;
             } else {
-                $stagedBase[$field] = $value;
+                $stagedBase[$field] = [
+                    'old' => $currentValue,
+                    'new' => $value
+                ];
             }
         }
 
@@ -300,7 +300,10 @@ final class ProfileChangeService
                 }
 
                 if ($this->shouldStageTranslation($field)) {
-                    $stagedTrans[$langId][$field] = $value;
+                    $stagedTrans[$langId][$field] = [
+                        'old' => $currentValue,
+                        'new' => $value
+                    ];
                 } elseif (in_array(strtolower($field), $config['base'], true)
                        || in_array(strtolower($field), $config['skip'], true)) {
                     // Auto-apply only known, non-staged fields
@@ -330,13 +333,8 @@ final class ProfileChangeService
         ];
     }
 
-
     /**
      * Approves a submission and applies its fields atomically
-     *
-     * Translation fields are applied per-language, using the language
-     * id captured in the submission payload, not the admin's active
-     * language.
      *
      * @param int $submissionId
      * @return boolean
@@ -365,12 +363,12 @@ final class ProfileChangeService
         try {
             $this->changeMapper->wrapTransaction(function () use ($memberId, $payload, $liveRow, $submissionId) {
                 if (!empty($payload['base'])) {
-                    $this->applyBaseFields($memberId, $payload['base'], $liveRow);
+                    $this->applyBaseFields($memberId, $this->unwrapPairs($payload['base']), $liveRow);
                 }
 
                 if (!empty($payload['translations'])) {
                     foreach ($payload['translations'] as $langId => $fields) {
-                        foreach ($fields as $field => $value) {
+                        foreach ($this->unwrapPairs($fields) as $field => $value) {
                             $this->memberMapper->updateTranslationFieldByLang($memberId, (int) $langId, $field, $value);
                         }
                     }
@@ -381,7 +379,7 @@ final class ProfileChangeService
 
             return true;
 
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             error_log('Members: approval failed — ' . $e->getMessage());
 
             return false;
@@ -406,7 +404,12 @@ final class ProfileChangeService
         $payload = json_decode($submission['payload'], true);
 
         if (is_array($payload) && !empty($payload['base']['avatar'])) {
-            $this->discardStagedAvatar($payload['base']['avatar']);
+            $avatarPair = $payload['base']['avatar'];
+            $stagedName = is_array($avatarPair) && array_key_exists('new', $avatarPair) ? $avatarPair['new'] : $avatarPair;
+
+            if (!empty($stagedName)) {
+                $this->discardStagedAvatar($stagedName);
+            }
         }
 
         return $this->changeMapper->markRejected($submissionId, $reason);
@@ -465,6 +468,26 @@ final class ProfileChangeService
     public function getPaginator()
     {
         return $this->changeMapper->getPaginator();
+    }
+
+    /**
+     * Unwraps ['old' => ..., 'new' => ...] pairs into bare new values
+     *
+     * Supports both the current payload shape and the legacy shape
+     * (each value is a bare new value).
+     *
+     * @param array $pairs
+     * @return array
+     */
+    private function unwrapPairs(array $pairs)
+    {
+        $result = [];
+
+        foreach ($pairs as $field => $pair) {
+            $result[$field] = is_array($pair) && array_key_exists('new', $pair) ? $pair['new'] : $pair;
+        }
+
+        return $result;
     }
 
     /**
@@ -602,11 +625,6 @@ final class ProfileChangeService
 
     /**
      * Returns the absolute path to the avatar staging directory
-     *
-     * The project bootstraps with chdir(__DIR__), so the current
-     * working directory is the project root. Prepending it turns the
-     * relative constant into an absolute path, which is what
-     * filesystem functions require.
      *
      * @return string
      */

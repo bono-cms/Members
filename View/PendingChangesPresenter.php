@@ -10,17 +10,15 @@
 namespace Members\View;
 
 use Members\Service\ChangesDiff;
-use Members\Service\MemberEntity;
 use Members\Service\ProfileChangeService;
 
 /**
- * Shapes raw pending submissions into plain arrays for the view
+ * Shapes raw submission rows into plain arrays for the view
  *
- * This class owns the data decisions for the pending changes grid:
- * which fields exist, what their raw values are, and which language
- * each translation group belongs to. It produces no HTML and
- * performs no translation or URL building — both are the template's
- * job.
+ * The presenter is payload-driven: the submission row carries both
+ * the old and new values, so the same presenter works for pending
+ * submissions and for the full review history. It produces no HTML
+ * and performs no translation or URL building.
  */
 final class PendingChangesPresenter
 {
@@ -59,7 +57,7 @@ final class PendingChangesPresenter
     /**
      * Shapes a collection of raw submissions into view arrays
      *
-     * @param array $submissions Raw rows from ProfileChangeService::fetchPending()
+     * @param array $submissions Raw rows from ProfileChangeService
      * @param array $languages Language entities
      * @return array<int, array>
      */
@@ -92,6 +90,9 @@ final class PendingChangesPresenter
             'memberName' => $this->memberName($submission),
             'memberEmail' => isset($submission['member_email']) ? (string) $submission['member_email'] : '',
             'createdAt' => isset($submission['created_at']) ? $submission['created_at'] : '',
+            'reviewedAt' => isset($submission['reviewed_at']) ? $submission['reviewed_at'] : null,
+            'status' => isset($submission['status']) ? $submission['status'] : 'pending',
+            'rejectionReason' => isset($submission['rejection_reason']) ? $submission['rejection_reason'] : null,
             'hasPayload' => $hasPayload,
             'hasBaseChanges' => false,
             'hasTranslationChanges' => false,
@@ -103,9 +104,7 @@ final class PendingChangesPresenter
             return $row;
         }
 
-        $live = isset($submission['live']) && $submission['live'] instanceof MemberEntity ? $submission['live'] : null;
-
-        $diff = new ChangesDiff($live, $payload);
+        $diff = new ChangesDiff($payload);
 
         $row['hasBaseChanges'] = $diff->hasBaseChanges();
         $row['hasTranslationChanges'] = $diff->hasTranslationChanges();
@@ -132,9 +131,6 @@ final class PendingChangesPresenter
 
     /**
      * Adds the resolved label to a change descriptor
-     *
-     * The output keeps the raw values so that the template can escape
-     * them at the point of output.
      *
      * @param array $change
      * @return array
@@ -165,8 +161,6 @@ final class PendingChangesPresenter
     /**
      * Returns the human-readable language name for the given language id
      *
-     * Falls back to a numeric placeholder when the id is unknown.
-     *
      * @param array $languages Collection of language entities
      * @param int $langId
      * @return string
@@ -184,9 +178,6 @@ final class PendingChangesPresenter
 
     /**
      * Resolves the display name for a member row
-     *
-     * Falls back to login when name is empty, then to a numeric id,
-     * then to a placeholder when the submission row is malformed.
      *
      * @param array $submission Submission row with optional member_* keys
      * @return string

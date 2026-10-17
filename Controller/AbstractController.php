@@ -31,6 +31,10 @@ abstract class AbstractController extends SiteController
                 'languages' => $this->getService('Cms', 'languageManager')->fetchAll(true),
                 'isLoggedIn' => $this->getModuleService('memberManager')->isLoggedIn()
             ]);
+
+            $this->view->getPartialBag()->addPartialDir(
+                $this->appConfig->getModuleDir('Members') . '/View/Template/admin/partials'
+            );
         }
     }
     

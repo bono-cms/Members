@@ -13,7 +13,6 @@ use Krystal\Text\TextUtils;
 use Cms\Controller\Admin\AbstractController;
 use Members\Service\ProfileChangeService;
 use Members\View\PendingChangesPresenter;
-use Members\Service\MemberEntity;
 
 final class Changes extends AbstractController
 {
@@ -31,16 +30,8 @@ final class Changes extends AbstractController
                    ->addOne('Pending changes');
 
         $changeService = $this->getModuleService('profileChangeService');
-        $memberManager = $this->getModuleService('memberManager');
 
         $submissions = $changeService->fetchPending($pageNumber, $this->getSharedPerPageCount());
-
-        foreach ($submissions as &$submission) {
-            $live = $memberManager->fetchById((int) $submission['member_id']);
-            $submission['live'] = $live instanceof MemberEntity ? $live : null;
-        }
-
-        unset($submission);
 
         $languages = $this->getService('Cms', 'languageManager')->fetchAll(true);
         $stagingDir = $this->appConfig->getRootDir() . ProfileChangeService::STAGING_DIR;

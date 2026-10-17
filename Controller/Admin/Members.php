@@ -10,10 +10,25 @@
 namespace Members\Controller\Admin;
 
 use Cms\Controller\Admin\AbstractController;
+use Members\Service\ProfileChangeService;
+use Members\View\PendingChangesPresenter;
 use Krystal\Stdlib\VirtualEntity;
+use Krystal\Text\TextUtils;
 
 final class Members extends AbstractController
 {
+    /**
+     * {@inheritDoc}
+     */
+    protected function bootstrap()
+    {
+        parent::bootstrap();
+
+        $this->view->getPartialBag()->addPartialDir(
+            $this->appConfig->getModuleDir('Members') . '/View/Template/admin/partials'
+        );
+    }
+
     /**
      * Creates and renders the member form
      * 
@@ -22,7 +37,6 @@ final class Members extends AbstractController
      */
     private function createForm($member)
     {
-        // Append a breadcrumb
         $this->view->getBreadcrumbBag()
                    ->addOne('Members', 'Members:Admin:Members@indexAction')
                    ->addOne('Update the member');
@@ -43,7 +57,6 @@ final class Members extends AbstractController
         $member->setConfirmed(1);
         $member->setTranslatable(true);
 
-        // Append a breadcrumb
         $this->view->getBreadcrumbBag()
                    ->addOne('Members', 'Members:Admin:Members@indexAction')
                    ->addOne('Add new member');
@@ -68,13 +81,54 @@ final class Members extends AbstractController
             return false;
         }
 
-        // Append a breadcrumb
         $this->view->getBreadcrumbBag()
                    ->addOne('Members', 'Members:Admin:Members@indexAction')
                    ->addOne('Update the member');
 
         return $this->view->render('form', [
             'member' => $member
+        ]);
+    }
+
+    /**
+     * Renders the full change history of a member
+     *
+     * @param string $id Member id
+     * @return string|boolean
+     */
+    public function historyAction($id)
+    {
+        $memberManager = $this->getModuleService('memberManager');
+        $changeService = $this->getModuleService('profileChangeService');
+
+        $member = $memberManager->fetchById($id);
+
+        if ($member === false) {
+            return false;
+        }
+
+        $name = $member->getName();
+        if (empty($name)) {
+            $name = $member->getLogin();
+        }
+
+        $this->view->getBreadcrumbBag()
+                   ->addOne('Members', 'Members:Admin:Members@indexAction')
+                   ->addOne($name, $this->createUrl('Members:Admin:Members@editAction', [$id]))
+                   ->addOne('Change history');
+
+        $languages = $this->getService('Cms', 'languageManager')->fetchAll(true);
+        $stagingDir = $this->appConfig->getRootDir() . ProfileChangeService::STAGING_DIR;
+
+        $presenter = new PendingChangesPresenter(function ($field) {
+            return TextUtils::normalizeColumn($field);
+        }, $stagingDir);
+
+        $history = $changeService->fetchHistoryForMember((int) $id, 100);
+
+        return $this->view->render('history', [
+            'member' => $member,
+            'rows' => $presenter->present($history, $languages)
         ]);
     }
 
@@ -141,7 +195,6 @@ final class Members extends AbstractController
     {
         $pageNumber = $this->request->getQuery('page', 1);
 
-        // Append a breadcrumb
         $this->view->getBreadcrumbBag()
                    ->addOne('Members');
 

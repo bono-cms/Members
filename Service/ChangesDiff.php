@@ -12,9 +12,9 @@ namespace Members\Service;
 /**
  * Extracts structured change data from a pending submission
  *
- * This class never produces HTML. It turns a submission row (with its
- * decoded payload and the live MemberEntity) into plain arrays that a
- * view can iterate over. Consumers decide how to render each change.
+ * The payload is self-sufficient: every field carries both its old and
+ * new value, captured at submission time. This class never touches the
+ * live member row, never produces HTML, and never translates strings.
  */
 final class ChangesDiff
 {
@@ -26,22 +26,13 @@ final class ChangesDiff
     private $payload = [];
 
     /**
-     * Live member entity, or null when the member was removed
-     *
-     * @var \Members\Service\MemberEntity|null
-     */
-    private $live;
-
-    /**
      * State initialization
      *
-     * @param \Members\Service\MemberEntity|null $live
      * @param array $payload Decoded submission payload
      * @return void
      */
-    public function __construct(MemberEntity $live = null, array $payload = [])
+    public function __construct(array $payload = [])
     {
-        $this->live = $live;
         $this->payload = $payload;
     }
 
@@ -68,16 +59,6 @@ final class ChangesDiff
     /**
      * Returns the list of base-field changes
      *
-     * Each entry has the shape:
-     *   [
-     *       'field' => string,
-     *       'old' => mixed,
-     *       'new' => mixed,
-     *       'oldEmpty' => bool,
-     *       'newEmpty' => bool,
-     *       'unchanged' => bool
-     *   ]
-     *
      * @return array
      */
     public function baseChanges()
@@ -86,35 +67,11 @@ final class ChangesDiff
             return [];
         }
 
-        $result = [];
-
-        foreach ($this->payload['base'] as $field => $newValue) {
-            $oldValue = ($this->live !== null && $this->live->has($field))
-                ? $this->live->get($field)
-                : '';
-
-            $result[] = $this->buildChange($field, $oldValue, $newValue);
-        }
-
-        return $result;
+        return $this->buildList($this->payload['base']);
     }
 
     /**
      * Returns the list of translated-field changes, grouped by language id
-     *
-     * Each entry has the shape:
-     *   [
-     *       langId => [
-     *           [ 'field' => string, 'old' => mixed, 'new' => mixed, ... ],
-     *           ...
-     *       ],
-     *       ...
-     *   ]
-     *
-     * Live translation values are not available here because the
-     * submission row does not carry them; only the staged values are
-     * present. Consumers that need a full diff must fetch live translations
-     * themselves. Use the 'old' key as-is.
      *
      * @return array
      */
@@ -127,11 +84,33 @@ final class ChangesDiff
         $result = [];
 
         foreach ($this->payload['translations'] as $langId => $fields) {
-            $result[(int) $langId] = [];
+            $result[(int) $langId] = $this->buildList($fields);
+        }
 
-            foreach ($fields as $field => $newValue) {
-                $result[(int) $langId][] = $this->buildChange($field, '', $newValue);
+        return $result;
+    }
+
+    /**
+     * Builds a list of change descriptors from a raw field map
+     *
+     * Supports both the current payload shape (each value is an
+     * ['old' => ..., 'new' => ...] pair) and the legacy shape
+     * (each value is a bare new value). Legacy entries are treated
+     * as one-sided changes with an empty old value.
+     *
+     * @param array $fields
+     * @return array
+     */
+    private function buildList(array $fields)
+    {
+        $result = [];
+
+        foreach ($fields as $field => $pair) {
+            if (!is_array($pair) || !array_key_exists('new', $pair)) {
+                $pair = ['old' => '', 'new' => $pair];
             }
+
+            $result[] = $this->buildChange($field, $pair['old'], $pair['new']);
         }
 
         return $result;

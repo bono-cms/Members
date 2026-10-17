@@ -112,6 +112,10 @@ use Cms\View\Icon;
                 },
 
                 function ($member) {
+                    return Icon::button('bi bi-clock-history', $this->url('Members:Admin:Members@historyAction', $member->getId()), $this->translate('View change history'));
+                },
+
+                function ($member) {
                     return Icon::remove(
                         $this->url('Members:Admin:Members@deleteAction', $member->getId()),
                         $this->translate('Remove this member')

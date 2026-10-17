@@ -44,6 +44,10 @@ return [
     '/%s/module/members/changes/reject/(:var)' => [
         'controller' => 'Admin:Changes@rejectAction'
     ],
+
+    '/%s/module/members/history/(:var)' => [
+        'controller' => 'Admin:Members@historyAction'
+    ],
     
     // Site area
     '/member/profile' => [

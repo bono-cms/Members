@@ -1,0 +1,122 @@
+<?php
+
+/**
+ * Full change history of a member
+ *
+ * @var \Members\Service\MemberEntity $member
+ * @var array $rows Output of PendingChangesPresenter::present()
+ */
+
+$name = $member->getName();
+
+if (empty($name)) {
+    $name = $member->getLogin();
+}
+
+?>
+
+<div class="card">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-clock-history"></i>
+            <?= $this->translate('Change history'); ?>
+        </h5>
+
+        <a class="btn btn-sm btn-outline-secondary" href="<?= $this->url('Members:Admin:Members@editAction', [$member->getId()]); ?>">
+            <i class="bi bi-arrow-left"></i>
+            <?= $this->translate('Back to member'); ?>
+        </a>
+    </div>
+
+    <div class="card-body border-bottom">
+        <h6 class="mb-0"><?= htmlspecialchars($name); ?></h6>
+        <?php if ($member->getEmail()): ?>
+        <div class="text-muted small"><?= htmlspecialchars($member->getEmail()); ?></div>
+        <?php endif; ?>
+    </div>
+
+    <?php if (empty($rows)): ?>
+
+    <div class="card-body text-center py-5">
+        <i class="bi bi-inbox text-muted" style="font-size:3rem;"></i>
+        <h3 class="text-muted mt-3"><?= $this->translate('No submissions yet'); ?></h3>
+    </div>
+
+    <?php else: ?>
+
+    <div class="card-body p-0">
+        <?php foreach ($rows as $row): ?>
+        <div class="border-bottom p-4">
+            <div class="d-flex justify-content-between align-items-start mb-3">
+                <div>
+                    <?php if ($row['status'] === 'pending'): ?>
+                    <span class="badge bg-warning text-dark"><?= $this->translate('Pending'); ?></span>
+                    <?php elseif ($row['status'] === 'approved'): ?>
+                    <span class="badge bg-success"><?= $this->translate('Approved'); ?></span>
+                    <?php else: ?>
+                    <span class="badge bg-danger"><?= $this->translate('Rejected'); ?></span>
+                    <?php endif; ?>
+
+                    <span class="text-muted small ms-2">
+                        <i class="bi bi-clock"></i>
+                        <?= htmlspecialchars($row['createdAt']); ?>
+                    </span>
+                </div>
+
+                <?php if (!empty($row['reviewedAt'])): ?>
+                <span class="text-muted small">
+                    <?= $this->translate('Reviewed:'); ?> <?= htmlspecialchars($row['reviewedAt']); ?>
+                </span>
+                <?php endif; ?>
+            </div>
+
+            <?php if (!empty($row['rejectionReason'])): ?>
+            <div class="alert alert-danger py-2 mb-3">
+                <i class="bi bi-x-circle"></i>
+                <?= htmlspecialchars($row['rejectionReason']); ?>
+            </div>
+            <?php endif; ?>
+
+            <?php if (!$row['hasPayload']): ?>
+            <div class="alert alert-warning py-2 mb-0">
+                <?= $this->translate('This submission has a corrupt payload and cannot be reviewed.'); ?>
+            </div>
+            <?php else: ?>
+
+                <?php if ($row['hasBaseChanges']): ?>
+                <div class="mb-3">
+                    <div class="text-uppercase text-muted small fw-semibold mb-1">
+                        <?= $this->translate('Profile fields'); ?>
+                    </div>
+                    <?php foreach ($row['baseChanges'] as $change): ?>
+                    <?php $this->loadPartial('diff-field', ['change' => $change, 'partialsDir' => __DIR__ . '/partials']); ?>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
+
+                <?php if ($row['hasTranslationChanges']): ?>
+                <div class="mb-0">
+                    <div class="text-uppercase text-muted small fw-semibold mb-1">
+                        <?= $this->translate('Translated fields'); ?>
+                    </div>
+                    <?php foreach ($row['translationChanges'] as $group): ?>
+                    <div class="ms-3 mb-2">
+                        <div class="text-muted small mb-1">
+                            <i class="bi bi-translate"></i>
+                            <?= htmlspecialchars($group['language']); ?>
+                        </div>
+                        <?php foreach ($group['changes'] as $change): ?>
+                        <?php $this->loadPartial('diff-field', ['change' => $change, 'partialsDir' => __DIR__ . '/partials']); ?>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+                <?php endif; ?>
+
+            <?php endif; ?>
+        </div>
+        <?php endforeach; ?>
+    </div>
+
+    <?php endif; ?>
+</div>
