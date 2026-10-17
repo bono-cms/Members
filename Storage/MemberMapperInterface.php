@@ -12,6 +12,44 @@ namespace Members\Storage;
 interface MemberMapperInterface
 {
     /**
+     * Updates a single translation field for a member in the active language.
+     *
+     * @param int $memberId
+     * @param string $field
+     * @param mixed $value
+     * @return boolean
+     */
+    public function updateTranslationField($memberId, $field, $value);
+
+    /**
+     * Updates a single translation field for a member in a given language.
+     *
+     * @param int $memberId
+     * @param int $langId
+     * @param string $field
+     * @param mixed $value
+     * @return boolean
+     */
+    public function updateTranslationFieldByLang($memberId, $langId, $field, $value);
+
+    /**
+     * Fetches a single translation row for a member in the active language.
+     *
+     * @param int $memberId
+     * @return array|boolean
+     */
+    public function fetchTranslation($memberId);
+
+    /**
+     * Fetches a single translation row for a member in a given language.
+     *
+     * @param int $memberId
+     * @param int $langId
+     * @return array|boolean
+     */
+    public function fetchTranslationByLang($memberId, $langId);
+
+    /**
      * Fetches a paginated list of confirmed members
      * 
      * @param integer $pageNumber Current page number

@@ -57,7 +57,66 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
             MemberTranslationMapper::column('bio'),
         ];
     }
+    
+    /**
+     * Updates a single translation field for a member in the active language.
+     *
+     * @param int $memberId Member ID
+     * @param string $field Field name to update
+     * @param mixed $value New value
+     * @return boolean
+     */
+    public function updateTranslationField($memberId, $field, $value)
+    {
+        return $this->updateTranslationFieldByLang($memberId, $this->getLangId(), $field, $value);
+    }
 
+    /**
+     * Updates a single translation field for a member in a given language.
+     *
+     * @param int $memberId Member ID
+     * @param int $langId Language ID
+     * @param string $field Field name to update
+     * @param mixed $value New value
+     * @return boolean
+     */
+    public function updateTranslationFieldByLang($memberId, $langId, $field, $value)
+    {
+        $db = $this->db->update(MemberTranslationMapper::getTableName(), [
+            $field => $value
+        ])->whereEquals('id', (int) $memberId)
+          ->andWhereEquals('lang_id', (int) $langId);
+
+        return $db->execute();
+    }
+
+    /**
+     * Fetches a single translation row for a member in the active language.
+     *
+     * @param int $memberId Member ID
+     * @return array|boolean
+     */
+    public function fetchTranslation($memberId)
+    {
+        return $this->fetchTranslationByLang($memberId, $this->getLangId());
+    }
+
+    /**
+     * Fetches a single translation row for a member in a given language.
+     *
+     * @param int $memberId Member ID
+     * @param int $langId Language ID
+     * @return array|boolean
+     */
+    public function fetchTranslationByLang($memberId, $langId)
+    {
+        $db = $this->db->select('*')
+                       ->from(MemberTranslationMapper::getTableName())
+                       ->whereEquals('id', (int) $memberId)
+                       ->andWhereEquals('lang_id', (int) $langId);
+
+        return $db->query();
+    }
     /**
      * {@inheritDoc}
      */
