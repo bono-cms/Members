@@ -88,6 +88,24 @@ final class MemberManager extends AbstractService
     }
 
     /**
+     * Updates a member's password directly by member id
+     *
+     * Used when a password change is submitted through the profile
+     * form. Passwords bypass the moderation pipeline entirely, so
+     * they are written to the live row immediately.
+     *
+     * @param int $id Member id
+     * @param string $plain Plain-text password
+     * @return boolean
+     */
+    public function updatePassword($id, $plain)
+    {
+        return $this->mapper->updateProfile($id, [
+            'password_hash' => password_hash($plain, PASSWORD_DEFAULT)
+        ]);
+    }
+
+    /**
      * Fetches a paginated list of confirmed members
      * 
      * @param integer $pageNumber Current page number
