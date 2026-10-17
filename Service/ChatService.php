@@ -73,6 +73,21 @@ final class ChatService
     }
 
     /**
+     * Returns the total number of unread messages for a member
+     * across all their conversations.
+     *
+     * This is what the nav badge displays. It counts every live
+     * message sent by someone else that the member hasn't read yet.
+     *
+     * @param int $memberId Member id
+     * @return int
+     */
+    public function countUnreadForMember($memberId)
+    {
+        return $this->participantMapper->countUnreadForMember((int) $memberId);
+    }
+
+    /**
      * Determines whether a member belongs to a conversation.
      *
      * This is the sole access check used by the controllers.

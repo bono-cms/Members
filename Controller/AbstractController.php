@@ -20,16 +20,27 @@ abstract class AbstractController extends SiteController
     {
         parent::bootstrap($action);
 
-        // View is required only for GET request
         if ($this->request->isGet()) {
             $this->loadSitePlugins();
 
             $this->view->setModule($this->moduleName)
                        ->setTheme('site');
-            
+
+            $memberManager = $this->getModuleService('memberManager');
+            $memberId = (int) $memberManager->getMember('id');
+
+            $unreadCount = 0;
+
+            if ($memberId > 0) {
+                $chatService = $this->getModuleService('chatService');
+                $unreadCount = $chatService->countUnreadForMember($memberId);
+            }
+
             $this->view->addVariables([
                 'languages' => $this->getService('Cms', 'languageManager')->fetchAll(true),
-                'isLoggedIn' => $this->getModuleService('memberManager')->isLoggedIn()
+                'isLoggedIn' => $memberManager->isLoggedIn(),
+                'meId' => $memberId,
+                'unreadMessagesCount' => $unreadCount
             ]);
 
             $this->view->getPartialBag()->addPartialDir(
@@ -37,7 +48,7 @@ abstract class AbstractController extends SiteController
             );
         }
     }
-    
+
     /**
      * Renders a message
      * 

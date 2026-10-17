@@ -34,6 +34,42 @@ final class ParticipantMapper extends AbstractMapper
     }
 
     /**
+     * Counts all unread messages for a member across every
+     * conversation they participate in.
+     *
+     * Excludes the member's own messages, respects soft-deletes,
+     * and respects each conversation's per-participant read cursor.
+     *
+     * @param int $memberId Member id
+     * @return int
+     */
+    public function countUnreadForMember($memberId)
+    {
+        $msg = MessageMapper::getTableName();
+        $p = self::getTableName();
+
+        // Join participants to messages so we can compare each
+        // message's id against the participant's read cursor.
+        $sql = sprintf(
+            'SELECT COUNT(*) AS count '
+          . 'FROM %s m '
+          . 'INNER JOIN %s pt ON pt.conversation_id = m.conversation_id '
+          . 'WHERE pt.member_id = %d '
+          . 'AND m.deleted_at IS NULL '
+          . 'AND m.sender_id != %d '
+          . 'AND (pt.last_read_message_id IS NULL OR m.id > pt.last_read_message_id)',
+            $msg,
+            $p,
+            (int) $memberId,
+            (int) $memberId
+        );
+
+        $result = $this->db->raw($sql)->query();
+
+        return isset($result['count']) ? (int) $result['count'] : 0;
+    }
+
+    /**
      * Inserts a single participant row.
      */
     public function addParticipant($conversationId, $memberId, $role = 'member')

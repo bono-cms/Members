@@ -49,33 +49,46 @@
                 </li>
 
                 <?php if ($isLoggedIn): ?>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?= $this->url('Members:Profile@indexAction'); ?>">
-                            <i class="bi bi-person-circle"></i>
-                            <?= $this->translate('My profile'); ?>
-                        </a>
-                    </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="<?= $this->url('Members:Profile@indexAction'); ?>">
+                        <i class="bi bi-person-circle"></i>
+                        <?= $this->translate('My profile'); ?>
+                    </a>
+                </li>
 
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?= $this->url('Members:Auth@logoutAction'); ?>">
-                            <i class="bi bi-box-arrow-right"></i>
-                            <?= $this->translate('Logout'); ?>
-                        </a>
-                    </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="<?= $this->url('Members:Chat@inboxAction'); ?>">
+                        <i class="bi bi-chat-dots"></i>
+                        <?= $this->translate('Messages'); ?>
+
+                        <?php if (!empty($unreadMessagesCount)): ?>
+                        <span class="badge bg-danger rounded-pill">
+                            <?= $unreadMessagesCount > 99 ? '99+' : (int) $unreadMessagesCount; ?>
+                        </span>
+                        <?php endif; ?>
+                    </a>
+                </li>
+
+                <li class="nav-item">
+                    <a class="nav-link" href="<?= $this->url('Members:Auth@logoutAction'); ?>">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <?= $this->translate('Logout'); ?>
+                    </a>
+                </li>
                 <?php else: ?>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?= $this->url('Members:Auth@indexAction'); ?>">
-                            <i class="bi bi-box-arrow-in-right"></i>
-                            <?= $this->translate('Login'); ?>
-                        </a>
-                    </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="<?= $this->url('Members:Auth@indexAction'); ?>">
+                        <i class="bi bi-box-arrow-in-right"></i>
+                        <?= $this->translate('Login'); ?>
+                    </a>
+                </li>
 
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?= $this->url('Members:Register@indexAction'); ?>">
-                            <i class="bi bi-person-plus"></i>
-                            <?= $this->translate('Register'); ?>
-                        </a>
-                    </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="<?= $this->url('Members:Register@indexAction'); ?>">
+                        <i class="bi bi-person-plus"></i>
+                        <?= $this->translate('Register'); ?>
+                    </a>
+                </li>
                 <?php endif; ?>
             </ul>
         </div>
