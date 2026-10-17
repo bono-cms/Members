@@ -73,6 +73,18 @@ final class ChatService
     }
 
     /**
+     * Returns the other participant of a direct conversation.
+     *
+     * @param int $conversationId Conversation id
+     * @param int $memberId The viewer's member id
+     * @return array|boolean Row as array on success, false if not found
+     */
+    public function findOtherParticipant($conversationId, $memberId)
+    {
+        return $this->participantMapper->findOtherParticipant((int) $conversationId, (int) $memberId);
+    }
+
+    /**
      * Returns the total number of unread messages for a member
      * across all their conversations.
      *
