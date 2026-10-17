@@ -1,0 +1,155 @@
+<?php
+
+use Krystal\Form\Element;
+use Krystal\Date\TimeHelper;
+
+$this->getPartialBag()->addPartialDir(__DIR__ . '/partials');
+
+/**
+ * Renders a translated relative-time string for a given timestamp
+ *
+ * @param string $timestamp
+ * @return string
+ */
+$renderRelativeTime = function ($timestamp) {
+    $parts = TimeHelper::relativeTimePattern($timestamp);
+
+    if ($parts['pattern'] === '') {
+        return '';
+    }
+
+    if ($parts['value'] === null) {
+        return $this->translate($parts['pattern']);
+    }
+
+    return $this->translate(sprintf($parts['pattern'], $parts['value']));
+};
+
+?>
+
+<div class="card">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="bi bi-hourglass-split"></i>
+            <?= $this->translate('Pending changes'); ?>
+            <?php if (!empty($rows)): ?>
+            <span class="badge bg-secondary ms-2"><?= count($rows); ?></span>
+            <?php endif; ?>
+        </h5>
+
+        <a class="btn btn-sm btn-outline-secondary" href="<?= $this->url('Members:Admin:Members@indexAction'); ?>">
+            <i class="bi bi-arrow-left"></i>
+            <?= $this->translate('Back to members'); ?>
+        </a>
+    </div>
+
+    <?php if (empty($rows)): ?>
+
+    <div class="card-body text-center py-5">
+        <i class="bi bi-check2-circle text-success" style="font-size:3rem;"></i>
+        <h3 class="text-muted mt-3"><?= $this->translate('No pending changes'); ?></h3>
+        <p class="text-muted mb-0"><?= $this->translate('Everything is up to date.'); ?></p>
+    </div>
+
+    <?php else: ?>
+
+    <div class="card-body p-0">
+        <?php foreach ($rows as $row): ?>
+        <div class="border-bottom">
+            <div class="p-4">
+
+                <div class="d-flex align-items-start gap-3 mb-3">
+                    <div class="rounded-circle bg-secondary text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width:48px;height:48px;">
+                        <i class="bi bi-person-fill" style="font-size:1.5rem;"></i>
+                    </div>
+
+                    <div class="flex-grow-1">
+                        <h6 class="mb-0">
+                            <?= htmlspecialchars($row['memberName']); ?>
+                            <a class="text-decoration-none small ms-2" href="<?= $this->url('Members:Admin:Members@editAction', [$row['memberId']]); ?>" title="<?= $this->translate('Open member profile'); ?>">
+                                <i class="bi bi-box-arrow-up-right"></i>
+                            </a>
+                        </h6>
+                        <?php if ($row['memberEmail'] !== ''): ?>
+                        <div class="text-muted small"><?= htmlspecialchars($row['memberEmail']); ?></div>
+                        <?php endif; ?>
+                    </div>
+
+                    <div class="text-end text-muted small">
+                        <i class="bi bi-clock"></i>
+                        <?= $renderRelativeTime($row['createdAt']); ?>
+                        <div class="mt-1">
+                            <a class="text-decoration-none small" href="<?= $this->url('Members:Directory@profileAction', [$row['memberId']]); ?>" target="_blank">
+                                <?= $this->translate('View public profile'); ?>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <?php if (!$row['hasPayload']): ?>
+                <div class="alert alert-warning py-2 mb-3">
+                    <?= $this->translate('This submission has a corrupt payload and cannot be reviewed.'); ?>
+                </div>
+                <?php else: ?>
+
+                    <?php if ($row['hasBaseChanges']): ?>
+                    <div class="mb-3">
+                        <div class="text-uppercase text-muted small fw-semibold mb-1">
+                            <?= $this->translate('Profile fields'); ?>
+                        </div>
+                        <?php foreach ($row['baseChanges'] as $change): ?>
+                        <?php $this->loadPartial('diff-field', ['change' => $change, 'partialsDir' => __DIR__ . '/partials']); ?>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+
+                    <?php if ($row['hasTranslationChanges']): ?>
+                    <div class="mb-3">
+                        <div class="text-uppercase text-muted small fw-semibold mb-1">
+                            <?= $this->translate('Translated fields'); ?>
+                        </div>
+                        <?php foreach ($row['translationChanges'] as $group): ?>
+                        <div class="ms-3 mb-2">
+                            <div class="text-muted small mb-1">
+                                <i class="bi bi-translate"></i>
+                                <?= htmlspecialchars($group['language']); ?>
+                            </div>
+                            <?php foreach ($group['changes'] as $change): ?>
+                            <?php $this->loadPartial('diff-field', ['change' => $change, 'partialsDir' => __DIR__ . '/partials']); ?>
+                            <?php endforeach; ?>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <?php endif; ?>
+
+                <?php endif; ?>
+
+                <div class="d-flex gap-2 justify-content-end pt-2 border-top">
+                    <form method="POST" action="<?= $this->url('Members:Admin:Changes@rejectAction', [$row['id']]); ?>" class="d-flex align-items-center gap-2" onsubmit="return confirm('<?= $this->translate('Reject this change? The member will need to resubmit.'); ?>');">
+                        <?= Element::hidden('token', $csrfToken); ?>
+                        <input type="text" name="reason" class="form-control form-control-sm" placeholder="<?= $this->translate('Optional reason…'); ?>" style="min-width:200px;" />
+                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                            <i class="bi bi-x-circle"></i>
+                            <?= $this->translate('Reject'); ?>
+                        </button>
+                    </form>
+
+                    <form method="POST" action="<?= $this->url('Members:Admin:Changes@approveAction', [$row['id']]); ?>" onsubmit="return confirm('<?= $this->translate('Approve this change? It will be applied to the live profile immediately.'); ?>');">
+                        <?= Element::hidden('token', $csrfToken); ?>
+                        <button type="submit" class="btn btn-sm btn-success">
+                            <i class="bi bi-check-lg"></i>
+                            <?= $this->translate('Approve'); ?>
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+
+    <div class="card-footer bg-white">
+        <?php $this->loadPartial('paginator'); ?>
+    </div>
+
+    <?php endif; ?>
+</div>

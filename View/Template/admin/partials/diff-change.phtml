@@ -1,0 +1,26 @@
+<?php
+
+/**
+ * Renders the "before → after" fragment for a single change descriptor
+ *
+ * @var array $change Descriptor from ChangesDiff::baseChanges()
+ */
+
+if ($change['unchanged']): ?>
+
+<em class="text-muted">—</em>
+
+<?php else: ?>
+
+<?php
+
+$old = $change['oldEmpty'] ? '<em class="text-muted">∅</em>' : htmlspecialchars((string) $change['old']);
+$new = $change['newEmpty'] ? '<em class="text-muted">∅</em>' : htmlspecialchars((string) $change['new']);
+
+?>
+
+<span class="text-danger text-decoration-line-through"><?= $old; ?></span>
+<i class="bi bi-arrow-right text-muted mx-1"></i>
+<span class="text-success fw-semibold"><?= $new; ?></span>
+
+<?php endif; ?>

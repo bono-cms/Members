@@ -1,0 +1,18 @@
+<?php
+
+/**
+ * Renders one labeled field row
+ *
+ * @var array $change One entry from a row's baseChanges or translationChanges
+ * @var string $partialsDir Absolute path to this directory
+ */
+
+?>
+<div class="d-flex align-items-start gap-2 mb-1">
+    <span class="text-muted" style="min-width:120px;">
+        <?= htmlspecialchars($this->translate($change['label'])); ?>:
+    </span>
+    <span>
+        <?php include $partialsDir . '/diff-change.phtml'; ?>
+    </span>
+</div>
