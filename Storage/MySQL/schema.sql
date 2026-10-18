@@ -138,3 +138,82 @@ CREATE TABLE `bono_module_members_messages` (
     FOREIGN KEY (`reply_to_id`) REFERENCES `bono_module_members_messages` (`id`)
     ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+
+-- ---------------------------------------------------------------------
+-- Tag groups
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS `bono_module_members_tag_groups`;
+CREATE TABLE `bono_module_members_tag_groups` (
+  `id`         INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+  `code`       VARCHAR(64) NOT NULL COMMENT 'Stable machine key, e.g. "interests"',
+  `sort_order` INT NOT NULL DEFAULT 0,
+  `created_at` DATETIME NOT NULL,
+  UNIQUE KEY `uq_code` (`code`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- Tag group translations
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS `bono_module_members_tag_groups_translations`;
+CREATE TABLE `bono_module_members_tag_groups_translations` (
+  `id`          INT NOT NULL,
+  `lang_id`     INT NOT NULL,
+  `name`        VARCHAR(120) NOT NULL,
+  `description` VARCHAR(255) NULL,
+  PRIMARY KEY (`id`, `lang_id`),
+  KEY `idx_lang_id` (`lang_id`),
+  CONSTRAINT `fk_tgrp_tr_group`
+    FOREIGN KEY (`id`) REFERENCES `bono_module_members_tag_groups` (`id`)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- Tags
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS `bono_module_members_tags`;
+CREATE TABLE `bono_module_members_tags` (
+  `id`         INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+  `group_id`   INT NOT NULL,
+  `code`       VARCHAR(64) NULL COMMENT 'Optional stable key, unique within group',
+  `sort_order` INT NOT NULL DEFAULT 0,
+  `is_active`  TINYINT(1) NOT NULL DEFAULT 1,
+  `created_at` DATETIME NOT NULL,
+  KEY `idx_group_sort` (`group_id`, `sort_order`),
+  UNIQUE KEY `uq_group_code` (`group_id`, `code`),
+  CONSTRAINT `fk_tag_group`
+    FOREIGN KEY (`group_id`) REFERENCES `bono_module_members_tag_groups` (`id`)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- Tag translations
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS `bono_module_members_tags_translations`;
+CREATE TABLE `bono_module_members_tags_translations` (
+  `id`      INT NOT NULL,
+  `lang_id` INT NOT NULL,
+  `label`   VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`id`, `lang_id`),
+  KEY `idx_lang_id` (`lang_id`),
+  CONSTRAINT `fk_tag_tr_tag`
+    FOREIGN KEY (`id`) REFERENCES `bono_module_members_tags` (`id`)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ---------------------------------------------------------------------
+-- Member + tag (what the member picked, junction table)
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS `bono_module_members_member_tags`;
+CREATE TABLE `bono_module_members_member_tags` (
+  `member_id` INT NOT NULL,
+  `tag_id`    INT NOT NULL,
+  PRIMARY KEY (`member_id`, `tag_id`),
+  KEY `idx_tag` (`tag_id`),
+  CONSTRAINT `fk_mt_member`
+    FOREIGN KEY (`member_id`) REFERENCES `bono_module_members` (`id`)
+    ON DELETE CASCADE,
+  CONSTRAINT `fk_mt_tag`
+    FOREIGN KEY (`tag_id`) REFERENCES `bono_module_members_tags` (`id`)
+    ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
