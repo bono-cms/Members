@@ -183,9 +183,6 @@ return [
     '/api/v1/members/register' => [
         'controller' => 'Api:Register@saveAction'
     ],
-    '/api/v1/members/register/confirm' => [
-        'controller' => 'Api:Register@confirmAction'
-    ],
     '/api/v1/members/register/resend' => [
         'controller' => 'Api:Register@resendAction',
         'middleware' => [JwtAuthMiddleware::class]
