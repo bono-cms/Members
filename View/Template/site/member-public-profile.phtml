@@ -9,11 +9,7 @@
 
 use Krystal\Iso\ISO3166\Country;
 
-$name = $member->getName();
-if (empty($name)) {
-    $name = $member->getLogin();
-}
-
+$name = $member->getDisplayName();
 $country = $member->getCountry();
 
 ?>

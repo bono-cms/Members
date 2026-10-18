@@ -164,22 +164,11 @@ final class ParticipantMapper extends AbstractMapper
      */
     public function findOtherParticipant($conversationId, $memberId)
     {
-        $participantsTable = self::getTableName();
-        $membersTable = MemberMapper::getTableName();
-
-        $db = $this->db->select([
-                'participant.member_id',
-                'member.name',
-                'member.login',
-                'member.avatar'
-            ])
-            ->from($participantsTable, 'participant')
-            ->innerJoin($membersTable . ' AS member', [
-                'member.id' => new RawSqlFragment('participant.member_id')
-            ])
-            ->whereEquals('participant.conversation_id', (int) $conversationId)
-            ->andWhereNotEquals('participant.member_id', (int) $memberId)
-            ->limit(1);
+        $db = $this->db->select('*')
+                       ->from(self::getTableName())
+                       ->whereEquals('conversation_id', (int) $conversationId)
+                       ->andWhereNotEquals('member_id', (int) $memberId)
+                       ->limit(1);
 
         return $db->query();
     }

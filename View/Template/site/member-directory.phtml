@@ -19,7 +19,7 @@
 <?php else: ?>
 <div class="row g-4">
     <?php foreach ($members as $member): ?>
-    <?php $name = $member->getName(); if (empty($name)): $name = $member->getLogin(); endif; ?>
+    <?php $name = $member->getDisplayName(); ?>
     <div class="col-12 col-md-6 col-lg-4">
         <a href="<?= $this->url('Members:Directory@profileAction', [$member->getId()]); ?>" class="card h-100 text-decoration-none text-body shadow-sm border-0">
             <div class="card-body text-center p-4">

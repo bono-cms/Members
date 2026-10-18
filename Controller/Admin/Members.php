@@ -107,14 +107,9 @@ final class Members extends AbstractController
             return false;
         }
 
-        $name = $member->getName();
-        if (empty($name)) {
-            $name = $member->getLogin();
-        }
-
         $this->view->getBreadcrumbBag()
                    ->addOne('Members', 'Members:Admin:Members@indexAction')
-                   ->addOne($name, $this->createUrl('Members:Admin:Members@editAction', [$id]))
+                   ->addOne($member->getDisplayName(), $this->createUrl('Members:Admin:Members@editAction', [$id]))
                    ->addOne('Change history');
 
         $languages = $this->getService('Cms', 'languageManager')->fetchAll(true);

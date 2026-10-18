@@ -75,6 +75,10 @@ final class ChatService
     /**
      * Returns the other participant of a direct conversation.
      *
+     * Returns only the participant row (member_id and related
+     * columns). The caller is expected to resolve the member
+     * entity through MemberManager when it needs display data.
+     *
      * @param int $conversationId Conversation id
      * @param int $memberId The viewer's member id
      * @return array|boolean Row as array on success, false if not found

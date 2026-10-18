@@ -8,9 +8,7 @@
  * @var array $messages Raw message rows
  * @var array $senders Sender rows indexed by member id
  * @var int $meId Current member id
- * @var string $otherName
- * @var string|null $otherAvatar
- * @var int $otherId
+ * @var \Members\Service\MemberEntity|boolean $otherMember The other participant, or false if missing
  */
 
 $this->getPluginBag()->appendScript($this->moduleAsset('chat.jquery.js', 'Members'));
@@ -27,13 +25,15 @@ $lastId = empty($messages) ? 0 : (int) end($messages)['id'];
             </div>
 
             <div class="col d-flex align-items-center justify-content-end gap-2">
-                <?php if (!empty($otherAvatar)): ?>
-                <img src="/data/uploads/module/members/avatars/<?= (int) $otherId; ?>/64x64/<?= rawurlencode($otherAvatar); ?>" class="rounded-circle object-fit-cover" width="32" height="32" alt="" />
+                <?php if ($otherMember !== false && $otherMember->hasAvatar()): ?>
+                <img src="<?= $otherMember->getAvatarUrl('64x64'); ?>" class="rounded-circle object-fit-cover" width="32" height="32" alt="" />
                 <?php else: ?>
                 <i class="bi bi-person-circle text-secondary fs-2"></i>
                 <?php endif; ?>
 
-                <a href="<?= $otherId > 0 ? $this->url('Members:Directory@profileAction', [$otherId]) : '#'; ?>" class="fw-semibold text-decoration-none text-body text-truncate"><?= htmlspecialchars($otherName); ?></a>
+                <?php if ($otherMember !== false): ?>
+                <a href="<?= $this->url('Members:Directory@profileAction', [$otherMember->getId()]); ?>" class="fw-semibold text-decoration-none text-body text-truncate"><?= htmlspecialchars($otherMember->getDisplayName()); ?></a>
+                <?php endif; ?>
             </div>
         </div>
     </div>
