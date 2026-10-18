@@ -1,10 +1,11 @@
 # TODO LIST
 
 ## Now
- 
-- [ ] Attribute groups (dynamic fields)
-- [ ] Decide on removing the `login` attribute
+
+- [ ] Tags
 - [ ] API (+ JWT)
+- [ ] Decide on removing the `login` attribute
+- [ ] Improve overall look
 - [ ] Write module documentation
 
 ## Later
@@ -15,3 +16,4 @@
   - Note: history doesn't show image updates — only covers user-initiated changes, not admin edits
 - [ ] Add notification system
 - [ ] Improve chat
+- [ ] Improve general dashboard
