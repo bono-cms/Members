@@ -167,10 +167,6 @@ return [
     '/api/v1/members/auth/login' => [
         'controller' => 'Api:Auth@loginAction'
     ],
-    '/api/v1/members/auth/logout' => [
-        'controller' => 'Api:Auth@logoutAction',
-        'middleware' => [JwtAuthMiddleware::class]
-    ],
     '/api/v1/members/auth/recovery' => [
         'controller' => 'Api:Auth@recoveryAction'
     ],
