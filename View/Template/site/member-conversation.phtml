@@ -3,9 +3,6 @@
 /**
  * Members conversation — thread, send form, polling.
  *
- * Registers the chat script through the plugin bag so it is
- * rendered by the layout's script loop, not inlined here.
- *
  * @var \Krystal\Stdlib\VirtualEntity $page
  * @var int $conversationId
  * @var array $messages Raw message rows
@@ -16,9 +13,8 @@
  * @var int $otherId
  */
 
-$this->getPluginBag()->appendScript(
-    $this->moduleAsset('chat.jquery.js', 'Members')
-);
+$this->getPluginBag()->appendScript($this->moduleAsset('chat.jquery.js', 'Members'))
+                     ->appendStylesheet($this->moduleAsset('chat.style.css', 'Members'));
 
 $lastId = empty($messages) ? 0 : (int) end($messages)['id'];
 
@@ -33,9 +29,9 @@ $lastId = empty($messages) ? 0 : (int) end($messages)['id'];
 
             <div class="col d-flex align-items-center justify-content-end gap-2">
                 <?php if (!empty($otherAvatar)): ?>
-                <img src="/data/uploads/module/members/avatars/<?= (int) $otherId; ?>/64x64/<?= rawurlencode($otherAvatar); ?>" class="rounded-circle" style="width:32px;height:32px;object-fit:cover;" alt="" />
+                <img src="/data/uploads/module/members/avatars/<?= (int) $otherId; ?>/64x64/<?= rawurlencode($otherAvatar); ?>" class="rounded-circle object-fit-cover" width="32" height="32" alt="" />
                 <?php else: ?>
-                <i class="bi bi-person-circle text-secondary" style="font-size:32px;"></i>
+                <i class="bi bi-person-circle text-secondary fs-2"></i>
                 <?php endif; ?>
 
                 <a href="<?= $otherId > 0 ? $this->url('Members:Directory@profileAction', [$otherId]) : '#'; ?>" class="fw-semibold text-decoration-none text-body text-truncate"><?= htmlspecialchars($otherName); ?></a>
@@ -43,25 +39,29 @@ $lastId = empty($messages) ? 0 : (int) end($messages)['id'];
         </div>
     </div>
 
-    <div class="card-body" id="thread" style="max-height:60vh; overflow-y:auto;">
+    <div class="card-body" id="thread">
         <?php foreach ($messages as $message): ?>
         <?php $isMine = (int) $message['sender_id'] === (int) $meId; ?>
         <div class="mb-3 <?= $isMine ? 'text-end' : 'text-start'; ?>">
-            <div class="d-inline-block p-2 rounded <?= $isMine ? 'bg-primary text-white' : 'bg-body-secondary'; ?>" style="max-width:70%;">
+            <div class="d-inline-block p-2 rounded chat-bubble <?= $isMine ? 'bg-primary text-white' : 'bg-body-secondary'; ?>">
                 <?php if (!empty($message['deleted_at'])): ?>
                 <em class="opacity-75"><?= $this->translate('[deleted]'); ?></em>
                 <?php else: ?>
                 <?= htmlspecialchars($message['body']); ?>
                 <?php endif; ?>
             </div>
-
-            <div class="small text-muted mt-1"><?= htmlspecialchars(date('M j, H:i', strtotime($message['created_at']))); ?><?php if (!empty($message['edited_at'])): ?> &middot; <?= $this->translate('(edited)'); ?><?php endif; ?></div>
+            <div class="small text-muted mt-1">
+                <?= htmlspecialchars(date('M j, H:i', strtotime($message['created_at']))); ?>
+                <?php if (!empty($message['edited_at'])): ?>
+                &middot; <?= $this->translate('(edited)'); ?>
+                <?php endif; ?>
+            </div>
         </div>
         <?php endforeach; ?>
 
         <?php if (empty($messages)): ?>
         <div class="text-center py-4 text-muted">
-            <i class="bi bi-chat-square" style="font-size:2rem;"></i>
+            <i class="bi bi-chat-square fs-2"></i>
             <p class="mt-2 mb-0"><?= $this->translate('Say hi to start the conversation.'); ?></p>
         </div>
         <?php endif; ?>

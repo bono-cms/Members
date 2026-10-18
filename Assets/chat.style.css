@@ -1,0 +1,8 @@
+#thread {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.chat-bubble {
+    max-width: 70%;
+}
