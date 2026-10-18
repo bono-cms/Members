@@ -1,20 +1,90 @@
 <?php
 
-/**
- * Members directory — paginated grid of confirmed members
- */
+use Krystal\Form\Element;
+use Krystal\Iso\ISO3166\Country;
+
+$countryOptions = (new Country())->getAll();
+$companyOptions = ['' => $this->translate('All companies')];
+foreach ($companies as $name) {
+    $companyOptions[$name] = $name;
+}
+
+$activeTagSet = array_flip($filterTags);
 
 ?>
+
+<form class="card shadow-sm border-0 mb-4" method="GET" action="<?= $this->url('Members:Directory@indexAction'); ?>">
+    <div class="card-header bg-white">
+        <h5 class="mb-0"><i class="bi bi-funnel"></i> <?= $this->translate('Filter'); ?></h5>
+    </div>
+
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="filter_country"><?= $this->translate('Country'); ?></label>
+                <?= Element::select('country', $countryOptions, $filterCountry ?: '', ['class' => 'form-select', 'id' => 'filter_country'], $this->translate('All countries')); ?>
+            </div>
+
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="filter_company"><?= $this->translate('Company'); ?></label>
+                <?= Element::select('company', $companyOptions, $filterCompany ?: '', ['class' => 'form-select', 'id' => 'filter_company']); ?>
+            </div>
+
+            <div class="col-12 col-md-4 d-flex align-items-end">
+                <div class="d-flex gap-2 w-100">
+                    <button type="submit" class="btn btn-primary flex-grow-1">
+                        <i class="bi bi-search"></i> <?= $this->translate('Filter'); ?>
+                    </button>
+
+                    <?php if (!empty($filterCountry) || !empty($filterCompany) || !empty($filterTags)): ?>
+                    <a href="<?= $this->url('Members:Directory@indexAction'); ?>" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-lg"></i> <?= $this->translate('Reset'); ?>
+                    </a>
+                    <?php endif; ?>
+                </div>
+            </div>
+        </div>
+
+        <?php if (!empty($payload)): ?>
+        <hr class="my-4">
+
+        <div class="row g-3">
+            <?php foreach ($payload as $block): ?>
+            <div class="col-12 col-md-6">
+                <fieldset>
+                    <legend class="fs-6 fw-semibold"><?= htmlspecialchars($block['group']['name']); ?></legend>
+
+                    <?php if (!empty($block['group']['description'])): ?>
+                    <p class="text-body-secondary small mb-2"><?= htmlspecialchars($block['group']['description']); ?></p>
+                    <?php endif; ?>
+
+                    <div class="d-flex flex-wrap gap-2">
+                        <?php foreach ($block['tags'] as $tag): ?>
+                        <?php $tagId = (int) $tag['id']; ?>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" name="tags[]" value="<?= $tagId; ?>" id="filter-tag-<?= $tagId; ?>" <?= isset($activeTagSet[$tagId]) ? 'checked' : ''; ?>>
+                            <label class="form-check-label" for="filter-tag-<?= $tagId; ?>"><?= htmlspecialchars($tag['label']); ?></label>
+                        </div>
+                        <?php endforeach; ?>
+                    </div>
+                </fieldset>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
+    </div>
+</form>
 
 <h1 class="h3 mb-4">
     <i class="bi bi-people"></i>
     <?= $this->translate('Members'); ?>
+    <span class="badge bg-secondary rounded-pill fs-6 align-middle ms-2"><?= (int) $total; ?></span>
 </h1>
 
 <?php if (empty($members)): ?>
 <div class="text-center py-5">
     <i class="bi bi-people text-muted empty-state-icon"></i>
-    <p class="text-muted mt-3"><?= $this->translate('No public profiles available yet.'); ?></p>
+    <p class="text-muted mt-3"><?= $this->translate('No public profiles match the selected filters.'); ?></p>
 </div>
 <?php else: ?>
 <div class="row g-4">

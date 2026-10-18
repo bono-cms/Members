@@ -9,6 +9,9 @@
 
 namespace Members\Storage\MySQL;
 
+use Krystal\Db\Sql\QueryBuilder;
+use Krystal\Db\Sql\RawBinding;
+use Krystal\Db\Sql\RawSqlFragment;
 use Cms\Storage\MySQL\AbstractMapper;
 use Members\Storage\MemberMapperInterface;
 
@@ -57,7 +60,115 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
             MemberTranslationMapper::column('bio'),
         ];
     }
-    
+
+    /**
+     * Returns distinct non-empty company names from member translations
+     *
+     * Company lives in the translations table, not the base table, so
+     * this query joins it in and returns only the column the caller
+     * needs. It is NOT scoped to a single language: a member's company
+     * should be the same across their translations, and a distinct list
+     * is the goal here, not a per-language one.
+     *
+     * @return array
+     */
+    public function fetchDistinctCompanies()
+    {
+        $companies = $this->db->select(MemberTranslationMapper::column('company'), true)
+                              ->from(self::getTableName())
+                              ->innerJoin(MemberTranslationMapper::getTableName(), [
+                                  MemberTranslationMapper::column('id') => self::getRawColumn('id')
+                              ])
+                              ->whereEquals(self::column('confirmed'), '1')
+                              ->andWhere('company', 'IS NOT', new RawSqlFragment('NULL'))
+                              ->andWhereNotEquals('company', '')
+                              ->orderBy('company')
+                              ->asc()
+                              ->queryAll();
+
+        $result = [];
+
+        foreach ($companies as $row) {
+            $result[] = $row['company'];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Fetches a paginated list of confirmed members, optionally
+     * filtered by country, company, tag ids, and member ids
+     *
+     * Pagination runs through the framework's paginate(), which clones
+     * the query builder internally to compute the total count.
+     *
+     * Supported filters (all optional, all AND-combined):
+     *   - country   string   ISO 3166-1 alpha-2 country code
+     *   - company   string   Exact company name
+     *   - tagIds    array    Tag ids; members carrying any of them
+     *   - memberIds array    Restrict to these member ids
+     *
+     * @param int $pageNumber Current page number
+     * @param int $itemsPerPage Per page count
+     * @param array $filters Associative array of filters
+     * @return array
+     */
+    public function fetchFiltered($pageNumber, $itemsPerPage, array $filters = [])
+    {
+        $country = isset($filters['country']) && $filters['country'] !== '' ? $filters['country'] : null;
+        $company = isset($filters['company']) && $filters['company'] !== '' ? $filters['company'] : null;
+        $tagIds = isset($filters['tagIds']) ? array_values(array_filter(array_map('intval', (array) $filters['tagIds']))) : [];
+        $memberIds = isset($filters['memberIds']) ? array_values(array_filter(array_map('intval', (array) $filters['memberIds']))) : [];
+
+        $db = $this->db->select('*')
+                       ->from(self::getTableName())
+                       ->whereEquals(self::column('confirmed'), '1');
+
+        if ($country !== null) {
+            $db->andWhereEquals(self::column('country'), $country);
+        }
+
+        if ($company !== null) {
+            $buildCompanySubquery = function ($company) {
+                $sub = new QueryBuilder();
+
+                $sub->select(MemberTranslationMapper::column('id'))
+                    ->from(MemberTranslationMapper::getTableName())
+                    ->whereEquals(
+                        MemberTranslationMapper::column('company'),
+                        (new RawBinding($company))->getTarget()
+                    );
+
+                return $sub->getQueryString();
+            };
+
+            $db->andWhereIn('id', new RawSqlFragment($buildCompanySubquery($company)));
+        }
+
+        if (!empty($tagIds)) {
+            $buildTagIdsSubquery = function (array $tagIds) {
+                $sub = new QueryBuilder();
+
+                $sub->select('member_id')
+                    ->from(MemberTagMapper::getTableName())
+                    ->whereIn('tag_id', $tagIds);
+
+                return $sub->getQueryString();
+            };
+
+            $db->andWhereIn('id', new RawSqlFragment($buildTagIdsSubquery($tagIds)));
+        }
+
+        if (!empty($memberIds)) {
+            $db->andWhereIn(self::column('id'), $memberIds);
+        }
+
+        return $db->orderBy($this->getPk())
+                  ->desc()
+                  ->paginate($pageNumber, $itemsPerPage)
+                  ->queryAll();
+    }
+
     /**
      * Updates a single translation field for a member in the active language.
      *

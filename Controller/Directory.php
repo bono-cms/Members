@@ -10,11 +10,12 @@
 namespace Members\Controller;
 
 use Krystal\Stdlib\VirtualEntity;
+use Krystal\Iso\ISO3166\Country;
 
 final class Directory extends AbstractController
 {
     /**
-     * Renders a paginated list of confirmed members
+     * Renders a paginated, filterable list of confirmed members
      * 
      * @return string
      */
@@ -23,7 +24,20 @@ final class Directory extends AbstractController
         $pageNumber = (int) $this->request->getQuery('page', 1);
 
         $memberManager = $this->getModuleService('memberManager');
-        $members = $memberManager->fetchConfirmed($pageNumber, 20);
+        $memberTagService = $this->getModuleService('memberTagService');
+
+        // Filter params
+        $country = $this->request->getQuery('country');
+        $company = $this->request->getQuery('company');
+        $tagIds = (array) $this->request->getQuery('tags', []);
+        $memberIds = (array) $this->request->getQuery('member_ids', []);
+
+        $members = $memberManager->fetchFiltered($pageNumber, 20, [
+            'country' => $country,
+            'company' => $company,
+            'tagIds' => $tagIds,
+            'memberIds' => $memberIds
+        ]);
 
         $page = new VirtualEntity();
         $page->setTitle($this->translator->translate('Members'))
@@ -32,7 +46,14 @@ final class Directory extends AbstractController
         return $this->view->render('member-directory', [
             'page' => $page,
             'members' => $members,
-            'paginator' => $memberManager->getPaginator()
+            'paginator' => $memberManager->getPaginator(),
+            'total' => $memberManager->getPaginator()->getTotalAmount(),
+            'countries' => (new Country())->getAll(),
+            'companies' => $memberManager->fetchDistinctCompanies(),
+            'payload' => $memberTagService->fetchPickerPayload(),
+            'filterCountry' => $country,
+            'filterCompany' => $company,
+            'filterTags' => $tagIds
         ]);
     }
 

@@ -88,6 +88,34 @@ final class MemberManager extends AbstractService
     }
 
     /**
+     * Returns distinct non-empty company names for the directory filter
+     *
+     * @return array
+     */
+    public function fetchDistinctCompanies()
+    {
+        return $this->mapper->fetchDistinctCompanies();
+    }
+
+    /**
+     * Fetches a paginated list of confirmed members, optionally
+     * filtered by country, company, and tags
+     *
+     * @param int $pageNumber
+     * @param int $itemsPerPage
+     * @param string|null $country
+     * @param string|null $company
+     * @param array $tagIds
+     * @return array
+     */
+    public function fetchFiltered($pageNumber, $itemsPerPage, $country = null, $company = null, array $tagIds = [])
+    {
+        return $this->prepareResults(
+            $this->mapper->fetchFiltered($pageNumber, $itemsPerPage, $country, $company, $tagIds)
+        );
+    }
+
+    /**
      * Fetches a collection of members by their ids as a lookup table
      *
      * Returns an array indexed by member id. Used to attach sender
