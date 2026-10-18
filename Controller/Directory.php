@@ -66,6 +66,8 @@ final class Directory extends AbstractController
     public function profileAction($id)
     {
         $memberManager = $this->getModuleService('memberManager');
+        $memberTagService = $this->getModuleService('memberTagService');
+
         $member = $memberManager->fetchPublicProfile((int) $id);
 
         if ($member === false) {
@@ -78,7 +80,9 @@ final class Directory extends AbstractController
 
         return $this->view->render('member-public-profile', [
             'page' => $page,
-            'member' => $member
+            'member' => $member,
+            'tagGroups' => $memberTagService->fetchGroupedByMember((int) $id)
         ]);
     }
+    
 }

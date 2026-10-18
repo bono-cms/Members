@@ -30,6 +30,17 @@ use Krystal\Stdlib\VirtualEntity;
                         <p class="text-body-secondary mb-0"><?= $member->getEmail(); ?></p>
                     </div>
                 </div>
+
+                <?php if (!empty($tagGroups)): ?>
+                <ul class="list-unstyled small mt-3 mb-0">
+                    <?php foreach ($tagGroups as $group): ?>
+                    <li class="mb-1">
+                        <span class="text-body-secondary"><?= htmlspecialchars($group['group']['name']); ?>:</span>
+                        <?= htmlspecialchars(implode(', ', array_column($group['tags'], 'label'))); ?>
+                    </li>
+                    <?php endforeach; ?>
+                </ul>
+                <?php endif; ?>
             </div>
         </div>
     </div>

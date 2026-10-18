@@ -21,7 +21,11 @@ final class Profile extends AbstractController
     public function indexAction()
     {
         $memberManager = $this->getModuleService('memberManager');
-        $member = $memberManager->fetchById($memberManager->getMember('id'));
+        $memberTagService = $this->getModuleService('memberTagService');
+
+        $id = $memberManager->getMember('id');
+
+        $member = $memberManager->fetchById($id);
 
         $page = new VirtualEntity();
         $page->setTitle($this->translator->translate('My account'))
@@ -29,7 +33,8 @@ final class Profile extends AbstractController
 
         return $this->view->render('member-dashboard', [
             'page' => $page,
-            'member' => $member
+            'member' => $member,
+            'tagGroups' => $memberTagService->fetchGroupedByMember((int) $id)
         ]);
     }
 

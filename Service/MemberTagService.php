@@ -64,6 +64,58 @@ final class MemberTagService
     }
 
     /**
+     * Returns the tags a member has selected, grouped by tag group
+     *
+     * Only active tags are included: if an admin deactivates a tag,
+     * it stops showing on the member's profile. Groups and tags are
+     * returned in the active language (the mappers apply getLangId()
+     * internally). Groups with no selected active tags are omitted.
+     *
+     * Shape: [
+     *   [
+     *     'group' => ['id' => ..., 'name' => ..., 'description' => ...],
+     *     'tags' => [
+     *       ['id' => ..., 'label' => ...],
+     *       ...
+     *     ]
+     *   ],
+     *   ...
+     * ]
+     *
+     * @param int $memberId
+     * @return array
+     */
+    public function fetchGroupedByMember($memberId)
+    {
+        $selected = array_flip($this->fetchSelectedIds((int) $memberId));
+
+        if (empty($selected)) {
+            return [];
+        }
+
+        $result = [];
+
+        foreach ($this->fetchPickerPayload() as $block) {
+            $matched = [];
+
+            foreach ($block['tags'] as $tag) {
+                if (isset($selected[(int) $tag['id']])) {
+                    $matched[] = $tag;
+                }
+            }
+
+            if (!empty($matched)) {
+                $result[] = [
+                    'group' => $block['group'],
+                    'tags' => $matched
+                ];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * Returns the picker payload for the member-facing form
      *
      * Shape: [ ['group' => row, 'tags' => [row, ...]], ... ]
@@ -98,7 +150,14 @@ final class MemberTagService
      */
     public function fetchSelectedIds($memberId)
     {
-        return $this->memberTagMapper->fetchTagIdsByMember((int) $memberId);
+        $rows = $this->memberTagMapper->fetchTagIdsByMember((int) $memberId);
+        $ids = [];
+
+        foreach ($rows as $row) {
+            $ids[] = (int) $row;
+        }
+
+        return $ids;
     }
 
     /**
