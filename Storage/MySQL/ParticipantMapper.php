@@ -34,43 +34,12 @@ final class ParticipantMapper extends AbstractMapper
     }
 
     /**
-     * Counts all unread messages for a member across every
-     * conversation they participate in.
-     *
-     * Excludes the member's own messages, respects soft-deletes,
-     * and respects each conversation's per-participant read cursor.
-     *
-     * @param int $memberId Member id
-     * @return int
-     */
-    public function countUnreadForMember($memberId)
-    {
-        $msg = MessageMapper::getTableName();
-        $p = self::getTableName();
-
-        // Join participants to messages so we can compare each
-        // message's id against the participant's read cursor.
-        $sql = sprintf(
-            'SELECT COUNT(*) AS count '
-          . 'FROM %s m '
-          . 'INNER JOIN %s pt ON pt.conversation_id = m.conversation_id '
-          . 'WHERE pt.member_id = %d '
-          . 'AND m.deleted_at IS NULL '
-          . 'AND m.sender_id != %d '
-          . 'AND (pt.last_read_message_id IS NULL OR m.id > pt.last_read_message_id)',
-            $msg,
-            $p,
-            (int) $memberId,
-            (int) $memberId
-        );
-
-        $result = $this->db->raw($sql)->query();
-
-        return isset($result['count']) ? (int) $result['count'] : 0;
-    }
-
-    /**
      * Inserts a single participant row.
+     *
+     * @param int $conversationId Conversation id
+     * @param int $memberId Member id
+     * @param string $role Participant role
+     * @return boolean Depending on success
      */
     public function addParticipant($conversationId, $memberId, $role = 'member')
     {
@@ -86,6 +55,11 @@ final class ParticipantMapper extends AbstractMapper
 
     /**
      * Inserts multiple participant rows for a conversation.
+     *
+     * @param int $conversationId Conversation id
+     * @param array $memberIds List of member ids
+     * @param string $role Participant role
+     * @return boolean Depending on success
      */
     public function addParticipants($conversationId, array $memberIds, $role = 'member')
     {
@@ -100,6 +74,10 @@ final class ParticipantMapper extends AbstractMapper
 
     /**
      * Determines whether a member belongs to a conversation.
+     *
+     * @param int $conversationId Conversation id
+     * @param int $memberId Member id
+     * @return boolean
      */
     public function isParticipant($conversationId, $memberId)
     {
@@ -115,30 +93,42 @@ final class ParticipantMapper extends AbstractMapper
     /**
      * Advances a member's read cursor up to a given message.
      *
-     * Never moves the cursor backwards. Uses raw SQL because the
-     * query builder cannot express "IS NULL OR <" in one statement.
+     * Never moves the cursor backwards. The compound
+     * "(last_read_message_id IS NULL OR last_read_message_id < N)"
+     * guard cannot be expressed through the fluent where-methods
+     * without breaking the parenthesisation, so it is appended as
+     * a single literal fragment. The message id is cast to int
+     * before being interpolated, so no SQL injection is possible.
+     *
+     * @param int $conversationId Conversation id
+     * @param int $memberId Member id
+     * @param int $messageId Message id the member has now read up to
+     * @return boolean Depending on success
      */
     public function setLastReadMessageId($conversationId, $memberId, $messageId)
     {
-        $now = date('Y-m-d H:i:s');
+        $conversationId = (int) $conversationId;
+        $memberId = (int) $memberId;
+        $messageId = (int) $messageId;
 
-        $sql = sprintf(
-            'UPDATE %s SET last_read_message_id = %d, last_read_at = %s '
-          . 'WHERE conversation_id = %d AND member_id = %d '
-          . 'AND (last_read_message_id IS NULL OR last_read_message_id < %d)',
-            self::getTableName(),
-            (int) $messageId,
-            $this->db->getPdo()->quote($now),
-            (int) $conversationId,
-            (int) $memberId,
-            (int) $messageId
-        );
+        $guard = '(last_read_message_id IS NULL OR last_read_message_id < ' . $messageId . ')';
 
-        return $this->db->raw($sql)->execute(true) > 0;
+        $db = $this->db->update(self::getTableName(), [
+            'last_read_message_id' => $messageId,
+            'last_read_at' => date('Y-m-d H:i:s')
+        ])->whereEquals('conversation_id', $conversationId)
+          ->andWhereEquals('member_id', $memberId)
+          ->append(' AND ' . $guard);
+
+        return $db->execute(true) > 0;
     }
 
     /**
      * Fetches the participant row for a member in a conversation.
+     *
+     * @param int $conversationId Conversation id
+     * @param int $memberId Member id
+     * @return array|boolean Row as array on success, false if not found
      */
     public function findOne($conversationId, $memberId)
     {
@@ -152,6 +142,9 @@ final class ParticipantMapper extends AbstractMapper
 
     /**
      * Fetches all participant rows for a conversation.
+     *
+     * @param int $conversationId Conversation id
+     * @return array
      */
     public function fetchByConversation($conversationId)
     {
@@ -164,22 +157,28 @@ final class ParticipantMapper extends AbstractMapper
 
     /**
      * Fetches the other participant of a direct conversation.
+     *
+     * @param int $conversationId Conversation id
+     * @param int $memberId The viewer's member id
+     * @return array|boolean Row as array on success, false if not found
      */
     public function findOtherParticipant($conversationId, $memberId)
     {
-        $p = self::getTableName();
-        $m = MemberMapper::getTableName();
+        $participantsTable = self::getTableName();
+        $membersTable = MemberMapper::getTableName();
 
         $db = $this->db->select([
-                'p.member_id',
-                'm.name',
-                'm.login',
-                'm.avatar'
+                'participant.member_id',
+                'member.name',
+                'member.login',
+                'member.avatar'
             ])
-            ->from($p, 'p')
-            ->innerJoin($m . ' AS m', ['m.id' => new RawSqlFragment('p.member_id')])
-            ->whereEquals('p.conversation_id', (int) $conversationId)
-            ->andWhereNotEquals('p.member_id', (int) $memberId)
+            ->from($participantsTable, 'participant')
+            ->innerJoin($membersTable . ' AS member', [
+                'member.id' => new RawSqlFragment('participant.member_id')
+            ])
+            ->whereEquals('participant.conversation_id', (int) $conversationId)
+            ->andWhereNotEquals('participant.member_id', (int) $memberId)
             ->limit(1);
 
         return $db->query();
@@ -188,57 +187,89 @@ final class ParticipantMapper extends AbstractMapper
     /**
      * Counts unread messages in a conversation for a member.
      *
-     * Excludes messages sent by the member themselves — a message
+     * Excludes messages sent by the member themselves: a message
      * you wrote is not unread by you.
+     *
+     * @param int $conversationId Conversation id
+     * @param int $memberId Member id
+     * @param int|null $lastReadMessageId The member's read cursor
+     * @return int
      */
     public function countUnread($conversationId, $memberId, $lastReadMessageId)
     {
-        $msg = MessageMapper::getTableName();
+        $messagesTable = MessageMapper::getTableName();
 
-        $sql = sprintf(
-            'SELECT COUNT(*) AS count FROM %s '
-          . 'WHERE conversation_id = %d '
-          . 'AND deleted_at IS NULL '
-          . 'AND sender_id != %d',
-            $msg,
-            (int) $conversationId,
-            (int) $memberId
-        );
+        $db = $this->db->select()
+                       ->count('id', 'count')
+                       ->from($messagesTable)
+                       ->whereEquals('conversation_id', (int) $conversationId)
+                       ->andWhereNotEquals('sender_id', (int) $memberId)
+                       ->andWhere('deleted_at', 'IS', new RawSqlFragment('NULL'));
 
         if ($lastReadMessageId > 0) {
-            $sql .= sprintf(' AND id > %d', (int) $lastReadMessageId);
+            $db->andWhereGreaterThan('id', (int) $lastReadMessageId);
         }
 
-        $result = $this->db->raw($sql)->query();
+        return (int) $db->query('count');
+    }
 
-        return isset($result['count']) ? (int) $result['count'] : 0;
+    /**
+     * Counts all unread messages for a member across every
+     * conversation they participate in.
+     *
+     * @param int $memberId Member id
+     * @return int
+     */
+    public function countUnreadForMember($memberId)
+    {
+        $messagesTable = MessageMapper::getTableName();
+        $participantsTable = self::getTableName();
+
+        $db = $this->db->select()
+                       ->count('message.id', 'count')
+                       ->from($messagesTable, 'message')
+                       ->innerJoin($participantsTable . ' AS participant', [
+                           'participant.conversation_id' => new RawSqlFragment('message.conversation_id')
+                       ])
+                       ->whereEquals('participant.member_id', (int) $memberId)
+                       ->andWhereNotEquals('message.sender_id', (int) $memberId)
+                       ->andWhere('message.deleted_at', 'IS', new RawSqlFragment('NULL'))
+                       ->append(' AND (participant.last_read_message_id IS NULL OR message.id > participant.last_read_message_id)');
+
+        return (int) $db->query('count');
     }
 
     /**
      * Fetches the inbox rows for a member.
+     *
+     * @param int $memberId Member id
+     * @return array
      */
     public function fetchInboxForMember($memberId)
     {
-        $p = self::getTableName();
-        $c = ConversationMapper::getTableName();
-        $m = MemberMapper::getTableName();
-        $msg = MessageMapper::getTableName();
+        $participantsTable = self::getTableName();
+        $conversationsTable = ConversationMapper::getTableName();
+        $membersTable = MemberMapper::getTableName();
+        $messagesTable = MessageMapper::getTableName();
 
-        // 1. Fetch base conversations
+        $memberId = (int) $memberId;
+
         $db = $this->db->select([
-                'p.conversation_id',
-                'p.last_read_message_id',
-                'p.muted_until',
-                'c.type',
-                'c.title',
-                'c.last_message_id',
-                'c.last_message_at',
-                'c.message_count'
+                'participant.conversation_id',
+                'participant.last_read_message_id',
+                'participant.muted_until',
+                'conversation.type',
+                'conversation.title',
+                'conversation.last_message_id',
+                'conversation.last_message_at',
+                'conversation.message_count'
             ])
-            ->from($p, 'p')
-            ->innerJoin($c . ' AS c', ['c.id' => new RawSqlFragment('p.conversation_id')])
-            ->whereEquals('p.member_id', (int) $memberId)
-            ->andWhereEquals('p.is_archived', 0);
+            ->from($participantsTable, 'participant')
+            ->innerJoin($conversationsTable . ' AS conversation', [
+                'conversation.id' => new RawSqlFragment('participant.conversation_id')
+            ])
+            ->whereEquals('participant.member_id', $memberId)
+            ->andWhereEquals('participant.is_archived', 0);
 
         $rows = $db->queryAll();
 
@@ -251,35 +282,38 @@ final class ParticipantMapper extends AbstractMapper
         foreach ($rows as $row) {
             $conversationId = (int) $row['conversation_id'];
 
-            // 2. Fetch the other participant
             $dbOther = $this->db->select([
-                    'p.member_id',
-                    'm.name',
-                    'm.login',
-                    'm.avatar'
+                    'participant.member_id',
+                    'member.name',
+                    'member.login',
+                    'member.avatar'
                 ])
-                ->from($p, 'p')
-                ->innerJoin($m . ' AS m', ['m.id' => new RawSqlFragment('p.member_id')])
-                ->whereEquals('p.conversation_id', $conversationId)
-                ->andWhereNotEquals('p.member_id', (int) $memberId)
+                ->from($participantsTable, 'participant')
+                ->innerJoin($membersTable . ' AS member', [
+                    'member.id' => new RawSqlFragment('participant.member_id')
+                ])
+                ->whereEquals('participant.conversation_id', $conversationId)
+                ->andWhereNotEquals('participant.member_id', $memberId)
                 ->limit(1);
 
             $other = $dbOther->query();
 
-            // 3. Fetch the last live message
             $last = null;
 
             if (!empty($row['last_message_id'])) {
-                $sql = sprintf(
-                    'SELECT body, sender_id, created_at FROM %s WHERE id = %d AND deleted_at IS NULL',
-                    $msg,
-                    (int) $row['last_message_id']
-                );
-                $last = $this->db->raw($sql)->query();
+                $dbLast = $this->db->select([
+                        'body',
+                        'sender_id',
+                        'created_at'
+                    ])
+                    ->from($messagesTable)
+                    ->whereEquals('id', (int) $row['last_message_id'])
+                    ->andWhere('deleted_at', 'IS', new RawSqlFragment('NULL'));
+
+                $last = $dbLast->query();
             }
 
-            // 4. Calculate unread count
-            $unreadCount = $this->countUnread($conversationId, (int) $memberId, $row['last_read_message_id']);
+            $unreadCount = $this->countUnread($conversationId, $memberId, $row['last_read_message_id']);
 
             $result[] = [
                 'conversation_id' => $conversationId,
@@ -296,7 +330,6 @@ final class ParticipantMapper extends AbstractMapper
             ];
         }
 
-        // 5. Sort, handling null timestamps safely
         usort($result, function ($a, $b) {
             $timeA = $a['last_message_at'] ? strtotime($a['last_message_at']) : 0;
             $timeB = $b['last_message_at'] ? strtotime($b['last_message_at']) : 0;

@@ -117,6 +117,7 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
 
         return $db->query();
     }
+
     /**
      * {@inheritDoc}
      */
