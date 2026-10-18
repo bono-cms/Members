@@ -1,0 +1,37 @@
+<form class="card shadow-sm border-0" method="POST" action="<?= $this->url('Members:Profile@saveTagsAction'); ?>">
+    <div class="card-header bg-white">
+        <h4 class="mb-0"><i class="bi bi-tags"></i> <?= $this->translate('My tags'); ?></h4>
+        <p class="text-body-secondary small mb-0 mt-1"><?= $this->translate('Pick the tags that apply to you.'); ?></p>
+    </div>
+
+    <div class="card-body">
+        <?php if (empty($payload)): ?>
+        <p class="text-muted mb-0"><?= $this->translate('No tags available yet.'); ?></p>
+        <?php else: ?>
+        <?php foreach ($payload as $block): ?>
+        <fieldset class="mb-4">
+            <legend class="fs-6 fw-semibold"><?= htmlspecialchars($block['group']['name']); ?></legend>
+
+            <?php if (!empty($block['group']['description'])): ?>
+            <p class="text-body-secondary small"><?= htmlspecialchars($block['group']['description']); ?></p>
+            <?php endif; ?>
+
+            <div class="d-flex flex-wrap gap-2">
+                <?php foreach ($block['tags'] as $tag): ?>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="tags[]" value="<?= (int) $tag['id']; ?>" id="tag-<?= (int) $tag['id']; ?>" <?= in_array((int) $tag['id'], $selected) ? 'checked' : ''; ?>>
+                    <label class="form-check-label" for="tag-<?= (int) $tag['id']; ?>"><?= htmlspecialchars($tag['label']); ?></label>
+                </div>
+                <?php endforeach; ?>
+            </div>
+        </fieldset>
+        <?php endforeach; ?>
+        <?php endif; ?>
+    </div>
+
+    <div class="card-footer bg-white d-flex justify-content-end">
+        <button type="submit" class="btn btn-primary" data-button="submit">
+            <i class="bi bi-save"></i> <?= $this->translate('Save changes'); ?>
+        </button>
+    </div>
+</form>
