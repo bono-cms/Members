@@ -16,7 +16,7 @@
 
 <?php if (empty($conversations)): ?>
 <div class="text-center py-5">
-    <i class="bi bi-chat-square text-muted" style="font-size:3rem;"></i>
+    <i class="bi bi-chat-square text-muted empty-state-icon"></i>
     <p class="text-muted mt-3"><?= $this->translate('No conversations yet.'); ?></p>
     <a href="<?= $this->url('Members:Directory@indexAction'); ?>" class="btn btn-outline-primary">
         <i class="bi bi-people"></i>
@@ -26,45 +26,28 @@
 <?php else: ?>
 <div class="list-group shadow-sm">
     <?php foreach ($conversations as $conversation): ?>
-    <a href="<?= $this->url('Members:Chat@conversationAction', [$conversation['id']]); ?>"
-       class="list-group-item list-group-item-action d-flex gap-3 align-items-center">
-
+    <a href="<?= $this->url('Members:Chat@conversationAction', [$conversation['id']]); ?>" class="list-group-item list-group-item-action d-flex gap-3 align-items-center">
         <?php if (!empty($conversation['other']['avatar'])): ?>
-        <img src="<?= htmlspecialchars($conversation['other']['avatar']); ?>"
-             class="rounded-circle flex-shrink-0"
-             style="width:48px;height:48px;object-fit:cover;"
-             alt="" />
+        <img src="<?= htmlspecialchars($conversation['other']['avatar']); ?>" class="rounded-circle flex-shrink-0 member-avatar-sm" alt="" />
         <?php else: ?>
-        <i class="bi bi-person-circle text-secondary flex-shrink-0" style="font-size:48px;"></i>
+        <i class="bi bi-person-circle text-secondary flex-shrink-0 member-avatar-icon-sm"></i>
         <?php endif; ?>
 
         <div class="flex-grow-1 min-width-0">
-            <div class="fw-semibold text-truncate">
-                <?= htmlspecialchars($conversation['displayName']); ?>
-            </div>
-
+            <div class="fw-semibold text-truncate"><?= htmlspecialchars($conversation['displayName']); ?></div>
             <?php if (!empty($conversation['lastMessage'])): ?>
-            <div class="text-muted small text-truncate">
-                <?= htmlspecialchars($conversation['lastMessage']['text']); ?>
-            </div>
+            <div class="text-muted small text-truncate"><?= htmlspecialchars($conversation['lastMessage']['text']); ?></div>
             <?php else: ?>
-            <div class="text-muted small fst-italic">
-                <?= $this->translate('No messages yet.'); ?>
-            </div>
+            <div class="text-muted small fst-italic"><?= $this->translate('No messages yet.'); ?></div>
             <?php endif; ?>
         </div>
 
         <div class="text-end flex-shrink-0">
             <?php if (!empty($conversation['lastMessageAt'])): ?>
-            <small class="text-muted d-block">
-                <?= htmlspecialchars(date('M j', strtotime($conversation['lastMessageAt']))); ?>
-            </small>
+            <small class="text-muted d-block"><?= htmlspecialchars(date('M j', strtotime($conversation['lastMessageAt']))); ?></small>
             <?php endif; ?>
-
             <?php if (!empty($conversation['unreadCount'])): ?>
-            <span class="badge bg-primary rounded-pill mt-1">
-                <?= (int) $conversation['unreadCount']; ?>
-            </span>
+            <span class="badge bg-primary rounded-pill mt-1"><?= (int) $conversation['unreadCount']; ?></span>
             <?php endif; ?>
         </div>
     </a>

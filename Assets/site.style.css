@@ -1,0 +1,61 @@
+#thread {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.chat-bubble {
+    max-width: 70%;
+}
+
+.member-avatar-sm {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+}
+
+.member-avatar-md {
+    width: 64px;
+    height: 64px;
+    object-fit: cover;
+}
+
+.member-avatar-lg {
+    width: 96px;
+    height: 96px;
+    object-fit: cover;
+}
+
+.member-avatar-xl {
+    width: 128px;
+    height: 128px;
+    object-fit: cover;
+}
+
+.member-avatar-icon-sm {
+    font-size: 48px;
+}
+
+.member-avatar-icon-md {
+    font-size: 64px;
+}
+
+.member-avatar-icon-lg {
+    font-size: 96px;
+}
+
+.member-avatar-icon-xl {
+    font-size: 128px;
+    line-height: 1;
+}
+
+.empty-state-icon {
+    font-size: 3rem;
+}
+
+.status-icon {
+    font-size: 4rem;
+}
+
+.reset-password-box {
+    max-width: 24rem;
+}

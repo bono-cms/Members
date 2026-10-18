@@ -13,8 +13,7 @@
  * @var int $otherId
  */
 
-$this->getPluginBag()->appendScript($this->moduleAsset('chat.jquery.js', 'Members'))
-                     ->appendStylesheet($this->moduleAsset('chat.style.css', 'Members'));
+$this->getPluginBag()->appendScript($this->moduleAsset('chat.jquery.js', 'Members'));
 
 $lastId = empty($messages) ? 0 : (int) end($messages)['id'];
 

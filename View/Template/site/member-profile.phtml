@@ -15,113 +15,71 @@ $entity = isset($member[0]) ? $member[0] : $member;
     <?php if (!empty($pending)): ?>
     <div class="alert alert-info d-flex align-items-start gap-2">
         <i class="bi bi-clock-history fs-5"></i>
-        <div>
-            <?= $this->translate('You have %d pending change(s) awaiting review. Submitting the form again will create a new submission.', count($pending)); ?>
-        </div>
+        <div><?= $this->translate('You have %d pending change(s) awaiting review. Submitting the form again will create a new submission.', count($pending)); ?></div>
     </div>
     <?php endif; ?>
 
     <div class="card-header bg-white">
         <ul class="nav nav-tabs card-header-tabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <a class="nav-link active" href="#data" role="tab" data-bs-toggle="tab">
-                    <i class="bi bi-person"></i> <?= $this->translate('Data'); ?>
-                </a>
+                <a class="nav-link active" href="#data" role="tab" data-bs-toggle="tab"><i class="bi bi-person"></i> <?= $this->translate('Data'); ?></a>
             </li>
 
             <?php foreach ($languages as $language): ?>
             <li class="nav-item" role="presentation">
-                <a class="nav-link" href="#language-<?= $language->getId(); ?>" role="tab" data-bs-toggle="tab">
-                    <i class="bi bi-translate"></i> <?= $language->getName(); ?>
-                </a>
+                <a class="nav-link" href="#language-<?= $language->getId(); ?>" role="tab" data-bs-toggle="tab"><i class="bi bi-translate"></i> <?= $language->getName(); ?></a>
             </li>
             <?php endforeach; ?>
         </ul>
     </div>
 
     <div class="card-body tab-content">
-        <!-- Tab 1: base data -->
         <div class="tab-pane fade show active" id="data" role="tabpanel">
             <div class="row mb-3">
-                <label class="col-lg-3 col-form-label" for="member_name">
-                    <?= $this->translate('Name'); ?>
-                </label>
+                <label class="col-lg-3 col-form-label" for="member_name"><?= $this->translate('Name'); ?></label>
                 <div class="col-lg-9">
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-pencil"></i></span>
-                        <?= Element::text('member[name]', $entity->getName(), [
-                            'class' => 'form-control',
-                            'id' => 'member_name'
-                        ]); ?>
+                        <?= Element::text('member[name]', $entity->getName(), ['class' => 'form-control', 'id' => 'member_name']); ?>
                     </div>
                 </div>
             </div>
 
             <div class="row mb-3">
-                <label class="col-lg-3 col-form-label" for="member_phone">
-                    <?= $this->translate('Phone'); ?>
-                </label>
+                <label class="col-lg-3 col-form-label" for="member_phone"><?= $this->translate('Phone'); ?></label>
                 <div class="col-lg-9">
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-telephone"></i></span>
-                        <?= Element::text('member[phone]', $entity->getPhone(), [
-                            'class' => 'form-control',
-                            'id' => 'member_phone'
-                        ]); ?>
+                        <?= Element::text('member[phone]', $entity->getPhone(), ['class' => 'form-control', 'id' => 'member_phone']); ?>
                     </div>
                 </div>
             </div>
 
             <div class="row mb-3">
-                <label class="col-lg-3 col-form-label" for="member_country">
-                    <?= $this->translate('Country'); ?>
-                </label>
+                <label class="col-lg-3 col-form-label" for="member_country"><?= $this->translate('Country'); ?></label>
                 <div class="col-lg-9">
-                    <?= Element::select('member[country]', (new Country())->getAll(), $entity->getCountry(), [
-                        'class' => 'form-select',
-                        'id' => 'member_country'
-                    ]); ?>
+                    <?= Element::select('member[country]', (new Country())->getAll(), $entity->getCountry(), ['class' => 'form-select', 'id' => 'member_country']); ?>
                 </div>
             </div>
 
             <div class="row mb-3">
-                <label class="col-lg-3 col-form-label" for="member_address">
-                    <?= $this->translate('Address'); ?>
-                </label>
+                <label class="col-lg-3 col-form-label" for="member_address"><?= $this->translate('Address'); ?></label>
                 <div class="col-lg-9">
-                    <?= Element::textarea('member[address]', $entity->getAddress(), [
-                        'class' => 'form-control',
-                        'id' => 'member_address',
-                        'rows' => 3
-                    ]); ?>
+                    <?= Element::textarea('member[address]', $entity->getAddress(), ['class' => 'form-control', 'id' => 'member_address', 'rows' => 3]); ?>
                 </div>
             </div>
 
             <div class="row mb-3">
-                <label class="col-lg-3 col-form-label" for="member_avatar">
-                    <?= $this->translate('Avatar'); ?>
-                </label>
+                <label class="col-lg-3 col-form-label" for="member_avatar"><?= $this->translate('Avatar'); ?></label>
                 <div class="col-lg-9">
-                    <img id="avatar-preview"
-                         src="<?= $entity->hasAvatar() ? $entity->getAvatarUrl('256x256') : ''; ?>"
-                         class="rounded-circle mb-3 <?= $entity->hasAvatar() ? '' : 'd-none'; ?>"
-                         style="width: 96px; height: 96px; object-fit: cover;"
-                         alt="<?= $this->translate('Avatar preview'); ?>" />
+                    <img id="avatar-preview" src="<?= $entity->hasAvatar() ? $entity->getAvatarUrl('256x256') : ''; ?>" class="rounded-circle mb-3 member-avatar-lg <?= $entity->hasAvatar() ? '' : 'd-none'; ?>" alt="<?= $this->translate('Avatar preview'); ?>" />
 
-                    <?= Element::file('file', 'image/x-png, image/gif, image/jpeg', [
-                        'class' => 'form-control',
-                        'id' => 'member_avatar'
-                    ]); ?>
+                    <?= Element::file('file', 'image/x-png, image/gif, image/jpeg', ['class' => 'form-control', 'id' => 'member_avatar']); ?>
 
                     <?php if ($entity->hasAvatar()): ?>
                     <div class="form-check mt-2">
-                        <?= Element::checkbox('member[remove_avatar]', false, [
-                            'class' => 'form-check-input',
-                            'id' => 'remove_avatar'
-                        ]); ?>
-                        <label class="form-check-label text-danger" for="remove_avatar">
-                            <?= $this->translate('Remove this avatar'); ?>
-                        </label>
+                        <?= Element::checkbox('member[remove_avatar]', false, ['class' => 'form-check-input', 'id' => 'remove_avatar']); ?>
+                        <label class="form-check-label text-danger" for="remove_avatar"><?= $this->translate('Remove this avatar'); ?></label>
                     </div>
                     <?php endif; ?>
 
@@ -132,32 +90,20 @@ $entity = isset($member[0]) ? $member[0] : $member;
             <hr class="my-4">
 
             <div class="row mb-3">
-                <label class="col-lg-3 col-form-label" for="member_password">
-                    <?= $this->translate('New password'); ?>
-                </label>
+                <label class="col-lg-3 col-form-label" for="member_password"><?= $this->translate('New password'); ?></label>
                 <div class="col-lg-9">
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                        <?= Element::password('member[password]', '', [
-                            'class' => 'form-control',
-                            'id' => 'member_password',
-                            'minlength' => 6,
-                            'placeholder' => $this->translate('Leave blank to keep current password')
-                        ]); ?>
+                        <?= Element::password('member[password]', '', ['class' => 'form-control', 'id' => 'member_password', 'minlength' => 6, 'placeholder' => $this->translate('Leave blank to keep current password')]); ?>
                     </div>
-                    <small class="text-body-secondary">
-                        <?= $this->translate('Leave blank to keep the current password unchanged.'); ?>
-                    </small>
+                    <small class="text-body-secondary"><?= $this->translate('Leave blank to keep the current password unchanged.'); ?></small>
                 </div>
             </div>
         </div>
 
-        <!-- Tab 2+: translations -->
         <?php foreach ($languages as $language): ?>
         <?php
-        $translation = is_array($member)
-            ? LanguageManager::findByLangId($language->getId(), $member)
-            : $member;
+        $translation = is_array($member) ? LanguageManager::findByLangId($language->getId(), $member) : $member;
 
         if (!$translation instanceof VirtualEntity) {
             $translation = new VirtualEntity();
@@ -168,60 +114,29 @@ $entity = isset($member[0]) ? $member[0] : $member;
             <?= Element::hidden(sprintf('translation[%s][lang_id]', $language->getId()), $language->getId()); ?>
 
             <div class="row mb-3">
-                <label class="col-lg-3 col-form-label"
-                       for="translation_<?= $language->getId(); ?>_title">
-                    <?= $this->translate('Title'); ?>
-                </label>
+                <label class="col-lg-3 col-form-label" for="translation_<?= $language->getId(); ?>_title"><?= $this->translate('Title'); ?></label>
                 <div class="col-lg-9">
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-pencil"></i></span>
-                        <?= Element::text(
-                            sprintf('translation[%s][title]', $language->getId()),
-                            $translation->getTitle(),
-                            [
-                                'class' => 'form-control',
-                                'id' => sprintf('translation_%s_title', $language->getId())
-                            ]
-                        ); ?>
+                        <?= Element::text(sprintf('translation[%s][title]', $language->getId()), $translation->getTitle(), ['class' => 'form-control', 'id' => sprintf('translation_%s_title', $language->getId())]); ?>
                     </div>
                 </div>
             </div>
 
             <div class="row mb-3">
-                <label class="col-lg-3 col-form-label"
-                       for="translation_<?= $language->getId(); ?>_company">
-                    <?= $this->translate('Company'); ?>
-                </label>
+                <label class="col-lg-3 col-form-label" for="translation_<?= $language->getId(); ?>_company"><?= $this->translate('Company'); ?></label>
                 <div class="col-lg-9">
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-building"></i></span>
-                        <?= Element::text(
-                            sprintf('translation[%s][company]', $language->getId()),
-                            $translation->getCompany(),
-                            [
-                                'class' => 'form-control',
-                                'id' => sprintf('translation_%s_company', $language->getId())
-                            ]
-                        ); ?>
+                        <?= Element::text(sprintf('translation[%s][company]', $language->getId()), $translation->getCompany(), ['class' => 'form-control', 'id' => sprintf('translation_%s_company', $language->getId())]); ?>
                     </div>
                 </div>
             </div>
 
             <div class="row mb-3">
-                <label class="col-lg-3 col-form-label"
-                       for="translation_<?= $language->getId(); ?>_bio">
-                    <?= $this->translate('Bio'); ?>
-                </label>
+                <label class="col-lg-3 col-form-label" for="translation_<?= $language->getId(); ?>_bio"><?= $this->translate('Bio'); ?></label>
                 <div class="col-lg-9">
-                    <?= Element::textarea(
-                        sprintf('translation[%s][bio]', $language->getId()),
-                        $translation->getBio(),
-                        [
-                            'class' => 'form-control',
-                            'id' => sprintf('translation_%s_bio', $language->getId()),
-                            'rows' => 4
-                        ]
-                    ); ?>
+                    <?= Element::textarea(sprintf('translation[%s][bio]', $language->getId()), $translation->getBio(), ['class' => 'form-control', 'id' => sprintf('translation_%s_bio', $language->getId()), 'rows' => 4]); ?>
                 </div>
             </div>
         </div>
@@ -229,8 +144,6 @@ $entity = isset($member[0]) ? $member[0] : $member;
     </div>
 
     <div class="card-footer bg-white d-flex justify-content-end">
-        <button type="submit" class="btn btn-primary" data-button="submit">
-            <i class="bi bi-save"></i> <?= $this->translate('Save changes'); ?>
-        </button>
+        <button type="submit" class="btn btn-primary" data-button="submit"><i class="bi bi-save"></i> <?= $this->translate('Save changes'); ?></button>
     </div>
 </form>

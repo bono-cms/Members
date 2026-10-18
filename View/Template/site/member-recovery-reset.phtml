@@ -1,47 +1,24 @@
 <div class="card shadow-sm border-0 text-center">
     <div class="card-body p-5">
         <?php if ($password !== false): ?>
-        <div class="mb-4">
-            <i class="bi bi-shield-check text-success" style="font-size: 4rem;"></i>
-        </div>
+        <div class="mb-4"><i class="bi bi-shield-check text-success status-icon"></i></div>
 
-        <h1 class="h3 mb-3">
-            <?= $this->translate('Your password has been reset'); ?>
-        </h1>
+        <h1 class="h3 mb-3"><?= $this->translate('Your password has been reset'); ?></h1>
+        <p class="text-body-secondary mb-4"><?= $this->translate('Use the password below to sign in. You can change it later from your profile.'); ?></p>
 
-        <p class="text-body-secondary mb-4">
-            <?= $this->translate('Use the password below to sign in. You can change it later from your profile.'); ?>
-        </p>
-
-        <div class="alert alert-warning mx-auto" style="max-width: 24rem;">
-            <div class="small text-body-secondary mb-1">
-                <?= $this->translate('Your new password'); ?>
-            </div>
+        <div class="alert alert-warning mx-auto reset-password-box">
+            <div class="small text-body-secondary mb-1"><?= $this->translate('Your new password'); ?></div>
             <code class="fs-5 user-select-all"><?= $password; ?></code>
         </div>
 
-        <a href="<?= $this->url('Members:Auth@indexAction'); ?>" class="btn btn-primary btn-lg mt-2">
-            <i class="bi bi-box-arrow-in-right"></i>
-            <?= $this->translate('Go to login'); ?>
-        </a>
-
+        <a href="<?= $this->url('Members:Auth@indexAction'); ?>" class="btn btn-primary btn-lg mt-2"><i class="bi bi-box-arrow-in-right"></i> <?= $this->translate('Go to login'); ?></a>
         <?php else: ?>
-        <div class="mb-4">
-            <i class="bi bi-x-circle-fill text-danger" style="font-size: 4rem;"></i>
-        </div>
+        <div class="mb-4"><i class="bi bi-x-circle-fill text-danger status-icon"></i></div>
 
-        <h1 class="h3 mb-3">
-            <?= $this->translate('We couldn\'t reset your password'); ?>
-        </h1>
+        <h1 class="h3 mb-3"><?= $this->translate('We couldn\'t reset your password'); ?></h1>
+        <p class="text-body-secondary mb-4"><?= $this->translate('The reset link is invalid or has expired. Please request a new one.'); ?></p>
 
-        <p class="text-body-secondary mb-4">
-            <?= $this->translate('The reset link is invalid or has expired. Please request a new one.'); ?>
-        </p>
-
-        <a href="<?= $this->url('Members:Recovery@indexAction'); ?>" class="btn btn-primary">
-            <i class="bi bi-key"></i>
-            <?= $this->translate('Request a new link'); ?>
-        </a>
+        <a href="<?= $this->url('Members:Recovery@indexAction'); ?>" class="btn btn-primary"><i class="bi bi-key"></i> <?= $this->translate('Request a new link'); ?></a>
         <?php endif; ?>
     </div>
 </div>

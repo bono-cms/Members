@@ -13,34 +13,21 @@
 
 <?php if (empty($members)): ?>
 <div class="text-center py-5">
-    <i class="bi bi-people text-muted" style="font-size:3rem;"></i>
-    <p class="text-muted mt-3">
-        <?= $this->translate('No public profiles available yet.'); ?>
-    </p>
+    <i class="bi bi-people text-muted empty-state-icon"></i>
+    <p class="text-muted mt-3"><?= $this->translate('No public profiles available yet.'); ?></p>
 </div>
 <?php else: ?>
 <div class="row g-4">
     <?php foreach ($members as $member): ?>
-    <?php
-    // Fall back to login when name is empty
-    $name = $member->getName();
-    if (empty($name)) {
-        $name = $member->getLogin();
-    }
-    ?>
+    <?php $name = $member->getName(); if (empty($name)): $name = $member->getLogin(); endif; ?>
     <div class="col-12 col-md-6 col-lg-4">
-        <a href="<?= $this->url('Members:Directory@profileAction', [$member->getId()]); ?>"
-           class="card h-100 text-decoration-none text-body shadow-sm border-0">
+        <a href="<?= $this->url('Members:Directory@profileAction', [$member->getId()]); ?>" class="card h-100 text-decoration-none text-body shadow-sm border-0">
             <div class="card-body text-center p-4">
                 <?php if ($member->hasAvatar()): ?>
-                <img src="<?= $member->getAvatarUrl('128x128'); ?>"
-                     class="rounded-circle mb-3"
-                     style="width:96px;height:96px;object-fit:cover;"
-                     alt="<?= htmlspecialchars($name); ?>" />
+                <img src="<?= $member->getAvatarUrl('128x128'); ?>" class="rounded-circle mb-3 member-avatar-lg" alt="<?= htmlspecialchars($name); ?>" />
                 <?php else: ?>
-                <i class="bi bi-person-circle text-body-secondary mb-3" style="font-size:96px;"></i>
+                <i class="bi bi-person-circle text-body-secondary mb-3 member-avatar-icon-lg"></i>
                 <?php endif; ?>
-
                 <h2 class="h5 mb-0"><?= htmlspecialchars($name); ?></h2>
             </div>
         </a>
