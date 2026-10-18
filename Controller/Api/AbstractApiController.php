@@ -26,6 +26,35 @@ abstract class AbstractApiController extends AbstractController
     ];
 
     /**
+     * Returns the id of the language requested via ?lang=, falling back
+     * to the site's active language (or the default one) when no
+     * ?lang= is present.
+     *
+     * Resolves the id from the language code directly, so this does not
+     * depend on changeSiteLanguage() having run first.
+     *
+     * @return int
+     */
+    protected function getRequestLanguageId(): int
+    {
+        $languageManager = $this->getService('Cms', 'languageManager');
+
+        // Client explicitly requested a language
+        $code = $this->request->getQuery('lang', null);
+
+        if ($code !== null && $code !== '') {
+            $id = $languageManager->fetchIdByCode((string) $code);
+
+            if ($id) {
+                return (int) $id;
+            }
+        }
+
+        // Fall back to the active content language (or default)
+        return (int) $languageManager->getCurrentId();
+    }
+
+    /**
      * Returns the authenticated member id by decoding the JWT.
      *
      * JwtAuthMiddleware has already validated the token before this method
