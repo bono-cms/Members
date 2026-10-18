@@ -33,16 +33,19 @@ final class Members extends AbstractController
      * Creates and renders the member form
      * 
      * @param \Krystal\Stdlib\VirtualEntity|array $member Base member entity or array of entities (one per language)
+     * @param array $selected Currently selected tag ids
      * @return string
      */
-    private function createForm($member)
+    private function createForm($member, array $selected = [])
     {
         $this->view->getBreadcrumbBag()
                    ->addOne('Members', 'Members:Admin:Members@indexAction')
                    ->addOne('Update the member');
 
         return $this->view->render('form', [
-            'member' => $member
+            'member' => $member,
+            'payload' => $this->getModuleService('memberTagService')->fetchPickerPayload(),
+            'selected' => $selected
         ]);
     }
 
@@ -62,7 +65,9 @@ final class Members extends AbstractController
                    ->addOne('Add new member');
 
         return $this->view->render('form', [
-            'member' => $member
+            'member' => $member,
+            'payload' => $this->getModuleService('memberTagService')->fetchPickerPayload(),
+            'selected' => []
         ]);
     }
 
@@ -85,8 +90,12 @@ final class Members extends AbstractController
                    ->addOne('Members', 'Members:Admin:Members@indexAction')
                    ->addOne('Update the member');
 
+        $selected = $this->getModuleService('memberTagService')->fetchSelectedIds((int) $id);
+
         return $this->view->render('form', [
-            'member' => $member
+            'member' => $member,
+            'payload' => $this->getModuleService('memberTagService')->fetchPickerPayload(),
+            'selected' => $selected
         ]);
     }
 
@@ -130,7 +139,8 @@ final class Members extends AbstractController
     }
 
     /**
-     * Persists member data (both base fields and translations)
+     * Persists member data (both base fields and translations) and
+     * the member's tag selection
      * 
      * @return string
      */
@@ -165,22 +175,34 @@ final class Members extends AbstractController
         }
 
         $service = $this->getModuleService('memberManager');
+        $memberTagService = $this->getModuleService('memberTagService');
 
         if (!empty($input['id'])) {
+            $memberId = (int) $input['id'];
             $service->update($this->request->getAll());
             $this->flashBag->set('success', 'The element has been updated successfully');
+        } else {
+            $service->add($this->request->getAll());
+            $memberId = (int) $service->getLastId();
+            $this->flashBag->set('success', 'The element has been created successfully');
+        }
 
+        // Persist the tag selection. The sanitizer strips any id
+        // that is not an active tag, so a crafted POST cannot
+        // attach an inactive or foreign tag.
+        $submittedTags = (array) $this->request->getPost('tags', []);
+        $safeTags = $memberTagService->sanitizeSelection($submittedTags);
+        $memberTagService->saveSelection($memberId, $safeTags);
+
+        if (!empty($input['id'])) {
             return $this->json([
                 'refresh' => true
             ]);
-        } else {
-            $service->add($this->request->getAll());
-            $this->flashBag->set('success', 'The element has been created successfully');
-
-            return $this->json([
-                'redirect' => $this->createUrl('Members:Admin:Members@editAction', [$service->getLastId()])
-            ]);
         }
+
+        return $this->json([
+            'redirect' => $this->createUrl('Members:Admin:Members@editAction', [$memberId])
+        ]);
     }
 
     /**
