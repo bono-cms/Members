@@ -58,9 +58,9 @@ use Krystal\Stdlib\VirtualEntity;
     <div class="col-12 col-md-6">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
-                <h5 class="card-title"><i class="bi bi-shield-lock text-primary"></i> <?= $this->translate('Security'); ?></h5>
-                <p class="text-body-secondary"><?= $this->translate('Change your password to keep your account secure.'); ?></p>
-                <a href="<?= $this->url('Members:Profile@editAction'); ?>" class="btn btn-outline-primary"><i class="bi bi-key"></i> <?= $this->translate('Change password'); ?></a>
+                <h5 class="card-title"><i class="bi bi-chat-dots text-primary"></i> <?= $this->translate('Messages'); ?></h5>
+                <p class="text-body-secondary"><?= $this->translate('Chat with other members, send messages, and keep up with your conversations.'); ?></p>
+                <a href="<?= $this->url('Members:Chat@inboxAction'); ?>" class="btn btn-outline-primary"><i class="bi bi-envelope"></i> <?= $this->translate('Go to inbox'); ?></a>
             </div>
         </div>
     </div>
