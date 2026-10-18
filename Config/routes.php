@@ -184,20 +184,20 @@ return [
         'middleware' => [JwtAuthMiddleware::class]
     ],
 
-    // ─── API v1: Profile ───────────────────────────────────────────
-    '/api/v1/members/profile' => [
+    // ─── API v1: Own profile ───────────────────────────────────────
+    '/api/v1/members/me' => [
         'controller' => 'Api:Profile@indexAction',
         'middleware' => [JwtAuthMiddleware::class]
     ],
-    '/api/v1/members/profile/update' => [
+    '/api/v1/members/me/update' => [
         'controller' => 'Api:Profile@updateAction',
         'middleware' => [JwtAuthMiddleware::class]
     ],
-    '/api/v1/members/profile/avatar' => [
+    '/api/v1/members/me/avatar' => [
         'controller' => 'Api:Profile@avatarAction',
         'middleware' => [JwtAuthMiddleware::class]
     ],
-    '/api/v1/members/profile/password' => [
+    '/api/v1/members/me/password' => [
         'controller' => 'Api:Profile@passwordAction',
         'middleware' => [JwtAuthMiddleware::class]
     ],
@@ -211,27 +211,27 @@ return [
     ],
 
     // ─── API v1: Chat ──────────────────────────────────────────────
-    '/api/v1/members/messages' => [
+    '/api/v1/members/chats' => [
         'controller' => 'Api:Chat@indexAction',
         'middleware' => [JwtAuthMiddleware::class]
     ],
-    '/api/v1/members/messages/thread' => [
+    '/api/v1/members/chat/thread' => [
         'controller' => 'Api:Chat@threadAction',
         'middleware' => [JwtAuthMiddleware::class]
     ],
-    '/api/v1/members/messages/send' => [
+    '/api/v1/members/chat/send' => [
         'controller' => 'Api:Chat@sendAction',
         'middleware' => [JwtAuthMiddleware::class]
     ],
-    '/api/v1/members/messages/start' => [
+    '/api/v1/members/chat/start' => [
         'controller' => 'Api:Chat@startAction',
         'middleware' => [JwtAuthMiddleware::class]
     ],
-    '/api/v1/members/messages/poll' => [
+    '/api/v1/members/chat/poll' => [
         'controller' => 'Api:Chat@pollAction',
         'middleware' => [JwtAuthMiddleware::class]
     ],
-    '/api/v1/members/messages/unread' => [
+    '/api/v1/members/chat/unread' => [
         'controller' => 'Api:Chat@unreadAction',
         'middleware' => [JwtAuthMiddleware::class]
     ]
