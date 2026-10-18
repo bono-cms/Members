@@ -2,7 +2,6 @@
 
 ## Now
 
-- [ ] Tags
 - [ ] API (+ JWT)
 - [ ] Decide on removing the `login` attribute
 - [ ] Improve overall look
@@ -17,3 +16,4 @@
 - [ ] Add notification system
 - [ ] Improve chat
 - [ ] Improve general dashboard
+- [ ] Gamification
