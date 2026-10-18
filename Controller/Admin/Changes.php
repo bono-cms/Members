@@ -59,9 +59,9 @@ final class Changes extends AbstractController
         $changeService = $this->getModuleService('profileChangeService');
 
         if ($changeService->approve((int) $id)) {
-            $this->flashBag->set('success', 'The change has been approved');
+            $this->flashBag->set('success', $this->translator->translate('The change has been approved'));
         } else {
-            $this->flashBag->set('error', 'Could not approve the change');
+            $this->flashBag->set('error', $this->translator->translate('Could not approve the change'));
         }
 
         $this->response->redirect($this->createUrl('Members:Admin:Changes@indexAction'));
@@ -79,9 +79,9 @@ final class Changes extends AbstractController
         $reason = $this->request->getPost('reason');
 
         if ($changeService->reject((int) $id, $reason)) {
-            $this->flashBag->set('success', 'The change has been rejected');
+            $this->flashBag->set('success', $this->translator->translate('The change has been rejected'));
         } else {
-            $this->flashBag->set('error', 'Could not reject the change');
+            $this->flashBag->set('error', $this->translator->translate('Could not reject the change'));
         }
 
         $this->response->redirect($this->createUrl('Members:Admin:Changes@indexAction'));

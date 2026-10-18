@@ -428,17 +428,6 @@ final class ProfileChangeService
     }
 
     /**
-     * Fetches all pending submissions for a single member
-     *
-     * @param int $memberId
-     * @return array
-     */
-    public function fetchPendingForMember($memberId)
-    {
-        return $this->changeMapper->fetchPendingByMember($memberId);
-    }
-
-    /**
      * Counts the number of pending submissions
      *
      * @return int
@@ -468,6 +457,97 @@ final class ProfileChangeService
     public function getPaginator()
     {
         return $this->changeMapper->getPaginator();
+    }
+    /**
+     * Processes a profile edit for the logged-in member.
+     *
+     * Owns three rules that previously lived in the controller:
+     *
+     *  - The member id is forced to the acting member, so a caller
+     *    cannot hijack another account by posting a foreign id.
+     *  - The password never enters the moderation pipeline. It is
+     *    applied directly to the live row after the rest of the
+     *    update has been processed.
+     *  - The three-branch message that describes what happened is
+     *    composed here, not in the controller.
+     *
+     * @param int $memberId The acting member's id
+     * @param array $input Input data in the standard profile form shape
+     * @param string $password Plain-text password, or empty when not changing
+     * @return string Message key describing the outcome
+     */
+    public function updateProfile($memberId, array $input, $password)
+    {
+        $memberId = (int) $memberId;
+
+        $input['data']['member']['id'] = $memberId;
+
+        if ($this->isModerationEnabled()) {
+            $result = $this->submit($input);
+            $messageKey = $this->pickUpdateMessageKey($result);
+        } else {
+            $this->memberMapper->updateProfile($memberId, $this->prepareBaseUpdate($input));
+            $messageKey = 'Your profile has been updated.';
+        }
+
+        if ($password !== '') {
+            $this->memberMapper->updateProfile($memberId, [
+                'password_hash' => password_hash($password, PASSWORD_DEFAULT)
+            ]);
+        }
+
+        return $messageKey;
+    }
+
+    /**
+     * Picks the message key that describes a submit() outcome.
+     *
+     * @param array $result
+     * @return string
+     */
+    private function pickUpdateMessageKey(array $result)
+    {
+        if ($result['applied'] > 0 && $result['staged'] > 0) {
+            return 'Some changes were applied immediately; the rest are pending review.';
+        }
+
+        if ($result['staged'] > 0) {
+            return 'Your changes were submitted for review.';
+        }
+
+        return 'Your profile has been updated.';
+    }
+
+    /**
+     * Prepares base member data for a direct update (moderation off).
+     *
+     * @param array $input
+     * @return array
+     */
+    private function prepareBaseUpdate(array $input)
+    {
+        $data = $input['data']['member'];
+        unset($data['id'], $data['password'], $data['remove_avatar']);
+
+        return $data;
+    }
+
+    /**
+     * Fetches all pending submissions for a single member.
+     *
+     * Returns an empty array when moderation is disabled, so callers
+     * do not need to branch on moderation state themselves.
+     *
+     * @param int $memberId
+     * @return array
+     */
+    public function fetchPendingForMember($memberId)
+    {
+        if (!$this->isModerationEnabled()) {
+            return [];
+        }
+
+        return $this->changeMapper->fetchPendingByMember($memberId);
     }
 
     /**

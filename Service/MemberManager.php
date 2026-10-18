@@ -88,6 +88,40 @@ final class MemberManager extends AbstractService
     }
 
     /**
+     * Fetches a collection of members by their ids as a lookup table
+     *
+     * Returns an array indexed by member id. Used to attach sender
+     * information to a batch of messages without issuing one query
+     * per sender, and to give group chats a single place to swap
+     * the lookup for a `WHERE id IN (...)` query later.
+     *
+     * @param array $ids Member ids
+     * @return array Lookup table: [id => ['id' => ..., 'name' => ..., ...], ...]
+     */
+    public function fetchLookupByIds(array $ids)
+    {
+        $ids = array_values(array_unique(array_map('intval', $ids)));
+
+        if (empty($ids)) {
+            return [];
+        }
+
+        $rows = $this->mapper->fetchByIds($ids);
+        $result = [];
+
+        foreach ($rows as $row) {
+            $result[(int) $row['id']] = [
+                'id' => (int) $row['id'],
+                'name' => isset($row['name']) ? $row['name'] : null,
+                'login' => isset($row['login']) ? $row['login'] : null,
+                'avatar' => isset($row['avatar']) ? $row['avatar'] : null
+            ];
+        }
+
+        return $result;
+    }
+
+    /**
      * Updates a member's password directly by member id
      *
      * Used when a password change is submitted through the profile
@@ -103,6 +137,20 @@ final class MemberManager extends AbstractService
         return $this->mapper->updateProfile($id, [
             'password_hash' => password_hash($plain, PASSWORD_DEFAULT)
         ]);
+    }
+
+    /**
+     * Generates a fresh activation key
+     *
+     * Sole producer of activation keys. Any code path that needs a
+     * key (registration, resend) must go through this method so the
+     * key format lives in one place.
+     *
+     * @return string
+     */
+    public function generateActivationKey()
+    {
+        return md5(uniqid(rand(), true));
     }
 
     /**
@@ -189,6 +237,11 @@ final class MemberManager extends AbstractService
     /**
      * Adds a member
      * 
+     * New registrations are unconfirmed and unsubscribed by default.
+     * If the caller provides an activation_key, it is used as-is;
+     * otherwise the registration flow is expected to have generated
+     * one via generateActivationKey() and embedded it in the payload.
+     *
      * @param array $input Raw input data
      * @return boolean
      */
@@ -197,17 +250,23 @@ final class MemberManager extends AbstractService
         $data =& $input['data']['member'];
         $file = isset($input['files']['file']) ? $input['files']['file'] : false;
 
-        // Prepare and set the avatar filename upfront
+        // Sensible defaults for new registrations. Callers may override
+        // these by setting them explicitly before calling add().
+        if (!isset($data['confirmed'])) {
+            $data['confirmed'] = '0';
+        }
+
+        if (!isset($data['subscriber'])) {
+            $data['subscriber'] = '0';
+        }
+
         $data = $this->prepare($data);
         $data['avatar'] = $file ? $file->getUniqueName() : '';
 
-        // Persist main row and translations
         $this->mapper->saveEntity($data, isset($input['data']['translation']) ? $input['data']['translation'] : []);
 
-        // Grab the new member ID
         $id = $this->getLastId();
 
-        // Upload the avatar if present
         if ($file) {
             $this->avatarImageManager->upload($id, $file);
         }
@@ -226,12 +285,10 @@ final class MemberManager extends AbstractService
         $data =& $input['data']['member'];
         $file = isset($input['files']['file']) ? $input['files']['file'] : false;
 
-        // Handle explicit removal first
         if (!empty($data['remove_avatar']) && !empty($data['avatar'])) {
             $this->avatarImageManager->delete($data['id'], $data['avatar']);
             $data['avatar'] = '';
         } else {
-            // Handle new upload
             if ($file) {
                 if (!empty($data['avatar'])) {
                     $this->avatarImageManager->delete($data['id'], $data['avatar']);
@@ -244,7 +301,6 @@ final class MemberManager extends AbstractService
 
         $data = $this->prepare($data);
 
-        // Persist main row and translations
         $this->mapper->saveEntity($data, isset($input['data']['translation']) ? $input['data']['translation'] : []);
 
         return true;
@@ -268,19 +324,40 @@ final class MemberManager extends AbstractService
     }
 
     /**
-     * Refreshes a member's activation key
-     * 
+     * Regenerates a member's activation key and returns the new key
+     *
      * Used when a logged-in member needs to re-receive the
-     * confirmation email — for example, because the original
-     * message was lost or expired.
-     * 
+     * confirmation email. Key generation lives here so the format is
+     * defined in exactly one place.
+     *
      * @param int $id Member id
-     * @param string $key New activation key
-     * @return boolean Depending on success
+     * @return string New activation key
      */
-    public function refreshActivationKey($id, $key)
+    public function refreshActivationKey($id)
     {
-        return $this->mapper->updateActivationKey($id, $key);
+        $key = $this->generateActivationKey();
+
+        $this->mapper->updateActivationKey($id, $key);
+
+        return $key;
+    }
+
+    /**
+     * Initiates a password recovery flow for an email
+     *
+     * Returns the recovery key on success and false when no account
+     * matches. Callers must treat both outcomes identically at the
+     * response level to prevent account enumeration; this method
+     * exists so the anti-enumeration rule is enforced by the service
+     * contract rather than by controllers remembering to ignore the
+     * false branch.
+     *
+     * @param string $email
+     * @return string|false
+     */
+    public function initiateRecovery($email)
+    {
+        return $this->resetKey($email);
     }
 
     /**
@@ -380,7 +457,7 @@ final class MemberManager extends AbstractService
             return false;
         }
 
-        $key = md5(uniqid(rand(), true));
+        $key = $this->generateActivationKey();
         $affected = $this->mapper->updateKey($email, $key);
 
         return $affected ? $key : false;

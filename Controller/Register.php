@@ -68,10 +68,7 @@ final class Register extends AbstractController
 
     /**
      * Re-sends the confirmation email to the currently logged-in member
-     * 
-     * Authentication and existence of the member row are guaranteed by
-     * AuthRequiredMiddleware (see Config/routes.php).
-     * 
+     *
      * @return void
      */
     public function resendAction()
@@ -84,10 +81,7 @@ final class Register extends AbstractController
             return $this->response->redirect($this->createUrl('Members:Profile@indexAction'));
         }
 
-        // Generate a fresh key (old one might have been lost)
-        $key = md5(uniqid(rand(), true));
-
-        $memberManager->refreshActivationKey($member->getId(), $key);
+        $key = $memberManager->refreshActivationKey($member->getId());
 
         $this->sendConfirmationEmail(
             $member->getEmail(),
@@ -101,7 +95,7 @@ final class Register extends AbstractController
 
     /**
      * Handles member registration submission
-     * 
+     *
      * @return string
      */
     public function saveAction()
@@ -136,27 +130,20 @@ final class Register extends AbstractController
             ]);
         }
 
-        $input = $this->request->getPost();
+        $input = $this->request->getAll();
 
-        // New registrations default to unconfirmed and unsubscribed
-        $input['member']['confirmed'] = '0';
-        $input['member']['subscriber'] = '0';
+        $key = $memberManager->generateActivationKey();
+        $input['data']['member']['activation_key'] = $key;
 
-        // Generate the activation key BEFORE save() so it lands in the same INSERT
-        $key = md5(uniqid(rand(), true));
-        $input['member']['activation_key'] = $key;
-
-        // Persist member + translations
-        if (!$memberManager->add($this->request->getAll())) {
+        if (!$memberManager->add($input)) {
             return $this->json([
                 'error' => 'An unexpected error occurred during saving'
             ]);
         }
 
-        // Send the confirmation email using the SAME key
         $this->sendConfirmationEmail(
-            $input['member']['email'],
-            $input['member']['name'],
+            $input['data']['member']['email'],
+            $input['data']['member']['name'],
             $key
         );
 

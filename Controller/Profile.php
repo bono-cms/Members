@@ -50,26 +50,15 @@ final class Profile extends AbstractController
         $page->setTitle($this->translator->translate('Edit profile'))
              ->setSeo(false);
 
-        $pending = $changeService->isModerationEnabled()
-            ? $changeService->fetchPendingForMember($memberId)
-            : [];
-
         return $this->view->render('member-profile', [
             'page' => $page,
             'member' => $member,
-            'pending' => $pending
+            'pending' => $changeService->fetchPendingForMember($memberId)
         ]);
     }
 
     /**
      * Handles the profile edit form submission
-     *
-     * Fields that are classified as "auto" (skip bucket or moderation
-     * disabled) are applied to the live row immediately. Fields that
-     * are classified as "moderate" are staged for admin review.
-     *
-     * The password is handled separately: it never enters the staging
-     * pipeline and is always applied to the live row.
      *
      * @return string|void
      */
@@ -97,36 +86,13 @@ final class Profile extends AbstractController
         $changeService = $this->getModuleService('profileChangeService');
 
         $input = $this->request->getAll();
-
-        // Force the logged-in member's id so a caller can't hijack another account
-        $input['data']['member']['id'] = $memberManager->getMember('id');
-
-        // The password is never staged. Extract it before the moderation
-        // pipeline sees it so it isn't accidentally persisted as plain text.
         $password = isset($input['data']['member']['password']) ? $input['data']['member']['password'] : '';
 
         unset($input['data']['member']['password']);
 
-        if ($changeService->isModerationEnabled()) {
-            $result = $changeService->submit($input);
+        $messageKey = $changeService->updateProfile($memberManager->getMember('id'), $input, $password);
 
-            if ($result['applied'] > 0 && $result['staged'] > 0) {
-                $message = $this->translator->translate('Some changes were applied immediately; the rest are pending review.');
-            } elseif ($result['staged'] > 0) {
-                $message = $this->translator->translate('Your changes were submitted for review.');
-            } else {
-                $message = $this->translator->translate('Your profile has been updated.');
-            }
-        } else {
-            $memberManager->update($input);
-            $message = $this->translator->translate('Your profile has been updated');
-        }
-
-        if ($password !== '') {
-            $memberManager->updatePassword($memberManager->getMember('id'), $password);
-        }
-
-        $this->flashBag->set('success', $message);
+        $this->flashBag->set('success', $this->translator->translate($messageKey));
 
         return $this->json([
             'refresh' => true

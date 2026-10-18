@@ -71,11 +71,11 @@ final class Recovery extends AbstractController
 
     /**
      * Handles an API password recovery request
-     * 
+     *
      * The response is deliberately identical whether or not the
      * email matches an existing account, to prevent account
      * enumeration.
-     * 
+     *
      * @return string JSON response
      */
     public function processAction()
@@ -96,9 +96,8 @@ final class Recovery extends AbstractController
         $email = $this->request->getPost('email');
 
         $memberManager = $this->getModuleService('memberManager');
-        $key = $memberManager->resetKey($email);
+        $key = $memberManager->initiateRecovery($email);
 
-        // Vague success in both branches
         if ($key !== false) {
             $this->sendConfirmationLink($email, $key);
         }

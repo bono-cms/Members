@@ -304,6 +304,36 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
     }
 
     /**
+     * Fetches a collection of member rows by their ids
+     *
+     * Returns a lightweight projection: only the fields needed to
+     * render a sender block on a message. The full member row is
+     * available through fetchById() when needed.
+     *
+     * @param array $ids Member ids
+     * @return array
+     */
+    public function fetchByIds(array $ids)
+    {
+        $ids = array_values(array_filter(array_map('intval', $ids)));
+
+        if (empty($ids)) {
+            return [];
+        }
+
+        $db = $this->db->select([
+                'id',
+                'name',
+                'login',
+                'avatar'
+            ])
+            ->from(self::getTableName())
+            ->whereIn('id', $ids);
+
+        return $db->queryAll();
+    }
+
+    /**
      * Finds a member by their login
      * 
      * @param string $login

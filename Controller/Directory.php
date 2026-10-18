@@ -48,17 +48,11 @@ final class Directory extends AbstractController
         $member = $memberManager->fetchPublicProfile((int) $id);
 
         if ($member === false) {
-            return false; // Triggers the 404 handler
-        }
-
-        $name = $member->getName();
-
-        if (empty($name)) {
-            $name = $member->getLogin();
+            return false;
         }
 
         $page = new VirtualEntity();
-        $page->setTitle($name)
+        $page->setTitle($member->getDisplayName())
              ->setSeo(true);
 
         return $this->view->render('member-public-profile', [

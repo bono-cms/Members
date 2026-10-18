@@ -48,11 +48,11 @@ final class Module extends AbstractCmsModule
             'chatService' => new ChatService(
                 $this->getMapper('/Members/Storage/MySQL/ConversationMapper'),
                 $this->getMapper('/Members/Storage/MySQL/ParticipantMapper'),
-                $this->getMapper('/Members/Storage/MySQL/MessageMapper')
+                $this->getMapper('/Members/Storage/MySQL/MessageMapper'),
+                $memberManager
             )
         ];
     }
-
 
     /**
      * Builds avatar image manager service
@@ -65,10 +65,7 @@ final class Module extends AbstractCmsModule
             'thumb' => [
                 'quality' => 75,
                 'dimensions' => [
-                    // Admin grid preview
                     [64, 64],
-
-                    // Site render sizes
                     [128, 128],
                     [256, 256],
                 ]

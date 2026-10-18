@@ -55,45 +55,36 @@ final class ChatService
     private $messageMapper;
 
     /**
+     * Member manager instance
+     *
+     * @var \Members\Service\MemberManager
+     */
+    private $memberManager;
+
+    /**
      * State initialization
      *
      * @param \Members\Storage\MySQL\ConversationMapper $conversationMapper
      * @param \Members\Storage\MySQL\ParticipantMapper $participantMapper
      * @param \Members\Storage\MySQL\MessageMapper $messageMapper
+     * @param \Members\Service\MemberManager $memberManager
      * @return void
      */
     public function __construct(
         ConversationMapper $conversationMapper,
         ParticipantMapper $participantMapper,
-        MessageMapper $messageMapper
+        MessageMapper $messageMapper,
+        MemberManager $memberManager
     ) {
         $this->conversationMapper = $conversationMapper;
         $this->participantMapper = $participantMapper;
         $this->messageMapper = $messageMapper;
-    }
-
-    /**
-     * Returns the other participant of a direct conversation.
-     *
-     * Returns only the participant row (member_id and related
-     * columns). The caller is expected to resolve the member
-     * entity through MemberManager when it needs display data.
-     *
-     * @param int $conversationId Conversation id
-     * @param int $memberId The viewer's member id
-     * @return array|boolean Row as array on success, false if not found
-     */
-    public function findOtherParticipant($conversationId, $memberId)
-    {
-        return $this->participantMapper->findOtherParticipant((int) $conversationId, (int) $memberId);
+        $this->memberManager = $memberManager;
     }
 
     /**
      * Returns the total number of unread messages for a member
      * across all their conversations.
-     *
-     * This is what the nav badge displays. It counts every live
-     * message sent by someone else that the member hasn't read yet.
      *
      * @param int $memberId Member id
      * @return int
@@ -106,8 +97,6 @@ final class ChatService
     /**
      * Determines whether a member belongs to a conversation.
      *
-     * This is the sole access check used by the controllers.
-     *
      * @param int $conversationId Conversation id
      * @param int $memberId Member id
      * @return boolean
@@ -115,6 +104,44 @@ final class ChatService
     public function isParticipant($conversationId, $memberId)
     {
         return $this->participantMapper->isParticipant((int) $conversationId, (int) $memberId);
+    }
+
+    /**
+     * Returns the other participant of a direct conversation as an
+     * entity, or false when the conversation has no other member.
+     *
+     * @param int $conversationId Conversation id
+     * @param int $memberId The viewer's member id
+     * @return \Members\Service\MemberEntity|boolean
+     */
+    public function findOtherMember($conversationId, $memberId)
+    {
+        $participant = $this->participantMapper->findOtherParticipant((int) $conversationId, (int) $memberId);
+
+        if ($participant === false) {
+            return false;
+        }
+
+        return $this->memberManager->fetchById((int) $participant['member_id']);
+    }
+
+    /**
+     * Resolves sender rows for a collection of message rows
+     *
+     * @param array $messages Message rows
+     * @return array Lookup table indexed by member id
+     */
+    public function resolveSenders(array $messages)
+    {
+        $ids = [];
+
+        foreach ($messages as $message) {
+            if (!empty($message['sender_id'])) {
+                $ids[] = (int) $message['sender_id'];
+            }
+        }
+
+        return $this->memberManager->fetchLookupByIds($ids);
     }
 
     /**
@@ -141,7 +168,6 @@ final class ChatService
 
         $key = $this->directKey($memberId, $otherId);
 
-        // Fast path: the conversation already exists
         $existing = $this->conversationMapper->findByDirectKey($key);
 
         if ($existing !== false) {
@@ -152,9 +178,6 @@ final class ChatService
             $this->conversationMapper->createDirect($key, $memberId);
 
         } catch (PDOException $exception) {
-            // The unique index rejected a concurrent insert. Re-read
-            // the winner. If even that fails, the exception is not a
-            // race we can recover from and must be rethrown.
             $existing = $this->conversationMapper->findByDirectKey($key);
 
             if ($existing !== false) {
@@ -174,13 +197,8 @@ final class ChatService
     /**
      * Sends a message to a conversation.
      *
-     * Guarantees, all inside a single transaction:
-     *  - the sender is a participant
-     *  - the body is non-empty and within limits
-     *  - a retried send with the same client_id returns the existing id
-     *  - the conversation's last_message_id / last_message_at / message_count
-     *    are updated atomically with the insert
-     *  - the sender's own read cursor is advanced to the new message
+     * Normalizes an empty client_id to null so it cannot collide on
+     * the unique index for idempotent sends.
      *
      * @param int $conversationId Conversation id
      * @param int $senderId Sender member id
@@ -197,6 +215,8 @@ final class ChatService
         $conversationId = (int) $conversationId;
         $senderId = (int) $senderId;
 
+        $clientId = $clientId === null || $clientId === '' ? null : (string) $clientId;
+
         if (!$this->isParticipant($conversationId, $senderId)) {
             throw new InvalidArgumentException('The sender does not belong to this conversation');
         }
@@ -211,8 +231,7 @@ final class ChatService
             throw new RuntimeException('The message body is too long');
         }
 
-        // Idempotent retry: the same client id must not create a second row
-        if ($clientId !== null && $clientId !== '') {
+        if ($clientId !== null) {
             $existing = $this->messageMapper->findByClientId($conversationId, $clientId);
 
             if ($existing !== false) {
@@ -225,7 +244,7 @@ final class ChatService
                 $conversationId,
                 $senderId,
                 $body,
-                $clientId === null || $clientId === '' ? null : $clientId,
+                $clientId,
                 $replyToId,
                 $type
             );
@@ -248,10 +267,6 @@ final class ChatService
 
     /**
      * Soft-deletes a message and repairs the conversation pointer.
-     *
-     * Only the sender may delete their own message in the 1-to-1 flow.
-     * The message row survives as a tombstone so that threading,
-     * moderation and audit remain intact.
      *
      * @param int $messageId Message id
      * @param int $memberId Member attempting the delete
@@ -302,9 +317,6 @@ final class ChatService
     /**
      * Advances a member's read cursor up to a given message.
      *
-     * The cursor never moves backwards; an out-of-order poll response
-     * with an older id is ignored by the mapper itself.
-     *
      * @param int $conversationId Conversation id
      * @param int $memberId Member id
      * @param int $messageId Message id that has now been read
@@ -326,10 +338,6 @@ final class ChatService
     /**
      * Fetches a conversation thread in ascending id order.
      *
-     * When $sinceId is zero, the oldest messages are returned first.
-     * When it is set, only messages newer than that id are returned,
-     * which is what the polling endpoint consumes.
-     *
      * @param int $conversationId Conversation id
      * @param int $memberId Member id requesting the thread
      * @param int $sinceId Return only messages newer than this id
@@ -350,10 +358,36 @@ final class ChatService
     }
 
     /**
-     * Fetches older messages for a "load earlier" flow.
+     * Fetches a thread and advances the member's read cursor to the
+     * newest message it contains.
      *
-     * The client passes the oldest id it currently has; rows older
-     * than that are returned in descending order.
+     * Reading a thread marks it read; that rule lives here so it can
+     * only be changed in one place.
+     *
+     * @param int $conversationId Conversation id
+     * @param int $memberId Member id requesting the thread
+     * @param int $sinceId Return only messages newer than this id
+     * @param int $limit Maximum number of rows
+     * @throws \InvalidArgumentException If the member does not belong to the conversation
+     * @return array
+     */
+    public function fetchThreadAndMarkRead($conversationId, $memberId, $sinceId = 0, $limit = 50)
+    {
+        $conversationId = (int) $conversationId;
+        $memberId = (int) $memberId;
+
+        $messages = $this->fetchThread($conversationId, $memberId, $sinceId, $limit);
+
+        if (!empty($messages)) {
+            $lastMessageId = (int) end($messages)['id'];
+            $this->markReadUpTo($conversationId, $memberId, $lastMessageId);
+        }
+
+        return $messages;
+    }
+
+    /**
+     * Fetches older messages for a "load earlier" flow.
      *
      * @param int $conversationId Conversation id
      * @param int $memberId Member id requesting the thread
@@ -377,10 +411,6 @@ final class ChatService
     /**
      * Fetches the inbox for a member.
      *
-     * The mapper is responsible for the per-row enrichment (other
-     * participant, last live message); this method only guards
-     * input and delegates.
-     *
      * @param int $memberId Member id
      * @return array
      */
@@ -391,10 +421,6 @@ final class ChatService
 
     /**
      * Returns a conversation row if the member belongs to it.
-     *
-     * Returns false when the conversation does not exist or the
-     * member is not a participant, so callers can treat both cases
-     * as a 404 without leaking existence information.
      *
      * @param int $conversationId Conversation id
      * @param int $memberId Member id
@@ -415,10 +441,6 @@ final class ChatService
     /**
      * Normalizes a member pair into a direct conversation key.
      *
-     * This is the sole producer of direct keys. The unique index on
-     * direct_key is only meaningful if every caller goes through this
-     * method, so it stays private.
-     *
      * @param int $memberId First member id
      * @param int $otherId Second member id
      * @return string
@@ -430,9 +452,6 @@ final class ChatService
 
     /**
      * Clamps a requested page size into the accepted range.
-     *
-     * Prevents a client from asking for the entire history in one
-     * request, which would defeat the point of incremental fetch.
      *
      * @param int $limit Requested limit
      * @return int

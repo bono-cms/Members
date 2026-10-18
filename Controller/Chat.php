@@ -12,6 +12,7 @@ namespace Members\Controller;
 use Members\View\ChatPresenter;
 use Krystal\Stdlib\VirtualEntity;
 use InvalidArgumentException;
+use RuntimeException;
 
 /**
  * Site-side chat controller.
@@ -49,8 +50,6 @@ final class Chat extends AbstractController
      * Resolves or creates a direct conversation with another member,
      * then redirects to the thread.
      *
-     * This is the target of the "Message" button on a public profile.
-     *
      * @param string $otherId The other member's id
      * @return void
      */
@@ -67,6 +66,7 @@ final class Chat extends AbstractController
         } catch (InvalidArgumentException $exception) {
             $this->flashBag->set('error', $this->translator->translate('You cannot start a conversation with yourself.'));
             $this->response->redirect($this->createUrl('Members:Directory@indexAction'));
+            return;
         }
 
         $this->response->redirect($this->createUrl('Members:Chat@conversationAction', [$conversationId]));
@@ -91,15 +91,8 @@ final class Chat extends AbstractController
             return false;
         }
 
-        $messages = $chatService->fetchThread((int) $conversationId, $memberId);
-
-        if (!empty($messages)) {
-            $lastMessageId = (int) end($messages)['id'];
-            $chatService->markReadUpTo((int) $conversationId, $memberId, $lastMessageId);
-        }
-
-        $otherParticipant = $chatService->findOtherParticipant((int) $conversationId, $memberId);
-        $otherMember = $otherParticipant !== false ? $memberManager->fetchById((int) $otherParticipant['member_id']) : false;
+        $messages = $chatService->fetchThreadAndMarkRead((int) $conversationId, $memberId);
+        $otherMember = $chatService->findOtherMember((int) $conversationId, $memberId);
 
         $page = new VirtualEntity();
         $page->setTitle($this->translator->translate('Conversation'))
@@ -109,7 +102,7 @@ final class Chat extends AbstractController
             'page' => $page,
             'conversationId' => (int) $conversationId,
             'messages' => $messages,
-            'senders' => $this->collectSenders($messages),
+            'senders' => $chatService->resolveSenders($messages),
             'meId' => $memberId,
             'otherMember' => $otherMember
         ]);
@@ -149,17 +142,12 @@ final class Chat extends AbstractController
         }
 
         try {
-            $messageId = $chatService->sendMessage(
-                $conversationId,
-                $memberId,
-                $body,
-                $clientId !== null && $clientId !== '' ? (string) $clientId : null
-            );
+            $messageId = $chatService->sendMessage($conversationId, $memberId, $body, $clientId);
 
         } catch (InvalidArgumentException $exception) {
             return $this->json(['error' => 'Forbidden']);
 
-        } catch (\RuntimeException $exception) {
+        } catch (RuntimeException $exception) {
             return $this->json(['error' => $exception->getMessage()]);
         }
 
@@ -190,20 +178,10 @@ final class Chat extends AbstractController
             return $this->json(['error' => 'Forbidden']);
         }
 
-        try {
-            $messages = $chatService->fetchThread($conversationId, $memberId, $sinceId);
-
-        } catch (InvalidArgumentException $exception) {
-            return $this->json(['error' => 'Forbidden']);
-        }
-
-        if (!empty($messages)) {
-            $lastMessageId = (int) end($messages)['id'];
-            $chatService->markReadUpTo($conversationId, $memberId, $lastMessageId);
-        }
+        $messages = $chatService->fetchThreadAndMarkRead($conversationId, $memberId, $sinceId);
 
         return $this->json([
-            'messages' => $this->createPresenter()->messages($messages, $this->collectSenders($messages))
+            'messages' => $this->createPresenter()->messages($messages, $chatService->resolveSenders($messages))
         ]);
     }
 
@@ -219,49 +197,5 @@ final class Chat extends AbstractController
             $this->request->getBaseUrl(),
             '/data/uploads/module/members/avatars'
         );
-    }
-
-    /**
-     * Collects sender rows for a set of messages, indexed by member id.
-     *
-     * A member row may be missing when the sender has been deleted;
-     * the presenter already handles that case by returning null for
-     * the "user" field.
-     *
-     * @param array $messages Message rows
-     * @return array
-     */
-    private function collectSenders(array $messages)
-    {
-        $ids = [];
-
-        foreach ($messages as $message) {
-            if (!empty($message['sender_id'])) {
-                $ids[(int) $message['sender_id']] = true;
-            }
-        }
-
-        $result = [];
-
-        if (empty($ids)) {
-            return $result;
-        }
-
-        $memberManager = $this->getModuleService('memberManager');
-
-        foreach (array_keys($ids) as $senderId) {
-            $member = $memberManager->fetchById($senderId);
-
-            if ($member !== false) {
-                $result[$senderId] = [
-                    'id' => (int) $member->getId(),
-                    'name' => $member->getName(),
-                    'login' => $member->getLogin(),
-                    'avatar' => $member->getAvatar()
-                ];
-            }
-        }
-
-        return $result;
     }
 }
