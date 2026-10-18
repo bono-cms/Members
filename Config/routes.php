@@ -207,9 +207,8 @@ return [
     ],
 
     // ─── API v1: Directory ─────────────────────────────────────────
-    // Note: /filters must come before /members since Router matches in insertion order
-    '/api/v1/members/filters' => [
-        'controller' => 'Api:Directory@filtersAction'
+    '/api/v1/members/profile' => [
+        'controller' => 'Api:Directory@profileAction'
     ],
     '/api/v1/members' => [
         'controller' => 'Api:Directory@indexAction'
