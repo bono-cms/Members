@@ -1,0 +1,74 @@
+<?php
+
+use Krystal\Widget\GridView\GridViewWidget;
+use Cms\View\Icon;
+
+?>
+
+<p>
+    <a class="btn btn-outline-secondary" href="<?= $this->url('Members:Admin:TagGroup@indexAction'); ?>">
+        <i class="bi bi-arrow-left"></i> <?= $this->translate('Back to groups'); ?>
+    </a>
+
+    <a class="btn btn-primary" href="<?= $this->url('Members:Admin:Tag@addAction', [$group->getId()]); ?>">
+        <i class="bi bi-plus-lg"></i> <?= $this->translate('Add tag'); ?>
+    </a>
+</p>
+
+<div class="card">
+    <div class="card-header bg-light">
+        <strong><?= htmlspecialchars($group->getName()); ?></strong>
+    </div>
+
+    <div class="table-responsive">
+        <?= $this->widget(new GridViewWidget($tags, [
+            'tableClass' => 'table table-hover table-striped align-middle',
+            'columns' => [
+                [
+                    'column' => 'label',
+                    'label' => 'Label'
+                ],
+                [
+                    'column' => 'code',
+                    'label' => 'Code'
+                ],
+                [
+                    'column' => 'sortOrder',
+                    'label' => 'Order'
+                ],
+                [
+                    'column' => 'active',
+                    'label' => 'Active',
+                    'value' => function ($tag) {
+                        if ($tag->getActive()) {
+                            return '<span class="badge bg-success">' . $this->translate('Yes') . '</span>';
+                        }
+
+                        return '<span class="badge bg-secondary">' . $this->translate('No') . '</span>';
+                    }
+                ]
+            ],
+            'actions' => [
+                function ($tag) {
+                    return Icon::edit(
+                        $this->url('Members:Admin:Tag@editAction', $tag->getId()),
+                        $this->translate('Edit tag')
+                    );
+                },
+                function ($tag) {
+                    return Icon::remove(
+                        $this->url('Members:Admin:Tag@deleteAction', $tag->getId()),
+                        $this->translate('Remove tag')
+                    );
+                }
+            ]
+        ])); ?>
+    </div>
+
+    <?php if (empty($tags)): ?>
+    <div class="card-body text-center py-5">
+        <i class="bi bi-tag text-muted" style="font-size:3rem;"></i>
+        <h3 class="text-muted mt-3"><?= $this->translate('No tags yet'); ?></h3>
+    </div>
+    <?php endif; ?>
+</div>

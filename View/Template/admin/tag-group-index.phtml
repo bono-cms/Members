@@ -1,0 +1,62 @@
+<?php
+
+use Krystal\Widget\GridView\GridViewWidget;
+use Cms\View\Icon;
+
+?>
+
+<p>
+    <a class="btn btn-primary" href="<?= $this->url('Members:Admin:TagGroup@addAction'); ?>">
+        <i class="bi bi-plus-lg"></i> <?= $this->translate('Add tag group'); ?>
+    </a>
+</p>
+
+<div class="card">
+    <div class="table-responsive">
+        <?= $this->widget(new GridViewWidget($groups, [
+            'tableClass' => 'table table-hover table-striped align-middle',
+            'columns' => [
+                [
+                    'column' => 'name',
+                    'label' => 'Name'
+                ],
+                [
+                    'column' => 'code',
+                    'label' => 'Code'
+                ],
+                [
+                    'column' => 'sortOrder',
+                    'label' => 'Order'
+                ]
+            ],
+            'actions' => [
+                function ($group) {
+                    return Icon::edit(
+                        $this->url('Members:Admin:TagGroup@editAction', $group->getId()),
+                        $this->translate('Edit group')
+                    );
+                },
+                function ($group) {
+                    return Icon::button(
+                        'bi bi-tags',
+                        $this->url('Members:Admin:Tag@indexAction', $group->getId()),
+                        $this->translate('Manage tags')
+                    );
+                },
+                function ($group) {
+                    return Icon::remove(
+                        $this->url('Members:Admin:TagGroup@deleteAction', $group->getId()),
+                        $this->translate('Remove group')
+                    );
+                }
+            ]
+        ])); ?>
+    </div>
+
+    <?php if (empty($groups)): ?>
+    <div class="card-body text-center py-5">
+        <i class="bi bi-tags text-muted" style="font-size:3rem;"></i>
+        <h3 class="text-muted mt-3"><?= $this->translate('No tag groups yet'); ?></h3>
+    </div>
+    <?php endif; ?>
+</div>

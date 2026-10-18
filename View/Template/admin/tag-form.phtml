@@ -1,0 +1,71 @@
+<?php
+
+use Krystal\Form\Element;
+
+$isNew = !$tag->getId();
+
+?>
+
+<form class="card" autocomplete="off">
+    <?= Element::hidden('tag[id]', $tag->getId()); ?>
+    <?= Element::hidden('tag[group_id]', $group->getId()); ?>
+
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" role="tablist">
+            <li class="nav-item"><a class="nav-link active" href="#main" data-bs-toggle="tab"><?= $this->translate('Main'); ?></a></li>
+            <?php foreach ($languages as $language): ?>
+            <li class="nav-item"><a class="nav-link" href="#language-<?= $language->getId(); ?>" data-bs-toggle="tab"><?= $language->getName(); ?></a></li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+
+    <div class="card-body tab-content">
+        <div class="tab-pane fade show active" id="main" role="tabpanel">
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Code'); ?></label>
+                <div class="col-lg-10">
+                    <?= Element::text('tag[code]', $tag->getCode(), ['class' => 'form-control', 'placeholder' => 'optional']); ?>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Sort order'); ?></label>
+                <div class="col-lg-10">
+                    <?= Element::number('tag[sort_order]', $tag->getSortOrder() ?: 0, ['class' => 'form-control']); ?>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Active'); ?></label>
+                <div class="col-lg-10">
+                    <div class="form-check form-switch mt-2">
+                        <?= Element::checkbox('tag[is_active]', $isNew ? true : $tag->getActive(), ['class' => 'form-check-input']); ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <?php foreach ($languages as $language): ?>
+        <?php
+        $langId = $language->getId();
+        $row = isset($translations[$langId]) ? $translations[$langId] : [];
+        ?>
+        <div class="tab-pane fade" id="language-<?= $langId; ?>" role="tabpanel">
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Label'); ?></label>
+                <div class="col-lg-10">
+                    <?= Element::text(sprintf('translation[%s][label]', $langId), isset($row['label']) ? $row['label'] : '', ['class' => 'form-control', 'required' => true]); ?>
+                </div>
+            </div>
+        </div>
+        <?php endforeach; ?>
+    </div>
+
+    <?php $this->loadPartial('actions', [
+        'new' => $isNew,
+        'add' => 'Members:Admin:Tag@addAction',
+        'edit' => 'Members:Admin:Tag@editAction',
+        'save' => 'Members:Admin:Tag@saveAction',
+        'cancel' => 'Members:Admin:Tag@indexAction'
+    ]); ?>
+</form>
