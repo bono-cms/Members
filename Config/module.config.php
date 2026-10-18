@@ -45,5 +45,10 @@ return [
             // Base (non-translated) fields that go through moderation
             'base' => ['name', 'address', 'avatar', 'company']
         ]
+    ],
+    
+    'api' => [
+        'jwt_secret' => 'REPLACE-ME-with-a-long-random-string-at-least-32-chars',
+        'jwt_ttl'    => 604800, // 7 days
     ]
 ];
