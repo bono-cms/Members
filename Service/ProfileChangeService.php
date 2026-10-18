@@ -33,6 +33,31 @@ final class ProfileChangeService
     const STAGING_DIR = '/data/uploads/module/members/pending/';
 
     /**
+     * Base member fields that a member is allowed to submit
+     *
+     * Any submitted base field that is not listed here is silently
+     * dropped. This is the single source of truth for writable base
+     * columns and is reused by the submit, auto-apply and approve
+     * paths, so a member cannot promote themselves (for example by
+     * setting "confirmed") or inject an arbitrary column name.
+     *
+     * @var array
+     */
+    private $writableBaseFields = ['name', 'phone', 'address', 'country', 'avatar'];
+
+    /**
+     * Translation fields that a member is allowed to submit
+     *
+     * Any submitted translation field that is not listed here is
+     * silently dropped. Reused by every translation write path so a
+     * member cannot inject an arbitrary column name into the
+     * translation update.
+     *
+     * @var array
+     */
+    private $writableTranslationFields = ['title', 'company', 'bio'];
+
+    /**
      * Member mapper instance
      *
      * @var \Members\Storage\MySQL\MemberMapper
@@ -159,6 +184,33 @@ final class ProfileChangeService
     }
 
     /**
+     * Checks whether a base field is allowed to be written
+     *
+     * Only fields returned by this check ever reach the live member
+     * row or the staging payload. Every other submitted base field is
+     * dropped, which blocks self-promotion (for example "confirmed")
+     * and arbitrary column-name injection.
+     *
+     * @param string $field
+     * @return boolean
+     */
+    private function isWritableBaseField($field)
+    {
+        return in_array(strtolower($field), $this->writableBaseFields, true);
+    }
+
+    /**
+     * Checks whether a translation field is allowed to be written
+     *
+     * @param string $field
+     * @return boolean
+     */
+    private function isWritableTranslationField($field)
+    {
+        return in_array(strtolower($field), $this->writableTranslationFields, true);
+    }
+
+    /**
      * Checks whether a field is reserved (never enters the pipeline)
      *
      * @param string $field
@@ -218,6 +270,10 @@ final class ProfileChangeService
      * "moderate" are staged for approval with both their old and new
      * values captured in the payload.
      *
+     * Only fields on the writable allow-list are considered. Anything
+     * else submitted by the member is silently dropped, so a member
+     * cannot promote themselves or inject an arbitrary column name.
+     *
      * @param array $input Input data in the standard profile form shape
      * @return array
      */
@@ -245,6 +301,10 @@ final class ProfileChangeService
 
         foreach ($submitted as $field => $value) {
             if ($this->isReserved($field)) {
+                continue;
+            }
+
+            if (!$this->isWritableBaseField($field)) {
                 continue;
             }
 
@@ -278,8 +338,6 @@ final class ProfileChangeService
             ? $input['data']['translation']
             : [];
 
-        $config = $this->getModeration();
-
         foreach ($translations as $langId => $row) {
             $liveTrans = $this->memberMapper->fetchTranslationByLang($memberId, $langId);
             $liveTrans = $liveTrans ? $liveTrans : [];
@@ -290,6 +348,10 @@ final class ProfileChangeService
                 }
 
                 if ($this->isReserved($field)) {
+                    continue;
+                }
+
+                if (!$this->isWritableTranslationField($field)) {
                     continue;
                 }
 
@@ -304,9 +366,7 @@ final class ProfileChangeService
                         'old' => $currentValue,
                         'new' => $value
                     ];
-                } elseif (in_array(strtolower($field), $config['base'], true)
-                       || in_array(strtolower($field), $config['skip'], true)) {
-                    // Auto-apply only known, non-staged fields
+                } else {
                     $this->memberMapper->updateTranslationFieldByLang($memberId, (int) $langId, $field, $value);
                 }
             }
@@ -369,6 +429,10 @@ final class ProfileChangeService
                 if (!empty($payload['translations'])) {
                     foreach ($payload['translations'] as $langId => $fields) {
                         foreach ($this->unwrapPairs($fields) as $field => $value) {
+                            if (!$this->isWritableTranslationField($field)) {
+                                continue;
+                            }
+
                             $this->memberMapper->updateTranslationFieldByLang($memberId, (int) $langId, $field, $value);
                         }
                     }
@@ -458,6 +522,7 @@ final class ProfileChangeService
     {
         return $this->changeMapper->getPaginator();
     }
+
     /**
      * Processes a profile edit for the logged-in member.
      *
@@ -521,6 +586,10 @@ final class ProfileChangeService
     /**
      * Prepares base member data for a direct update (moderation off).
      *
+     * Only allow-listed base fields are kept. Everything else is
+     * dropped, so a member cannot promote themselves or inject an
+     * arbitrary column name when moderation is disabled.
+     *
      * @param array $input
      * @return array
      */
@@ -529,7 +598,7 @@ final class ProfileChangeService
         $data = $input['data']['member'];
         unset($data['id'], $data['password'], $data['remove_avatar']);
 
-        return $data;
+        return array_intersect_key($data, array_flip($this->writableBaseFields));
     }
 
     /**
@@ -573,10 +642,11 @@ final class ProfileChangeService
     /**
      * Applies base fields to the live member row
      *
-     * Handles the avatar file move when the avatar field is included.
-     * The final filename returned by the image manager is written back
-     * into the "avatar" column so that the live member row points at
-     * the file that actually exists on disk.
+     * Only allow-listed base fields are applied. The avatar file
+     * move is handled separately when the avatar field is present.
+     * The final filename returned by the image manager is written
+     * back into the "avatar" column so that the live member row
+     * points at the file that actually exists on disk.
      *
      * @param int $memberId
      * @param array $fields
@@ -585,6 +655,8 @@ final class ProfileChangeService
      */
     private function applyBaseFields($memberId, array $fields, array $liveRow)
     {
+        $fields = array_intersect_key($fields, array_flip($this->writableBaseFields));
+
         if (array_key_exists('avatar', $fields)) {
             $newAvatar = $fields['avatar'];
             $oldAvatar = isset($liveRow['avatar']) ? $liveRow['avatar'] : '';
