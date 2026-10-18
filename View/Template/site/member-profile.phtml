@@ -30,6 +30,10 @@ $entity = isset($member[0]) ? $member[0] : $member;
                 <a class="nav-link" href="#language-<?= $language->getId(); ?>" role="tab" data-bs-toggle="tab"><i class="bi bi-translate"></i> <?= $language->getName(); ?></a>
             </li>
             <?php endforeach; ?>
+
+            <li class="nav-item" role="presentation">
+                <a class="nav-link" href="#tags" role="tab" data-bs-toggle="tab"><i class="bi bi-tags"></i> <?= $this->translate('Tags'); ?></a>
+            </li>
         </ul>
     </div>
 
@@ -141,6 +145,32 @@ $entity = isset($member[0]) ? $member[0] : $member;
             </div>
         </div>
         <?php endforeach; ?>
+
+        <div class="tab-pane fade" id="tags" role="tabpanel">
+            <?php if (empty($payload)): ?>
+            <p class="text-muted mb-0"><?= $this->translate('No tags available yet.'); ?></p>
+            <?php else: ?>
+            <?php foreach ($payload as $block): ?>
+            <fieldset class="mb-4">
+                <legend class="fs-6 fw-semibold"><?= htmlspecialchars($block['group']['name']); ?></legend>
+
+                <?php if (!empty($block['group']['description'])): ?>
+                <p class="text-body-secondary small"><?= htmlspecialchars($block['group']['description']); ?></p>
+                <?php endif; ?>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <?php foreach ($block['tags'] as $tag): ?>
+                    <?php $tagId = (int) $tag['id']; ?>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="tags[]" value="<?= $tagId; ?>" id="tag-<?= $tagId; ?>" <?= in_array($tagId, $selected) ? 'checked' : ''; ?>>
+                        <label class="form-check-label" for="tag-<?= $tagId; ?>"><?= htmlspecialchars($tag['label']); ?></label>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </fieldset>
+            <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
     </div>
 
     <div class="card-footer bg-white d-flex justify-content-end">

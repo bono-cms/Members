@@ -91,17 +91,6 @@ return [
         'controller' => 'Admin:Tag@deleteAction'
     ],
     
-    // Tags
-    '/member/profile/tags' => [
-        'controller' => 'Profile@tagsAction',
-        'middleware' => [AuthRequiredMiddleware::class]
-    ],
-
-    '/member/profile/tags/save' => [
-        'controller' => 'Profile@saveTagsAction',
-        'middleware' => [AuthRequiredMiddleware::class]
-    ],
-    
     // Chat
     '/member/messages' => [
         'controller' => 'Chat@inboxAction',

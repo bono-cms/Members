@@ -36,12 +36,17 @@ final class Profile extends AbstractController
     /**
      * Renders the profile edit form
      *
+     * The form combines the editable profile fields and the tag
+     * picker in a single page: the profile page is the single place
+     * a member edits their account, so tags live there too.
+     *
      * @return string
      */
     public function editAction()
     {
         $memberManager = $this->getModuleService('memberManager');
         $changeService = $this->getModuleService('profileChangeService');
+        $memberTagService = $this->getModuleService('memberTagService');
 
         $memberId = (int) $memberManager->getMember('id');
         $member = $memberManager->fetchById($memberId, true);
@@ -53,12 +58,19 @@ final class Profile extends AbstractController
         return $this->view->render('member-profile', [
             'page' => $page,
             'member' => $member,
-            'pending' => $changeService->fetchPendingForMember($memberId)
+            'pending' => $changeService->fetchPendingForMember($memberId),
+            'payload' => $memberTagService->fetchPickerPayload(),
+            'selected' => $memberTagService->fetchSelectedIds($memberId)
         ]);
     }
 
     /**
      * Handles the profile edit form submission
+     *
+     * Persists both the profile changes (which may go through the
+     * moderation pipeline) and the member's tag selection (which
+     * never goes through moderation — it's a direct write, same as
+     * the admin path in Members::saveAction()).
      *
      * @return string|void
      */
@@ -84,61 +96,25 @@ final class Profile extends AbstractController
 
         $memberManager = $this->getModuleService('memberManager');
         $changeService = $this->getModuleService('profileChangeService');
+        $memberTagService = $this->getModuleService('memberTagService');
+
+        $memberId = (int) $memberManager->getMember('id');
 
         $input = $this->request->getAll();
         $password = isset($input['data']['member']['password']) ? $input['data']['member']['password'] : '';
 
         unset($input['data']['member']['password']);
 
-        $messageKey = $changeService->updateProfile($memberManager->getMember('id'), $input, $password);
+        $messageKey = $changeService->updateProfile($memberId, $input, $password);
+
+        // Persist the tag selection. Sanitizer drops any id that is
+        // not an active tag, so the member cannot attach an inactive
+        // or foreign tag by tampering with the form.
+        $submittedTags = (array) $this->request->getPost('tags', []);
+        $safeTags = $memberTagService->sanitizeSelection($submittedTags);
+        $memberTagService->saveSelection($memberId, $safeTags);
 
         $this->flashBag->set('success', $this->translator->translate($messageKey));
-
-        return $this->json([
-            'refresh' => true
-        ]);
-    }
-
-    /**
-     * Renders the tags picker for the logged-in member
-     *
-     * @return string
-     */
-    public function tagsAction()
-    {
-        $memberManager = $this->getModuleService('memberManager');
-        $memberTagService = $this->getModuleService('memberTagService');
-
-        $memberId = (int) $memberManager->getMember('id');
-
-        $page = new VirtualEntity();
-        $page->setTitle($this->translator->translate('My tags'))
-             ->setSeo(false);
-
-        return $this->view->render('member-tags', [
-            'page' => $page,
-            'payload' => $memberTagService->fetchPickerPayload(),
-            'selected' => $memberTagService->fetchSelectedIds($memberId)
-        ]);
-    }
-
-    /**
-     * Persists the member's tag selection
-     *
-     * @return string JSON
-     */
-    public function saveTagsAction()
-    {
-        $memberManager = $this->getModuleService('memberManager');
-        $memberTagService = $this->getModuleService('memberTagService');
-
-        $memberId = (int) $memberManager->getMember('id');
-        $submitted = (array) $this->request->getPost('tags', []);
-        $safe = $memberTagService->sanitizeSelection($submitted);
-
-        $memberTagService->saveSelection($memberId, $safe);
-
-        $this->flashBag->set('success', $this->translator->translate('Your tags have been updated.'));
 
         return $this->json([
             'refresh' => true
