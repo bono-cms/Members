@@ -2,10 +2,8 @@
 
 ## Now
 
-- [ ] API (+ JWT)
 - [ ] Decide on removing the `login` attribute
 - [ ] Improve overall look
-- [ ] Write module documentation
 
 ## Later
 
