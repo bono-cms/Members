@@ -27,8 +27,8 @@ final class Directory extends AbstractController
         $memberTagService = $this->getModuleService('memberTagService');
 
         // Filter params
-        $country = $this->request->getQuery('country');
-        $company = $this->request->getQuery('company');
+        $country = $this->request->getQuery('country', null);
+        $company = $this->request->getQuery('company', null);
         $tagIds = (array) $this->request->getQuery('tags', []);
         $memberIds = (array) $this->request->getQuery('member_ids', []);
 
