@@ -43,7 +43,7 @@ final class ProfileChangeService
      *
      * @var array
      */
-    private $writableBaseFields = ['name', 'phone', 'address', 'country', 'avatar'];
+    private $writableBaseFields = ['name', 'phone', 'address', 'country', 'company', 'avatar'];
 
     /**
      * Translation fields that a member is allowed to submit
@@ -55,7 +55,7 @@ final class ProfileChangeService
      *
      * @var array
      */
-    private $writableTranslationFields = ['title', 'company', 'bio'];
+    private $writableTranslationFields = ['title', 'bio'];
 
     /**
      * Member mapper instance

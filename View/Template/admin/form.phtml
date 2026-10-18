@@ -98,6 +98,19 @@ $isNew  = !$entity->getId();
                 </div>
             </div>
 
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Company'); ?></label>
+                <div class="col-lg-10">
+                    <div class="input-group">
+                        <?= Element::text('member[company]', $entity->getCompany(), [
+                            'class' => 'form-control',
+                            'placeholder' => $this->translate('Company or organization name')
+                        ]); ?>
+                        <span class="input-group-text"><i class="bi bi-building"></i></span>
+                    </div>
+                </div>
+            </div>
+
             <hr class="my-4">
 
             <h5 class="mb-3 text-secondary">
@@ -207,20 +220,6 @@ $isNew  = !$entity->getId();
                             ['class' => 'form-control', 'placeholder' => $this->translate('Professional title or headline')]
                         ); ?>
                         <span class="input-group-text"><i class="bi bi-pencil"></i></span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row mb-3">
-                <label class="col-lg-2 col-form-label"><?= $this->translate('Company'); ?></label>
-                <div class="col-lg-10">
-                    <div class="input-group">
-                        <?= Element::text(
-                            sprintf('translation[%s][company]', $language->getId()),
-                            Filter::charsDecode($translation->getCompany()),
-                            ['class' => 'form-control', 'placeholder' => $this->translate('Company or organization name')]
-                        ); ?>
-                        <span class="input-group-text"><i class="bi bi-building"></i></span>
                     </div>
                 </div>
             </div>

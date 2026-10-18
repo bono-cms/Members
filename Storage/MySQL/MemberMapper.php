@@ -46,6 +46,7 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
             self::column('login'),
             self::column('password_hash'),
             self::column('name'),
+            self::column('company'),
             self::column('phone'),
             self::column('address'),
             self::column('country'),
@@ -56,29 +57,21 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
             self::column('created_at'),
             MemberTranslationMapper::column('lang_id'),
             MemberTranslationMapper::column('title'),
-            MemberTranslationMapper::column('company'),
             MemberTranslationMapper::column('bio'),
         ];
     }
 
     /**
-     * Returns distinct non-empty company names from member translations
+     * Returns distinct non-empty company names from confirmed members
      *
-     * Company lives in the translations table, not the base table, so
-     * this query joins it in and returns only the column the caller
-     * needs. It is NOT scoped to a single language: a member's company
-     * should be the same across their translations, and a distinct list
-     * is the goal here, not a per-language one.
+     * Company is stored on the base members table, not in translations.
      *
      * @return array
      */
     public function fetchDistinctCompanies()
     {
-        $companies = $this->db->select(MemberTranslationMapper::column('company'), true)
+        $companies = $this->db->select(self::column('company'), true)
                               ->from(self::getTableName())
-                              ->innerJoin(MemberTranslationMapper::getTableName(), [
-                                  MemberTranslationMapper::column('id') => self::getRawColumn('id')
-                              ])
                               ->whereEquals(self::column('confirmed'), '1')
                               ->andWhere('company', 'IS NOT', new RawSqlFragment('NULL'))
                               ->andWhereNotEquals('company', '')
@@ -129,20 +122,7 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
         }
 
         if ($company !== null) {
-            $buildCompanySubquery = function ($company) {
-                $sub = new QueryBuilder();
-
-                $sub->select(MemberTranslationMapper::column('id'))
-                    ->from(MemberTranslationMapper::getTableName())
-                    ->whereEquals(
-                        MemberTranslationMapper::column('company'),
-                        (new RawBinding($company))->getTarget()
-                    );
-
-                return $sub->getQueryString();
-            };
-
-            $db->andWhereIn('id', new RawSqlFragment($buildCompanySubquery($company)));
+            $db->andWhereEquals(self::column('company'), $company);
         }
 
         if (!empty($tagIds)) {

@@ -63,6 +63,16 @@ $entity = isset($member[0]) ? $member[0] : $member;
             </div>
 
             <div class="row mb-3">
+                <label class="col-lg-3 col-form-label" for="member_company"><?= $this->translate('Company'); ?></label>
+                <div class="col-lg-9">
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-building"></i></span>
+                        <?= Element::text('member[company]', $entity->getCompany(), ['class' => 'form-control', 'id' => 'member_company']); ?>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-3">
                 <label class="col-lg-3 col-form-label" for="member_address"><?= $this->translate('Address'); ?></label>
                 <div class="col-lg-9">
                     <?= Element::textarea('member[address]', $entity->getAddress(), ['class' => 'form-control', 'id' => 'member_address', 'rows' => 3]); ?>
@@ -149,16 +159,6 @@ $entity = isset($member[0]) ? $member[0] : $member;
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-pencil"></i></span>
                         <?= Element::text(sprintf('translation[%s][title]', $language->getId()), $translation->getTitle(), ['class' => 'form-control', 'id' => sprintf('translation_%s_title', $language->getId())]); ?>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row mb-3">
-                <label class="col-lg-3 col-form-label" for="translation_<?= $language->getId(); ?>_company"><?= $this->translate('Company'); ?></label>
-                <div class="col-lg-9">
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-building"></i></span>
-                        <?= Element::text(sprintf('translation[%s][company]', $language->getId()), $translation->getCompany(), ['class' => 'form-control', 'id' => sprintf('translation_%s_company', $language->getId())]); ?>
                     </div>
                 </div>
             </div>
