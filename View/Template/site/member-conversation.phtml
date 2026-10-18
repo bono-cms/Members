@@ -3,6 +3,9 @@
 /**
  * Members conversation — thread, send form, polling.
  *
+ * Registers the chat script through the plugin bag so it is
+ * rendered by the layout's script loop, not inlined here.
+ *
  * @var \Krystal\Stdlib\VirtualEntity $page
  * @var int $conversationId
  * @var array $messages Raw message rows
@@ -13,6 +16,10 @@
  * @var int $otherId
  */
 
+$this->getPluginBag()->appendScript(
+    $this->moduleAsset('chat.jquery.js', 'Members')
+);
+
 $lastId = empty($messages) ? 0 : (int) end($messages)['id'];
 
 ?>
@@ -21,26 +28,17 @@ $lastId = empty($messages) ? 0 : (int) end($messages)['id'];
     <div class="card-header bg-white">
         <div class="row align-items-center g-0">
             <div class="col-auto">
-                <a href="<?= $this->url('Members:Chat@inboxAction'); ?>" class="text-decoration-none">
-                    <i class="bi bi-arrow-left"></i>
-                    <?= $this->translate('Back to inbox'); ?>
-                </a>
+                <a href="<?= $this->url('Members:Chat@inboxAction'); ?>" class="text-decoration-none"><i class="bi bi-arrow-left"></i> <?= $this->translate('Back to inbox'); ?></a>
             </div>
 
             <div class="col d-flex align-items-center justify-content-end gap-2">
                 <?php if (!empty($otherAvatar)): ?>
-                <img src="/data/uploads/module/members/avatars/<?= (int) $otherId; ?>/64x64/<?= rawurlencode($otherAvatar); ?>"
-                     class="rounded-circle"
-                     style="width:32px;height:32px;object-fit:cover;"
-                     alt="" />
+                <img src="/data/uploads/module/members/avatars/<?= (int) $otherId; ?>/64x64/<?= rawurlencode($otherAvatar); ?>" class="rounded-circle" style="width:32px;height:32px;object-fit:cover;" alt="" />
                 <?php else: ?>
                 <i class="bi bi-person-circle text-secondary" style="font-size:32px;"></i>
                 <?php endif; ?>
 
-                <a href="<?= $otherId > 0 ? $this->url('Members:Directory@profileAction', [$otherId]) : '#'; ?>"
-                   class="fw-semibold text-decoration-none text-body text-truncate">
-                    <?= htmlspecialchars($otherName); ?>
-                </a>
+                <a href="<?= $otherId > 0 ? $this->url('Members:Directory@profileAction', [$otherId]) : '#'; ?>" class="fw-semibold text-decoration-none text-body text-truncate"><?= htmlspecialchars($otherName); ?></a>
             </div>
         </div>
     </div>
@@ -49,8 +47,7 @@ $lastId = empty($messages) ? 0 : (int) end($messages)['id'];
         <?php foreach ($messages as $message): ?>
         <?php $isMine = (int) $message['sender_id'] === (int) $meId; ?>
         <div class="mb-3 <?= $isMine ? 'text-end' : 'text-start'; ?>">
-            <div class="d-inline-block p-2 rounded <?= $isMine ? 'bg-primary text-white' : 'bg-body-secondary'; ?>"
-                 style="max-width:70%;">
+            <div class="d-inline-block p-2 rounded <?= $isMine ? 'bg-primary text-white' : 'bg-body-secondary'; ?>" style="max-width:70%;">
                 <?php if (!empty($message['deleted_at'])): ?>
                 <em class="opacity-75"><?= $this->translate('[deleted]'); ?></em>
                 <?php else: ?>
@@ -58,13 +55,7 @@ $lastId = empty($messages) ? 0 : (int) end($messages)['id'];
                 <?php endif; ?>
             </div>
 
-            <div class="small text-muted mt-1">
-                <?= htmlspecialchars(date('M j, H:i', strtotime($message['created_at']))); ?>
-
-                <?php if (!empty($message['edited_at'])): ?>
-                &middot; <?= $this->translate('(edited)'); ?>
-                <?php endif; ?>
-            </div>
+            <div class="small text-muted mt-1"><?= htmlspecialchars(date('M j, H:i', strtotime($message['created_at']))); ?><?php if (!empty($message['edited_at'])): ?> &middot; <?= $this->translate('(edited)'); ?><?php endif; ?></div>
         </div>
         <?php endforeach; ?>
 
@@ -76,254 +67,8 @@ $lastId = empty($messages) ? 0 : (int) end($messages)['id'];
         <?php endif; ?>
     </div>
 
-    <form class="card-footer bg-white d-flex gap-2"
-          id="chat-form"
-          data-conversation="<?= (int) $conversationId; ?>"
-          data-send-url="<?= $this->url('Members:Chat@sendAction'); ?>"
-          data-poll-url="<?= $this->url('Members:Chat@pollAction'); ?>"
-          data-me-id="<?= (int) $meId; ?>"
-          autocomplete="off">
-
-        <textarea name="body"
-                  class="form-control"
-                  rows="1"
-                  maxlength="5000"
-                  required
-                  placeholder="<?= $this->translate('Type a message…'); ?>"></textarea>
-
-        <button class="btn btn-primary" type="submit">
-            <i class="bi bi-send"></i>
-            <span class="d-none d-md-inline"><?= $this->translate('Send'); ?></span>
-        </button>
+    <form class="card-footer bg-white d-flex gap-2" id="chat-form" data-conversation="<?= (int) $conversationId; ?>" data-last-id="<?= (int) $lastId; ?>" data-send-url="<?= $this->url('Members:Chat@sendAction'); ?>" data-poll-url="<?= $this->url('Members:Chat@pollAction'); ?>" data-me-id="<?= (int) $meId; ?>" data-translations="<?= htmlspecialchars(json_encode(['[deleted]' => $this->translate('[deleted]')]), ENT_QUOTES); ?>" autocomplete="off">
+        <textarea name="body" class="form-control" rows="1" maxlength="5000" required placeholder="<?= $this->translate('Type a message…'); ?>"></textarea>
+        <button class="btn btn-primary" type="submit"><i class="bi bi-send"></i> <span class="d-none d-md-inline"><?= $this->translate('Send'); ?></span></button>
     </form>
 </div>
-
-<script>
-(function () {
-    var form = document.getElementById('chat-form');
-    var thread = document.getElementById('thread');
-    var conversationId = form.dataset.conversation;
-    var sendUrl = form.dataset.sendUrl;
-    var pollUrl = form.dataset.pollUrl;
-    var meId = parseInt(form.dataset.meId, 10);
-    var lastId = <?= (int) $lastId; ?>;
-
-    // Polling state
-    var timer = null;
-    var inflight = false;
-    var idleSince = Date.now();
-    var burst = 0;                 // Remaining fast-polls after a send
-    var failureBackoff = 0;        // Multiplier applied after an error
-
-    var INTERVALS = {
-        burst:   2000,   // Right after sending
-        active:  10000,  // Recent traffic
-        idle:    30000,  // No traffic for 60s
-        idleAfter: 60000,
-        error:   60000   // After a failed poll
-    };
-
-    function nextDelay() {
-        if (failureBackoff > 0) {
-            return INTERVALS.error;
-        }
-        if (burst > 0) {
-            return INTERVALS.burst;
-        }
-        if (Date.now() - idleSince > INTERVALS.idleAfter) {
-            return INTERVALS.idle;
-        }
-        return INTERVALS.active;
-    }
-
-    function schedule() {
-        if (timer) {
-            clearTimeout(timer);
-        }
-        if (document.hidden) {
-            timer = null;
-            return;
-        }
-        timer = setTimeout(poll, nextDelay());
-    }
-
-    function appendMessage(message) {
-        var isMine = message.user && parseInt(message.user._id, 10) === meId;
-        var deleted = message.deleted === true;
-
-        var wrapper = document.createElement('div');
-        wrapper.className = 'mb-3 ' + (isMine ? 'text-end' : 'text-start');
-
-        var bubble = document.createElement('div');
-        bubble.className = 'd-inline-block p-2 rounded ' + (isMine ? 'bg-primary text-white' : 'bg-body-secondary');
-        bubble.style.maxWidth = '70%';
-        bubble.style.whiteSpace = 'pre-wrap';
-
-        if (deleted) {
-            var em = document.createElement('em');
-            em.className = 'opacity-75';
-            em.textContent = <?= json_encode($this->translate('[deleted]')); ?>;
-            bubble.appendChild(em);
-        } else {
-            bubble.textContent = message.text || '';
-        }
-
-        var meta = document.createElement('div');
-        meta.className = 'small text-muted mt-1';
-        meta.textContent = message.createdAt
-            ? new Date(message.createdAt).toLocaleString()
-            : '';
-
-        wrapper.appendChild(bubble);
-        wrapper.appendChild(meta);
-        thread.appendChild(wrapper);
-
-        thread.scrollTop = thread.scrollHeight;
-    }
-
-    function poll() {
-        timer = null;
-
-        if (inflight) {
-            schedule();
-            return;
-        }
-
-        inflight = true;
-
-        var delay = nextDelay();
-        console.log('polling in ' + delay + 'ms, burst=' + burst + ', idle=' + (Date.now() - idleSince) + 'ms');
-
-        var url = pollUrl + '?conversation_id=' + encodeURIComponent(conversationId)
-                         + '&since=' + encodeURIComponent(lastId);
-
-        var controller = new AbortController();
-        var abortTimer = setTimeout(function () { controller.abort(); }, 20000);
-
-        fetch(url, {
-            credentials: 'same-origin',
-            headers: { 'Accept': 'application/json' },
-            signal: controller.signal
-        })
-        .then(function (response) { return response.json(); })
-        .then(function (payload) {
-            failureBackoff = 0;
-
-            // Decrement burst regardless of whether messages arrived,
-            // so burst mode expires after N polls.
-            if (burst > 0) {
-                burst--;
-            }
-
-            if (!payload || !payload.messages || !payload.messages.length) {
-                schedule();
-                return;
-            }
-
-            var received = 0;
-            payload.messages.forEach(function (message) {
-                if (typeof message._id === 'number' && message._id > lastId) {
-                    lastId = message._id;
-                    appendMessage(message);
-                    received++;
-                }
-            });
-
-            if (received > 0) {
-                idleSince = Date.now();
-            }
-
-            schedule();
-        })
-        .catch(function () {
-            failureBackoff = 1;
-            schedule();
-        })
-        .then(function () {
-            inflight = false;
-            clearTimeout(abortTimer);
-        });
-    }
-
-
-    form.addEventListener('submit', function (event) {
-        event.preventDefault();
-
-        var body = form.body.value.trim();
-        if (!body) {
-            return;
-        }
-
-        var clientId = (window.crypto && window.crypto.randomUUID)
-            ? window.crypto.randomUUID()
-            : String(Date.now()) + Math.random().toString(16).slice(2);
-
-        var csrfToken = document.querySelector('meta[name="csrf-token"]');
-        var payload = new URLSearchParams();
-        
-        payload.append('conversation_id', conversationId);
-        payload.append('body', body);
-        payload.append('client_id', clientId);
-
-        if (csrfToken) {
-            payload.append('csrf-token', csrfToken.content);
-        }
-
-        fetch(sendUrl, {
-            method: 'POST',
-            credentials: 'same-origin',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: payload.toString()
-        })
-        .then(function (response) { return response.json(); })
-        .then(function (result) {
-            if (result && result.id) {
-                form.body.value = '';
-                form.body.focus();
-
-                // Trigger a fast poll burst so the message appears instantly
-                burst = 3;
-                idleSince = Date.now();
-                if (timer) {
-                    clearTimeout(timer);
-                    timer = null;
-                }
-                poll();
-            }
-        })
-        .catch(function () {
-            // Leave the body in the field so the user can retry
-        });
-    });
-
-    form.body.addEventListener('keydown', function (event) {
-        if (event.key === 'Enter' && !event.shiftKey) {
-            event.preventDefault();
-            form.dispatchEvent(new Event('submit', { cancelable: true }));
-        }
-    });
-
-    // Pause polling when the tab is hidden, resume when visible
-    document.addEventListener('visibilitychange', function () {
-        if (document.hidden) {
-            if (timer) {
-                clearTimeout(timer);
-                timer = null;
-            }
-        } else {
-            // Immediate catch-up poll when the user comes back
-            idleSince = Date.now();
-            poll();
-        }
-    });
-
-    // Auto-scroll to bottom on load
-    thread.scrollTop = thread.scrollHeight;
-
-    // Initial poll shortly after load
-    schedule();
-})();
-</script>
