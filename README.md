@@ -333,9 +333,9 @@ Protected endpoints expect a standard bearer token:
 
     Authorization: Bearer <token>
 
-Tokens are issued by `POST /api/v1/members/auth/login` and are valid for
-`api.jwt_ttl` seconds (7 days by default). There is no refresh flow; the
-client logs in again when a token expires.
+Tokens are issued by the login endpoint and are valid for `api.jwt_ttl`
+seconds (7 days by default). There is no refresh flow; the client logs in
+again when a token expires.
 
 The API never sets cookies and never redirects. Clients must treat any
 `3xx` response as a bug.
@@ -348,16 +348,19 @@ Omitting it uses the site's active language.
 
 ## Endpoints
 
-### POST /api/v1/members/auth/login
+Each endpoint is titled by its purpose; the HTTP method and URL are listed
+at the end of its section.
+
+### Log in
 
 Authenticate and receive a JWT. Public.
 
 **Parameters**
 
-| Name | Type | Required | Notes |
-|---|---|---|---|
-| `identifier` | string | yes | Email address or login |
-| `password` | string | yes | Plain-text password |
+| Name         | Type   | Required | Notes                  |
+|--------------|--------|----------|------------------------|
+| `identifier` | string | yes      | Email address or login |
+| `password`   | string | yes      | Plain-text password    |
 
 **Response 200**
 
@@ -377,19 +380,21 @@ Authenticate and receive a JWT. Public.
 **Errors:** `400` missing credentials, `401` wrong identifier or password.
 
 Unconfirmed members receive a token; `confirmed` is `false`. Clients should
-show a "please confirm your email" banner and offer
-`POST /api/v1/members/register/resend`.
+show a "please confirm your email" banner and offer the
+[resend confirmation](#resend-confirmation-email) endpoint.
 
-### POST /api/v1/members/auth/recovery
+**Endpoint:** `POST /api/v1/members/auth/login`
+
+### Request a password recovery email
 
 Send a password-recovery email. Public. The response is identical whether
 or not the email matches an account, to prevent account enumeration.
 
 **Parameters**
 
-| Name | Type | Required | Notes |
-|---|---|---|---|
-| `email` | string | yes | Must be a valid email |
+| Name    | Type   | Required | Notes                |
+|---------|--------|----------|----------------------|
+| `email` | string | yes      | Must be a valid email |
 
 **Response 202**
 
@@ -399,7 +404,9 @@ or not the email matches an account, to prevent account enumeration.
 
 **Errors:** `400` invalid email format.
 
-### GET /api/v1/members/auth/whoami
+**Endpoint:** `POST /api/v1/members/auth/recovery`
+
+### Validate the current token
 
 Validate the current token and return fresh user data. Protected.
 
@@ -419,19 +426,21 @@ Validate the current token and return fresh user data. Protected.
 **Errors:** `401` missing, expired, forged token, or the member row was
 deleted.
 
-### POST /api/v1/members/register
+**Endpoint:** `GET /api/v1/members/auth/whoami`
+
+### Register a new member
 
 Create a new member account. The account is unconfirmed until the
 confirmation link is clicked. Public.
 
 **Parameters**
 
-| Name | Type | Required | Notes |
-|---|---|---|---|
-| `member[name]` | string | yes | Min length 2 |
-| `member[email]` | string | yes | Valid, unique email |
-| `member[login]` | string | yes | Unique |
-| `member[password]` | string | yes | Min length 6 |
+| Name               | Type   | Required | Notes               |
+|--------------------|--------|----------|---------------------|
+| `member[name]`     | string | yes      | Min length 2        |
+| `member[email]`    | string | yes      | Valid, unique email |
+| `member[login]`    | string | yes      | Unique              |
+| `member[password]` | string | yes      | Min length 6        |
 
 **Response 201**
 
@@ -445,7 +454,9 @@ A confirmation email is sent automatically. The link points at the **web**
 confirmation route, not an API route — the API deliberately does not expose
 a confirmation-by-key endpoint.
 
-### POST /api/v1/members/register/resend
+**Endpoint:** `POST /api/v1/members/register`
+
+### Resend confirmation email
 
 Re-send the confirmation email to the currently authenticated member.
 Protected.
@@ -458,7 +469,9 @@ Protected.
 
 **Errors:** `401` no token, `409` account already confirmed.
 
-### GET /api/v1/members/profile
+**Endpoint:** `POST /api/v1/members/register/resend`
+
+### Get my profile
 
 Return the authenticated member's own profile, the tag picker payload, and
 any pending moderation changes. Protected.
@@ -503,24 +516,26 @@ any pending moderation changes. Protected.
 
 **Errors:** `401` no token, `404` member not found.
 
-### POST /api/v1/members/profile/update
+**Endpoint:** `GET /api/v1/members/profile`
+
+### Update my profile
 
 Update the authenticated member's profile. Goes through the moderation
 pipeline when moderation is enabled, otherwise applied directly. Protected.
 
 **Parameters**
 
-| Name | Type | Required | Notes |
-|---|---|---|---|
-| `member[name]` | string | yes | Min length 2 |
-| `member[company]` | string | no | |
-| `member[phone]` | string | no | Applied immediately, never staged |
-| `member[address]` | string | no | |
-| `member[country]` | string | no | ISO 3166-1 alpha-2 |
-| `data[translation][<langId>][title]` | string | no | Only the active `?lang=` row is accepted |
-| `data[translation][<langId>][bio]` | string | no | Only the active `?lang=` row is accepted |
-| `tags[]` | int[] | no | Sanitized against the active-tag set |
-| `file` | file | no | Multipart avatar upload; must be an image |
+| Name                                 | Type   | Required | Notes                                      |
+|--------------------------------------|--------|----------|--------------------------------------------|
+| `member[name]`                       | string | yes      | Min length 2                               |
+| `member[company]`                    | string | no       |                                            |
+| `member[phone]`                      | string | no       | Applied immediately, never staged          |
+| `member[address]`                    | string | no       |                                            |
+| `member[country]`                    | string | no       | ISO 3166-1 alpha-2                         |
+| `data[translation][<langId>][title]` | string | no       | Only the active `?lang=` row is accepted   |
+| `data[translation][<langId>][bio]`   | string | no       | Only the active `?lang=` row is accepted   |
+| `tags[]`                             | int[]  | no       | Sanitized against the active-tag set       |
+| `file`                               | file   | no       | Multipart avatar upload; must be an image  |
 
 **Response 200**
 
@@ -540,15 +555,17 @@ pipeline when moderation is enabled, otherwise applied directly. Protected.
 
 **Errors:** `401` no token, `422` validation errors.
 
-### POST /api/v1/members/profile/avatar
+**Endpoint:** `POST /api/v1/members/profile/update`
+
+### Upload an avatar
 
 Upload a new avatar. Multipart form data. Protected.
 
 **Parameters**
 
-| Name | Type | Required | Notes |
-|---|---|---|---|
-| `file` | file | yes | Must be an image |
+| Name   | Type | Required | Notes            |
+|--------|------|----------|------------------|
+| `file` | file | yes      | Must be an image |
 
 **Response 200**
 
@@ -565,16 +582,18 @@ pending review."
 
 **Errors:** `401` no token, `422` missing or non-image file.
 
-### POST /api/v1/members/profile/password
+**Endpoint:** `POST /api/v1/members/profile/avatar`
+
+### Change my password
 
 Change the authenticated member's password. Bypasses moderation (as on the
 web). Protected.
 
 **Parameters**
 
-| Name | Type | Required | Notes |
-|---|---|---|---|
-| `password` | string | yes | Min length 6 |
+| Name       | Type   | Required | Notes        |
+|------------|--------|----------|--------------|
+| `password` | string | yes      | Min length 6 |
 
 **Response 200**
 
@@ -584,19 +603,21 @@ web). Protected.
 
 **Errors:** `401` no token, `422` validation errors.
 
-### GET /api/v1/members
+**Endpoint:** `POST /api/v1/members/profile/password`
+
+### List members
 
 Paginated, filtered list of **confirmed** members. Public.
 
 **Parameters**
 
-| Name | Type | Required | Notes |
-|---|---|---|---|
-| `page` | int | no | Default 1 |
-| `country` | string | no | ISO 3166-1 alpha-2 |
-| `company` | string | no | Exact match |
-| `tags[]` | int[] | no | Members carrying any of these tag ids |
-| `lang` | string | no | Language code |
+| Name      | Type   | Required | Notes                                 |
+|-----------|--------|----------|---------------------------------------|
+| `page`    | int    | no       | Default 1                             |
+| `country` | string | no       | ISO 3166-1 alpha-2                    |
+| `company` | string | no       | Exact match                           |
+| `tags[]`  | int[]  | no       | Members carrying any of these tag ids |
+| `lang`    | string | no       | Language code                         |
 
 **Response 200**
 
@@ -635,16 +656,18 @@ Paginated, filtered list of **confirmed** members. Public.
 `filters.available` is returned on every request so the client can render
 the filter UI without a second round-trip.
 
-### GET /api/v1/members/profile?id=42
+**Endpoint:** `GET /api/v1/members`
+
+### Get a member's public profile
 
 Public profile of a single **confirmed** member, with their selected tags
 grouped by tag group. Public.
 
 **Parameters**
 
-| Name | Type | Required | Notes |
-|---|---|---|---|
-| `id` | int | yes | Member id |
+| Name | Type | Required | Notes     |
+|------|------|----------|-----------|
+| `id` | int  | yes      | Member id |
 
 **Response 200**
 
@@ -671,7 +694,9 @@ grouped by tag group. Public.
 **Errors:** `400` missing `id`, `404` no such member or member is
 unconfirmed.
 
-### GET /api/v1/members/chats
+**Endpoint:** `GET /api/v1/members/profile?id=42`
+
+### List my conversations (inbox)
 
 The authenticated member's inbox. Protected.
 
@@ -701,16 +726,18 @@ The authenticated member's inbox. Protected.
 
 **Errors:** `401` no token.
 
-### GET /api/v1/members/chat/thread?id=7
+**Endpoint:** `GET /api/v1/members/chats`
+
+### Get a conversation thread
 
 Fetch a conversation thread. Protected.
 
 **Parameters**
 
-| Name | Type | Required | Notes |
-|---|---|---|---|
-| `id` | int | yes | Conversation id |
-| `before` | int | no | Return messages older than this message id (load-earlier) |
+| Name     | Type | Required | Notes                                                     |
+|----------|------|----------|-----------------------------------------------------------|
+| `id`     | int  | yes      | Conversation id                                           |
+| `before` | int  | no       | Return messages older than this message id (load-earlier) |
 
 Without `before`, returns the newest messages and marks the thread read.
 With `before`, returns older messages and does **not** advance the read
@@ -746,17 +773,19 @@ render a tombstone.
 
 **Errors:** `400` missing `id`, `401` no token, `403` not a participant.
 
-### POST /api/v1/members/chat/send
+**Endpoint:** `GET /api/v1/members/chat/thread?id=7`
+
+### Send a message
 
 Send a message. Protected.
 
 **Parameters**
 
-| Name | Type | Required | Notes |
-|---|---|---|---|
-| `conversation_id` | int | yes | |
-| `body` | string | yes | Trimmed, max 5000 characters |
-| `client_id` | string | no | UUID; idempotent send |
+| Name              | Type   | Required | Notes                        |
+|-------------------|--------|----------|------------------------------|
+| `conversation_id` | int    | yes      |                              |
+| `body`            | string | yes      | Trimmed, max 5000 characters |
+| `client_id`       | string | no       | UUID; idempotent send        |
 
 **Response 201**
 
@@ -771,15 +800,17 @@ retries on flaky networks.
 **Errors:** `400` missing fields, `401` no token, `403` not a participant,
 `422` empty body after trimming or body too long.
 
-### POST /api/v1/members/chat/start
+**Endpoint:** `POST /api/v1/members/chat/send`
+
+### Start a conversation
 
 Resolve or create a direct conversation with another member. Protected.
 
 **Parameters**
 
-| Name | Type | Required | Notes |
-|---|---|---|---|
-| `member_id` | int | yes | The other member's id |
+| Name        | Type | Required | Notes                 |
+|-------------|------|----------|-----------------------|
+| `member_id` | int  | yes      | The other member's id |
 
 **Response 200**
 
@@ -793,18 +824,20 @@ requests are safe.
 **Errors:** `400` missing `member_id`, `401` no token, `422` trying to
 start a conversation with yourself.
 
-### GET /api/v1/members/chat/poll?id=7&since=100
+**Endpoint:** `POST /api/v1/members/chat/start`
 
-Poll for new messages. Same response shape as `chat/thread`, filtered to
-messages with `_id > since`. Advances the read cursor to the newest
+### Poll for new messages
+
+Poll for new messages. Same response shape as the thread endpoint, filtered
+to messages with `_id > since`. Advances the read cursor to the newest
 returned message. Protected.
 
 **Parameters**
 
-| Name | Type | Required | Notes |
-|---|---|---|---|
-| `id` | int | yes | Conversation id |
-| `since` | int | no | Return only messages with `_id` greater than this |
+| Name    | Type | Required | Notes                                             |
+|---------|------|----------|---------------------------------------------------|
+| `id`    | int  | yes      | Conversation id                                   |
+| `since` | int  | no       | Return only messages with `_id` greater than this |
 
 **Response 200**
 
@@ -823,7 +856,9 @@ active (10 s), then idle (30 s after 60 s of silence), then back off to
 
 **Errors:** `400` missing `id`, `401` no token, `403` not a participant.
 
-### GET /api/v1/members/chat/unread
+**Endpoint:** `GET /api/v1/members/chat/poll?id=7&since=100`
+
+### Get the unread message count
 
 Total unread count across all conversations, for badge rendering.
 Protected.
@@ -835,6 +870,8 @@ Protected.
 ```
 
 **Errors:** `401` no token.
+
+**Endpoint:** `GET /api/v1/members/chat/unread`
 
 ## Error shape
 
@@ -857,18 +894,18 @@ Validation errors (HTTP 422) use the framework's standard shape:
 
 ## Status codes
 
-| Code | Meaning |
-|---|---|
-| 200 | OK |
-| 201 | Created (registration, message send) |
-| 202 | Accepted (recovery, resend — asynchronous) |
-| 400 | Malformed request (missing required query/body param) |
-| 401 | Missing, expired, forged JWT; or member deleted |
-| 403 | Authenticated but not allowed (not a participant, wrong owner) |
-| 404 | Resource not found, or hidden by confirmation state |
-| 409 | Conflict (resend when already confirmed) |
-| 422 | Validation failure |
-| 500 | Unhandled server error |
+| Code | Meaning                                                |
+|------|--------------------------------------------------------|
+| 200  | OK                                                     |
+| 201  | Created (registration, message send)                   |
+| 202  | Accepted (recovery, resend — asynchronous)             |
+| 400  | Malformed request (missing required query/body param)  |
+| 401  | Missing, expired, forged JWT; or member deleted        |
+| 403  | Authenticated but not allowed (not a participant, wrong owner) |
+| 404  | Resource not found, or hidden by confirmation state    |
+| 409  | Conflict (resend when already confirmed)               |
+| 422  | Validation failure                                     |
+| 500  | Unhandled server error                                 |
 
 # Notes
 
