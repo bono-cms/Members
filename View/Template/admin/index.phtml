@@ -13,9 +13,17 @@ use Cms\View\Icon;
     </a>
 
     <div class="d-flex flex-wrap gap-2">
+        <?php $pendingCount = isset($pendingCount) ? (int) $pendingCount : 0; ?>
+
+        <?php if ($pendingCount > 0): ?>
+        <a class="btn btn-danger" href="<?= $this->url('Members:Admin:Changes@indexAction'); ?>">
+            <i class="bi bi-hourglass-split"></i> <?= $this->translate('Pending changes'); ?> <span class="badge bg-light text-danger ms-1">+<?= $pendingCount; ?></span>
+        </a>
+        <?php else: ?>
         <a class="btn btn-primary" href="<?= $this->url('Members:Admin:Changes@indexAction'); ?>">
             <i class="bi bi-hourglass-split"></i> <?= $this->translate('Pending changes'); ?>
         </a>
+        <?php endif; ?>
 
         <a class="btn btn-info" href="<?= $this->url('Members:Admin:TagGroup@indexAction'); ?>">
             <i class="bi bi-tags"></i> <?= $this->translate('Manage tags'); ?>

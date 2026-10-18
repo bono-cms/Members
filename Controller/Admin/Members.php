@@ -222,7 +222,8 @@ final class Members extends AbstractController
 
         return $this->view->render('index', [
             'members' => $members,
-            'paginator' => $memberManager->getPaginator()
+            'paginator' => $memberManager->getPaginator(),
+            'pendingCount' => $this->getModuleService('profileChangeService')->countPending()
         ]);
     }
 
