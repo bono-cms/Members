@@ -2,7 +2,7 @@
 
 /**
  * This file is part of the Bono CMS
- * 
+ *
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code.
  */
@@ -13,6 +13,9 @@ use Members\Service\SiteService;
 use Members\Service\MemberManager;
 use Members\Service\ProfileChangeService;
 use Members\Service\ChatService;
+use Members\Service\TagGroupService;
+use Members\Service\TagService;
+use Members\Service\MemberTagService;
 use Cms\AbstractCmsModule;
 use Krystal\Image\Tool\ImageManager;
 
@@ -37,8 +40,8 @@ final class Module extends AbstractCmsModule
         $moderationConfig = isset($config['moderation']) ? $config['moderation'] : [];
 
         return [
-            'memberManager'        => $memberManager,
-            'siteService'          => new SiteService($memberManager),
+            'memberManager' => $memberManager,
+            'siteService' => new SiteService($memberManager),
             'profileChangeService' => new ProfileChangeService(
                 $memberMapper,
                 $changeMapper,
@@ -50,13 +53,24 @@ final class Module extends AbstractCmsModule
                 $this->getMapper('/Members/Storage/MySQL/ParticipantMapper'),
                 $this->getMapper('/Members/Storage/MySQL/MessageMapper'),
                 $memberManager
+            ),
+            'tagGroupService' => new TagGroupService(
+                $this->getMapper('/Members/Storage/MySQL/TagGroupMapper')
+            ),
+            'tagService' => new TagService(
+                $this->getMapper('/Members/Storage/MySQL/TagMapper')
+            ),
+            'memberTagService' => new MemberTagService(
+                $this->getMapper('/Members/Storage/MySQL/MemberTagMapper'),
+                $this->getMapper('/Members/Storage/MySQL/TagGroupMapper'),
+                $this->getMapper('/Members/Storage/MySQL/TagMapper')
             )
         ];
     }
 
     /**
      * Builds avatar image manager service
-     * 
+     *
      * @return \Krystal\Image\Tool\ImageManager
      */
     private function createAvatarImageManager()
@@ -67,7 +81,7 @@ final class Module extends AbstractCmsModule
                 'dimensions' => [
                     [64, 64],
                     [128, 128],
-                    [256, 256],
+                    [256, 256]
                 ]
             ]
         ];

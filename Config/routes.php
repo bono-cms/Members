@@ -49,6 +49,59 @@ return [
         'controller' => 'Admin:Members@historyAction'
     ],
 
+    // Tag groups
+    '/%s/module/members/tags' => [
+        'controller' => 'Admin:TagGroup@indexAction'
+    ],
+
+    '/%s/module/members/tags/add' => [
+        'controller' => 'Admin:TagGroup@addAction'
+    ],
+
+    '/%s/module/members/tags/edit/(:var)' => [
+        'controller' => 'Admin:TagGroup@editAction'
+    ],
+
+    '/%s/module/members/tags/save' => [
+        'controller' => 'Admin:TagGroup@saveAction'
+    ],
+
+    '/%s/module/members/tags/delete/(:var)' => [
+        'controller' => 'Admin:TagGroup@deleteAction'
+    ],
+
+    // Tags (group-scoped)
+    '/%s/module/members/tags/group/(:var)/add' => [
+        'controller' => 'Admin:Tag@addAction'
+    ],
+
+    '/%s/module/members/tags/group/(:var)' => [
+        'controller' => 'Admin:Tag@indexAction'
+    ],
+
+    '/%s/module/members/tags/tag/edit/(:var)' => [
+        'controller' => 'Admin:Tag@editAction'
+    ],
+
+    '/%s/module/members/tags/tag/save' => [
+        'controller' => 'Admin:Tag@saveAction'
+    ],
+
+    '/%s/module/members/tags/tag/delete/(:var)' => [
+        'controller' => 'Admin:Tag@deleteAction'
+    ],
+    
+    // Tags
+    '/member/profile/tags' => [
+        'controller' => 'Profile@tagsAction',
+        'middleware' => [AuthRequiredMiddleware::class]
+    ],
+
+    '/member/profile/tags/save' => [
+        'controller' => 'Profile@saveTagsAction',
+        'middleware' => [AuthRequiredMiddleware::class]
+    ],
+    
     // Chat
     '/member/messages' => [
         'controller' => 'Chat@inboxAction',

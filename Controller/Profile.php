@@ -98,4 +98,50 @@ final class Profile extends AbstractController
             'refresh' => true
         ]);
     }
+
+    /**
+     * Renders the tags picker for the logged-in member
+     *
+     * @return string
+     */
+    public function tagsAction()
+    {
+        $memberManager = $this->getModuleService('memberManager');
+        $memberTagService = $this->getModuleService('memberTagService');
+
+        $memberId = (int) $memberManager->getMember('id');
+
+        $page = new VirtualEntity();
+        $page->setTitle($this->translator->translate('My tags'))
+             ->setSeo(false);
+
+        return $this->view->render('member-tags', [
+            'page' => $page,
+            'payload' => $memberTagService->fetchPickerPayload(),
+            'selected' => $memberTagService->fetchSelectedIds($memberId)
+        ]);
+    }
+
+    /**
+     * Persists the member's tag selection
+     *
+     * @return string JSON
+     */
+    public function saveTagsAction()
+    {
+        $memberManager = $this->getModuleService('memberManager');
+        $memberTagService = $this->getModuleService('memberTagService');
+
+        $memberId = (int) $memberManager->getMember('id');
+        $submitted = (array) $this->request->getPost('tags', []);
+        $safe = $memberTagService->sanitizeSelection($submitted);
+
+        $memberTagService->saveSelection($memberId, $safe);
+
+        $this->flashBag->set('success', $this->translator->translate('Your tags have been updated.'));
+
+        return $this->json([
+            'refresh' => true
+        ]);
+    }
 }

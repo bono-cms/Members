@@ -19,6 +19,11 @@ return [
             [
                 'route' => 'Members:Admin:Changes@indexAction',
                 'name' => 'Review pending changes'
+            ],
+
+            [
+                'route' => 'Members:Admin:TagGroup@indexAction',
+                'name' => 'Manage tags'
             ]
         ]
     ],
