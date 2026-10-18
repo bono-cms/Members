@@ -54,6 +54,7 @@ final class Profile extends AbstractApiController
         $memberManager = $this->getModuleService('memberManager');
         $changeService = $this->getModuleService('profileChangeService');
         $memberTagService = $this->getModuleService('memberTagService');
+        $languageManager = $this->getService('Cms', 'languageManager');
 
         $memberId = $this->getAuthUserId();
 
@@ -63,12 +64,39 @@ final class Profile extends AbstractApiController
                   ->required()
                   ->addRule('minlength', null, ['min' => 2]);
 
+        $validator->file('file')
+                  ->addRule('image');
+
         if (!$validator->isPassed()) {
             $this->response->setStatusCode(422);
             return $this->json(['errors' => $validator->getErrors()]);
         }
 
         $input = $this->request->getAll();
+
+        // The client may key translation rows by id (translation[1]) or
+        // by language code (translation[en]). Normalize to id-keyed rows
+        // and keep only the language requested via ?lang=.
+        $requestLangId = $this->getRequestLanguageId();
+
+        $translations = isset($input['data']['translation'])
+            ? (array) $input['data']['translation']
+            : [];
+
+        $normalized = [];
+
+        foreach ($translations as $key => $row) {
+            $langId = is_numeric($key)
+                ? (int) $key
+                : (int) $languageManager->fetchIdByCode((string) $key);
+
+            if ($langId > 0 && $langId === $requestLangId) {
+                $normalized[$langId] = $row;
+            }
+        }
+
+        $input['data']['translation'] = $normalized;
+
         $messageKey = $changeService->updateProfile($memberId, $input, '');
 
         $submittedTags = (array) $this->request->getPost('tags', []);
@@ -80,7 +108,7 @@ final class Profile extends AbstractApiController
         return $this->json([
             'message' => $this->translator->translate($messageKey),
             'user' => $this->presentMember($member),
-            'pendingChanges' => $changeService->fetchPendingForMember($memberId),
+            'pendingChanges' => $changeService->fetchPendingForMember($memberId)
         ]);
     }
 
