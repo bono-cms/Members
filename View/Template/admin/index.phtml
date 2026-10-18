@@ -7,11 +7,21 @@ use Cms\View\Icon;
 
 ?>
 
-<p>
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
     <a class="btn btn-primary" href="<?= $this->url('Members:Admin:Members@addAction'); ?>">
         <i class="bi bi-person-plus"></i> <?= $this->translate('Add new member'); ?>
     </a>
-</p>
+
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-primary" href="<?= $this->url('Members:Admin:Changes@indexAction'); ?>">
+            <i class="bi bi-hourglass-split"></i> <?= $this->translate('Pending changes'); ?>
+        </a>
+
+        <a class="btn btn-info" href="<?= $this->url('Members:Admin:TagGroup@indexAction'); ?>">
+            <i class="bi bi-tags"></i> <?= $this->translate('Manage tags'); ?>
+        </a>
+    </div>
+</div>
 
 <div class="card">
     <?php $this->loadPartial('items-per-page', ['caption' => 'Members']); ?>
