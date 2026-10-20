@@ -43,7 +43,7 @@ final class ProfileChangeService
      *
      * @var array
      */
-    private $writableBaseFields = ['name', 'phone', 'address', 'country', 'company', 'avatar'];
+    private $writableBaseFields = ['phone', 'address', 'country', 'company', 'avatar'];
 
     /**
      * Translation fields that a member is allowed to submit
@@ -55,7 +55,7 @@ final class ProfileChangeService
      *
      * @var array
      */
-    private $writableTranslationFields = ['title', 'bio'];
+    private $writableTranslationFields = ['name', 'title', 'bio'];
 
     /**
      * Member mapper instance
@@ -544,14 +544,29 @@ final class ProfileChangeService
     public function updateProfile($memberId, array $input, $password)
     {
         $memberId = (int) $memberId;
-
         $input['data']['member']['id'] = $memberId;
 
         if ($this->isModerationEnabled()) {
             $result = $this->submit($input);
             $messageKey = $this->pickUpdateMessageKey($result);
         } else {
+            // Base fields (no name any more)
             $this->memberMapper->updateProfile($memberId, $this->prepareBaseUpdate($input));
+
+            // Translations — applied directly when moderation is off
+            if (!empty($input['data']['translation'])) {
+                foreach ($input['data']['translation'] as $langId => $fields) {
+                    foreach ($fields as $field => $value) {
+                        if ($field === 'lang_id' || !$this->isWritableTranslationField($field)) {
+                            continue;
+                        }
+                        $this->memberMapper->updateTranslationFieldByLang(
+                            $memberId, (int) $langId, $field, $value
+                        );
+                    }
+                }
+            }
+
             $messageKey = 'Your profile has been updated.';
         }
 

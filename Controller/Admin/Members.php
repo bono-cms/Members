@@ -150,7 +150,7 @@ final class Members extends AbstractController
 
         $validator = $this->createValidation();
 
-        $validator->field('member.name')
+        $validator->field('translation.*.name')
                   ->required()
                   ->addRule('minlength', null, ['min' => 2]);
 

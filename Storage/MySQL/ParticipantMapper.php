@@ -236,13 +236,15 @@ final class ParticipantMapper extends AbstractMapper
      */
     public function fetchInboxForMember($memberId)
     {
-        $participantsTable = self::getTableName();
+        $participantsTable  = self::getTableName();
         $conversationsTable = ConversationMapper::getTableName();
-        $membersTable = MemberMapper::getTableName();
-        $messagesTable = MessageMapper::getTableName();
+        $membersTable       = MemberMapper::getTableName();
+        $messagesTable      = MessageMapper::getTableName();
+        $transTable         = MemberTranslationMapper::getTableName();
 
         $memberId = (int) $memberId;
 
+        // --- Main query: inbox rows ---------------------------------
         $db = $this->db->select([
                 'participant.conversation_id',
                 'participant.last_read_message_id',
@@ -251,11 +253,11 @@ final class ParticipantMapper extends AbstractMapper
                 'conversation.title',
                 'conversation.last_message_id',
                 'conversation.last_message_at',
-                'conversation.message_count'
+                'conversation.message_count',
             ])
             ->from($participantsTable, 'participant')
             ->innerJoin($conversationsTable . ' AS conversation', [
-                'conversation.id' => new RawSqlFragment('participant.conversation_id')
+                'conversation.id' => new RawSqlFragment('participant.conversation_id'),
             ])
             ->whereEquals('participant.member_id', $memberId)
             ->andWhereEquals('participant.is_archived', 0);
@@ -271,15 +273,25 @@ final class ParticipantMapper extends AbstractMapper
         foreach ($rows as $row) {
             $conversationId = (int) $row['conversation_id'];
 
+            // --- Other participant of this conversation -------------
             $dbOther = $this->db->select([
+                    // Participant id
                     'participant.member_id',
-                    'member.name',
-                    'member.login',
-                    'member.avatar'
+
+                    // Name from the translation table
+                    MemberTranslationMapper::column('name', 'translation'),
+
+                    // Login / avatar from the members table (via the "member" alias)
+                    MemberMapper::column('login',  'member'),
+                    MemberMapper::column('avatar', 'member'),
                 ])
                 ->from($participantsTable, 'participant')
                 ->innerJoin($membersTable . ' AS member', [
-                    'member.id' => new RawSqlFragment('participant.member_id')
+                    'member.id' => new RawSqlFragment('participant.member_id'),
+                ])
+                ->leftJoin($transTable . ' AS translation', [
+                    'translation.id'      => new RawSqlFragment('participant.member_id'),
+                    'translation.lang_id' => new RawSqlFragment((string) $this->getLangId()),
                 ])
                 ->whereEquals('participant.conversation_id', $conversationId)
                 ->andWhereNotEquals('participant.member_id', $memberId)
@@ -287,13 +299,14 @@ final class ParticipantMapper extends AbstractMapper
 
             $other = $dbOther->query();
 
+            // --- Last message of this conversation ------------------
             $last = null;
 
             if (!empty($row['last_message_id'])) {
                 $dbLast = $this->db->select([
                         'body',
                         'sender_id',
-                        'created_at'
+                        'created_at',
                     ])
                     ->from($messagesTable)
                     ->whereEquals('id', (int) $row['last_message_id'])
@@ -302,20 +315,21 @@ final class ParticipantMapper extends AbstractMapper
                 $last = $dbLast->query();
             }
 
+            // --- Unread count ---------------------------------------
             $unreadCount = $this->countUnread($conversationId, $memberId, $row['last_read_message_id']);
 
             $result[] = [
-                'conversation_id' => $conversationId,
-                'type' => $row['type'],
-                'title' => $row['title'],
-                'last_message_id' => $row['last_message_id'],
-                'last_message_at' => $row['last_message_at'],
-                'message_count' => (int) $row['message_count'],
+                'conversation_id'      => $conversationId,
+                'type'                 => $row['type'],
+                'title'                => $row['title'],
+                'last_message_id'      => $row['last_message_id'],
+                'last_message_at'      => $row['last_message_at'],
+                'message_count'        => (int) $row['message_count'],
                 'last_read_message_id' => $row['last_read_message_id'],
-                'muted_until' => $row['muted_until'],
-                'unread_count' => $unreadCount,
-                'other' => $other ?: null,
-                'last_message' => $last ?: null
+                'muted_until'          => $row['muted_until'],
+                'unread_count'         => $unreadCount,
+                'other'                => $other ?: null,
+                'last_message'         => $last ?: null,
             ];
         }
 

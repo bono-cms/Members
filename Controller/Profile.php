@@ -25,7 +25,7 @@ final class Profile extends AbstractController
 
         $id = $memberManager->getMember('id');
 
-        $member = $memberManager->fetchById($id);
+        $member = $memberManager->fetchByIdForCurrentLang($id);
 
         $page = new VirtualEntity();
         $page->setTitle($this->translator->translate('My account'))
@@ -83,7 +83,7 @@ final class Profile extends AbstractController
     {
         $validator = $this->createValidation();
 
-        $validator->field('member.name')
+        $validator->field('translation.*.name')
                   ->required()
                   ->addRule('minlength', null, ['min' => 2]);
 

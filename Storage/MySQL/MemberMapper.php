@@ -45,7 +45,6 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
             self::column('email'),
             self::column('login'),
             self::column('password_hash'),
-            self::column('name'),
             self::column('company'),
             self::column('phone'),
             self::column('address'),
@@ -56,6 +55,7 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
             self::column('confirmed'),
             self::column('created_at'),
             MemberTranslationMapper::column('lang_id'),
+            MemberTranslationMapper::column('name'),
             MemberTranslationMapper::column('title'),
             MemberTranslationMapper::column('bio'),
         ];
@@ -113,9 +113,18 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
         $tagIds = isset($filters['tagIds']) ? array_values(array_filter(array_map('intval', (array) $filters['tagIds']))) : [];
         $memberIds = isset($filters['memberIds']) ? array_values(array_filter(array_map('intval', (array) $filters['memberIds']))) : [];
 
-        $db = $this->db->select('*')
-                       ->from(self::getTableName())
-                       ->whereEquals(self::column('confirmed'), '1');
+        $db = $this->db->select([
+                self::column('*'),
+                MemberTranslationMapper::column('name'),
+                MemberTranslationMapper::column('title'),
+                MemberTranslationMapper::column('bio'),
+            ])
+            ->from(self::getTableName())
+            ->innerJoin(MemberTranslationMapper::getTableName(), [
+                MemberTranslationMapper::column('id') => self::getRawColumn('id'),
+                MemberTranslationMapper::column('lang_id') => $this->getLangId(),
+            ])
+            ->whereEquals(self::column('confirmed'), '1');
 
         if ($country !== null) {
             $db->andWhereEquals(self::column('country'), $country);
@@ -143,7 +152,7 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
             $db->andWhereIn(self::column('id'), $memberIds);
         }
 
-        return $db->orderBy($this->getPk())
+        return $db->orderBy(self::column($this->getPk()))
                   ->desc()
                   ->paginate($pageNumber, $itemsPerPage)
                   ->queryAll();
@@ -309,11 +318,20 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
      */
     public function fetchAll($pageNumber, $itemsPerPage)
     {
-        $db = $this->db->select('*')
-                       ->from(self::getTableName())
-                       ->orderBy($this->getPk())
-                       ->desc()
-                       ->paginate($pageNumber, $itemsPerPage);
+        $db = $this->db->select([
+                self::column('*'),
+                MemberTranslationMapper::column('name'),
+                MemberTranslationMapper::column('title'),
+                MemberTranslationMapper::column('bio'),
+            ])
+            ->from(self::getTableName())
+            ->innerJoin(MemberTranslationMapper::getTableName(), [
+                MemberTranslationMapper::column('id') => self::getRawColumn('id'),
+                MemberTranslationMapper::column('lang_id') => $this->getLangId(),
+            ])
+            ->orderBy(self::column($this->getPk()))
+            ->desc()
+            ->paginate($pageNumber, $itemsPerPage);
 
         return $db->queryAll();
     }
@@ -413,17 +431,20 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
         }
 
         $db = $this->db->select([
-                'id',
-                'name',
-                'login',
-                'avatar'
+                self::column('id'),
+                self::column('login'),
+                self::column('avatar'),
+                MemberTranslationMapper::column('name'),
             ])
             ->from(self::getTableName())
-            ->whereIn('id', $ids);
+            ->innerJoin(MemberTranslationMapper::getTableName(), [
+                MemberTranslationMapper::column('id') => self::getRawColumn('id'),
+                MemberTranslationMapper::column('lang_id') => $this->getLangId(),
+            ])
+            ->whereIn(self::column('id'), $ids);
 
         return $db->queryAll();
     }
-
     /**
      * Finds a member by their login
      * 

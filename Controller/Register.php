@@ -25,7 +25,8 @@ final class Register extends AbstractController
              ->setSeo(false);
 
         return $this->view->render('member-register', [
-            'page' => $page
+            'page' => $page,
+            'defaultLangId' => $this->getService('Cms', 'languageManager')->getDefaultId()
         ]);
     }
 
@@ -108,7 +109,7 @@ final class Register extends AbstractController
             return $memberManager->isFree($email);
         }, $this->translator->translate('This email is already taken'));
 
-        $validator->field('member.name')
+        $validator->field('translation.*.name')
                   ->required()
                   ->addRule('minlength', null, ['min' => 2]);
 

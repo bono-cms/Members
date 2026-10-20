@@ -93,16 +93,19 @@ final class MemberChangeMapper extends AbstractMapper
     {
         $db = $this->db->select([
                 self::column('*'),
-                MemberMapper::column('name', MemberMapper::getTableName()) . ' AS member_name',
-                MemberMapper::column('email', MemberMapper::getTableName()) . ' AS member_email',
-                MemberMapper::column('login', MemberMapper::getTableName()) . ' AS member_login',
-                MemberMapper::column('avatar', MemberMapper::getTableName()) . ' AS member_avatar'
+                MemberTranslationMapper::column('name') => 'member_name',
+                MemberMapper::column('email') => 'member_email',
+                MemberMapper::column('login') => 'member_login',
+                MemberMapper::column('avatar') => 'member_avatar',
             ])
             ->from(self::getTableName())
-            ->innerJoin(
-                MemberMapper::getTableName(),
-                [MemberMapper::column('id') => self::getRawColumn('member_id')]
-            )
+            ->innerJoin(MemberMapper::getTableName(), [
+                MemberMapper::column('id') => self::getRawColumn('member_id')
+            ])
+            ->innerJoin(MemberTranslationMapper::getTableName(), [
+                MemberTranslationMapper::column('id')      => MemberMapper::getRawColumn('id'),
+                MemberTranslationMapper::column('lang_id') => $this->getLangId(),
+            ])
             ->whereEquals(self::column('status'), 'pending')
             ->orderBy(self::column('created_at'))
             ->desc()

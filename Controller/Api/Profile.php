@@ -25,7 +25,7 @@ final class Profile extends AbstractApiController
         $changeService = $this->getModuleService('profileChangeService');
 
         $memberId = $this->getAuthUserId();
-        $member = $memberManager->fetchById($memberId);
+        $member = $memberManager->fetchByIdForCurrentLang($memberId);
 
         if ($member === false) {
             $this->response->setStatusCode(404);
@@ -60,7 +60,7 @@ final class Profile extends AbstractApiController
 
         $validator = $this->createValidation();
 
-        $validator->field('member.name')
+        $validator->field('translation.*.name')
                   ->required()
                   ->addRule('minlength', null, ['min' => 2]);
 
@@ -103,7 +103,7 @@ final class Profile extends AbstractApiController
         $safeTags = $memberTagService->sanitizeSelection($submittedTags);
         $memberTagService->saveSelection($memberId, $safeTags);
 
-        $member = $memberManager->fetchById($memberId);
+        $member = $memberManager->fetchByIdForCurrentLang($memberId);
 
         return $this->json([
             'message' => $this->translator->translate($messageKey),
@@ -140,7 +140,7 @@ final class Profile extends AbstractApiController
         ];
 
         $messageKey = $changeService->updateProfile($memberId, $input, '');
-        $member = $memberManager->fetchById($memberId);
+        $member = $memberManager->fetchByIdForCurrentLang($memberId);
 
         return $this->json([
             'message' => $this->translator->translate($messageKey),
@@ -192,7 +192,7 @@ final class Profile extends AbstractApiController
     {
         return [
             'id' => $member->getId(),
-            'name' => $member->getName(),
+            'name' => $member->getDisplayName(),
             'login' => $member->getLogin(),
             'email' => $member->getEmail(),
             'confirmed' => (bool) $member->getConfirmed(),

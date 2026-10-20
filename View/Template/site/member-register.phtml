@@ -27,16 +27,13 @@ use Krystal\Form\Element;
                 <?= $this->translate('Full name'); ?>
             </label>
 
-            <div class="input-group">
-                <span class="input-group-text"><i class="bi bi-person"></i></span>
-                <?= Element::text('member[name]', '', [
-                    'class' => 'form-control',
-                    'id' => 'member_name',
-                    'placeholder' => $this->translate('Full name'),
-                    'autofocus' => true,
-                    'minlength' => 2
-                ]); ?>
-            </div>
+            <?= Element::text(sprintf('translation[%s][name]', $defaultLangId), '', [
+                'class' => 'form-control',
+                'id' => 'member_name',
+                'placeholder' => $this->translate('Full name'),
+                'autofocus' => true,
+                'minlength' => 2
+            ]); ?>
         </div>
 
         <div class="mb-3">

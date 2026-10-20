@@ -86,19 +86,6 @@ $isNew  = !$entity->getId();
             </div>
 
             <div class="row mb-3">
-                <label class="col-lg-2 col-form-label"><?= $this->translate('Name'); ?></label>
-                <div class="col-lg-10">
-                    <div class="input-group">
-                        <?= Element::text('member[name]', $entity->getName(), [
-                            'class' => 'form-control',
-                            'placeholder' => $this->translate('Full name')
-                        ]); ?>
-                        <span class="input-group-text"><i class="bi bi-pencil"></i></span>
-                    </div>
-                </div>
-            </div>
-
-            <div class="row mb-3">
                 <label class="col-lg-2 col-form-label"><?= $this->translate('Company'); ?></label>
                 <div class="col-lg-10">
                     <div class="input-group">
@@ -218,6 +205,20 @@ $isNew  = !$entity->getId();
                             sprintf('translation[%s][title]', $language->getId()),
                             Filter::charsDecode($translation->getTitle()),
                             ['class' => 'form-control', 'placeholder' => $this->translate('Professional title or headline')]
+                        ); ?>
+                        <span class="input-group-text"><i class="bi bi-pencil"></i></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Name'); ?></label>
+                <div class="col-lg-10">
+                    <div class="input-group">
+                        <?= Element::text(
+                            sprintf('translation[%s][name]', $language->getId()),
+                            Filter::charsDecode($translation->getName()),
+                            ['class' => 'form-control', 'placeholder' => $this->translate('Full name')]
                         ); ?>
                         <span class="input-group-text"><i class="bi bi-pencil"></i></span>
                     </div>

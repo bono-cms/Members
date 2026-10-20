@@ -112,7 +112,7 @@ final class Auth extends AbstractApiController
     public function whoamiAction()
     {
         $memberManager = $this->getModuleService('memberManager');
-        $member = $memberManager->fetchById($this->getAuthUserId());
+        $member = $memberManager->fetchByIdForCurrentLang($this->getAuthUserId());
 
         if ($member === false) {
             $this->response->setStatusCode(401);
@@ -121,7 +121,7 @@ final class Auth extends AbstractApiController
 
         return $this->json([
             'id' => $member->getId(),
-            'name' => $member->getName(),
+            'name' => $member->getDisplayName(),
             'email' => $member->getEmail(),
             'login' => $member->getLogin(),
             'confirmed' => (bool) $member->getConfirmed(),

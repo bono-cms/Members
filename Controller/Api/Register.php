@@ -26,7 +26,7 @@ final class Register extends AbstractApiController
             return $memberManager->isFree($email);
         }, $this->translator->translate('This email is already taken'));
 
-        $validator->field('member.name')
+        $validator->field('translation.*.name')
                   ->required()
                   ->addRule('minlength', null, ['min' => 2]);
 
@@ -91,7 +91,9 @@ final class Register extends AbstractApiController
         $key = $memberManager->refreshActivationKey($member->getId());
         $this->sendConfirmationEmail($member->getEmail(), $member->getName(), $key);
 
-        return $this->json(['message' => 'A new confirmation email has been sent.']);
+        return $this->json([
+            'message' => 'A new confirmation email has been sent.'
+        ]);
     }
 
     /**

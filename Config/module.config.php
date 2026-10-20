@@ -40,10 +40,10 @@ return [
             'skip' => ['phone', 'password'],
 
             // Translation fields that go through moderation
-            'translatable' => ['bio', 'title'],
+            'translatable' => ['bio', 'title', 'name'],
 
             // Base (non-translated) fields that go through moderation
-            'base' => ['name', 'address', 'avatar', 'company']
+            'base' => ['address', 'avatar', 'company']
         ]
     ],
     

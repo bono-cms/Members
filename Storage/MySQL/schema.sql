@@ -8,7 +8,6 @@ CREATE TABLE `bono_module_members` (
   `login`                 VARCHAR(254) NOT NULL,
   `password_hash`         VARCHAR(254) NOT NULL,
   `password_changed_at`   DATETIME NULL,
-  `name`                  VARCHAR(120) NULL,
   `company`               VARCHAR(120) NULL,
   `phone`                 VARCHAR(30) NULL,
   `address`               TEXT NULL,
@@ -31,6 +30,7 @@ CREATE TABLE `bono_module_members` (
 CREATE TABLE `bono_module_members_translations` (
   `id`        INT NOT NULL,
   `lang_id`   INT NOT NULL,
+  `name`      VARCHAR(120) NULL,
   `title`     VARCHAR(120) NULL,
   `bio`       TEXT NULL,
   PRIMARY KEY (`id`, `lang_id`),

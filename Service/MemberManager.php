@@ -63,7 +63,7 @@ final class MemberManager extends AbstractService
         $entity = new MemberEntity();
 
         $entity->setId((int) $row['id'])
-               ->setName($row['name'])
+               ->setName(isset($row['name']) ? $row['name'] : null)
                ->setEmail($row['email'])
                ->setLogin($row['login'])
                ->setPhone(isset($row['phone']) ? $row['phone'] : null)
@@ -236,6 +236,29 @@ final class MemberManager extends AbstractService
         } else {
             return $this->prepareResult($this->mapper->findByPk($id));
         }
+    }
+
+    /**
+     * Fetches a member with the translation for the active language.
+     *
+     * Falls back to the base row (no translation) when the member has
+     * no translation for the current language, so callers always get
+     * an entity for a member that exists. In that case name/title/bio
+     * are null and getDisplayName() falls back to the login.
+     *
+     * @param int $id
+     * @return \Krystal\Stdlib\VirtualEntity|boolean
+     */
+    public function fetchByIdForCurrentLang($id)
+    {
+        $rows = $this->mapper->fetchById($id, true);
+
+        if (!empty($rows)) {
+            return $this->prepareResult($rows[0]);
+        }
+
+        // Member exists but has no translation for this language
+        return $this->prepareResult($this->mapper->findByPk($id));
     }
 
     /**
@@ -420,9 +443,11 @@ final class MemberManager extends AbstractService
         }
 
         if ($row && password_verify($password, $row['password_hash'])) {
+            $translation = $this->mapper->fetchTranslation($row['id']);
+
             $this->sessionBag->set('member', [
                 'id' => $row['id'],
-                'name' => $row['name'],
+                'name' => $translation ? $translation['name'] : null,
                 'email' => $row['email'],
                 'login' => $row['login'],
                 'confirmed' => (bool) $row['confirmed']
