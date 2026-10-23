@@ -11,6 +11,7 @@ namespace Members\Service;
 
 use Krystal\Application\Model\AbstractService;
 use Krystal\Stdlib\VirtualEntity;
+use Krystal\Stdlib\ArrayUtils;
 use Krystal\Image\Tool\ImageManagerInterface;
 use Members\Storage\MySQL\MemberMapper;
 
@@ -85,6 +86,16 @@ final class MemberManager extends AbstractService
         $entity->setAvatarBag($avatarBag);
 
         return $entity;
+    }
+
+    /**
+     * Fetches a list of members as id => name pairs
+     * 
+     * @return array
+     */
+    public function fetchList()
+    {
+        return ArrayUtils::arrayList($this->mapper->fetchList(), 'id', 'name');
     }
 
     /**

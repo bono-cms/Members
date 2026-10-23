@@ -12,6 +12,13 @@ namespace Members\Storage;
 interface MemberMapperInterface
 {
     /**
+     * Fetches a list of members as id => name pairs
+     * 
+     * @return array
+     */
+    public function fetchList();
+
+    /**
      * Updates a single translation field for a member in the active language.
      *
      * @param int $memberId

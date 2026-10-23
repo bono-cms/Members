@@ -62,6 +62,25 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
     }
 
     /**
+     * Fetches a list of members as id => name pairs
+     * 
+     * @return array
+     */
+    public function fetchList()
+    {
+        $columns = [
+            self::column('id'),
+            MemberTranslationMapper::column('name')
+        ];
+
+        $db = $this->createEntitySelect($columns)
+                   ->whereEquals(MemberTranslationMapper::column('lang_id'), $this->getLangId())
+                   ->orderBy(MemberTranslationMapper::column('name'));
+
+        return $db->queryAll();
+    }
+
+    /**
      * Returns distinct non-empty company names from confirmed members
      *
      * Company is stored on the base members table, not in translations.
