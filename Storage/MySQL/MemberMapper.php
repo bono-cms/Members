@@ -145,7 +145,7 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
                 return $sub->getQueryString();
             };
 
-            $db->andWhereIn('id', new RawSqlFragment($buildTagIdsSubquery($tagIds)));
+            $db->andWhereIn(self::column('id'), new RawSqlFragment($buildTagIdsSubquery($tagIds)));
         }
 
         if (!empty($memberIds)) {
