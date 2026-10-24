@@ -24,7 +24,7 @@ final class Register extends AbstractController
         $page->setTitle($this->translator->translate('Registration'))
              ->setSeo(false);
 
-        return $this->view->render('member-register', [
+        return $this->view->render('member-register-form', [
             'page' => $page,
             'defaultLangId' => $this->getService('Cms', 'languageManager')->getDefaultId()
         ]);

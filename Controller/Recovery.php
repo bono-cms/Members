@@ -24,7 +24,7 @@ final class Recovery extends AbstractController
         $page->setTitle($this->translator->translate('Password recovery'))
              ->setSeo(false);
 
-        return $this->view->render('recovery-form', [
+        return $this->view->render('member-recovery-form', [
             'page' => $page
         ]);
     }
