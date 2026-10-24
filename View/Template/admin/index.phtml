@@ -2,6 +2,7 @@
 
 use Krystal\Iso\ISO3166\Country;
 use Krystal\Form\Element;
+use Krystal\Date\TimeHelper;
 use Krystal\Widget\GridView\GridViewWidget;
 use Cms\View\Icon;
 use Members\Service\MemberEntity;
@@ -45,19 +46,27 @@ use Members\Service\MemberEntity;
             ],
             'columns' => [
                 [
+                    'column' => 'avatar',
+                    'label' => 'Avatar',
+                    'value' => function ($member) {
+                        if ($member->hasAvatar()) {
+                            return '<img src="' . $member->getAvatarUrl(MemberEntity::AVATAR_THUMB) . '" class="rounded-circle img-fluid" alt="">';
+                        }
+
+                        return '<i class="bi bi-person-circle text-muted" style="font-size:28px;"></i>';
+                    }
+                ],
+
+                [
                     'column' => 'name',
                     'label' => 'Member',
                     'value' => function ($member) {
-                        $img = $member->hasAvatar()
-                            ? '<img src="' . $member->getAvatarUrl(MemberEntity::AVATAR_THUMB) . '" class="rounded-circle me-2" style="width:28px;height:28px;object-fit:cover;" alt="">'
-                            : '<i class="bi bi-person-circle me-2 text-muted" style="font-size:28px;"></i>';
-
                         $name = htmlspecialchars((string) $member->getName());
                         if ($name === '') {
                             $name = '<em class="text-muted">' . $this->translate('Unnamed') . '</em>';
                         }
 
-                        return $img . $name;
+                        return $name;
                     }
                 ],
 
@@ -97,18 +106,6 @@ use Members\Service\MemberEntity;
                 ],
 
                 [
-                    'column' => 'subscriber',
-                    'label' => 'Newsletter',
-                    'value' => function ($member) {
-                        return $member->getSubscriber()
-                            ? '<i class="bi bi-check-circle-fill text-success" title="'
-                                . $this->translate('Subscribed') . '"></i>'
-                            : '<i class="bi bi-dash-circle text-muted" title="'
-                                . $this->translate('Not subscribed') . '"></i>';
-                    }
-                ],
-
-                [
                     'column' => 'created_at',
                     'label' => 'Joined',
                     'value' => function ($member) {
@@ -117,7 +114,11 @@ use Members\Service\MemberEntity;
                             return '—';
                         }
 
-                        return date('M j, Y', strtotime($ts));
+                        return TimeHelper::formatLocalized(
+                            $ts,
+                            null,
+                            'MMM d, yyyy'
+                        );
                     }
                 ]
             ],
@@ -155,5 +156,7 @@ use Members\Service\MemberEntity;
         <?php endif; ?>
     </div>
 
-    <?php $this->loadPartial('paginator'); ?>
+    <div class="pt-3">
+        <?php $this->loadPartial('paginator'); ?>
+    </div>
 </div>
