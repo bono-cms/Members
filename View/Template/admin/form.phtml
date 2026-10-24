@@ -5,6 +5,7 @@ use Krystal\Security\Filter;
 use Krystal\Iso\ISO3166\Country;
 use Krystal\Stdlib\VirtualEntity;
 use Cms\Service\LanguageManager;
+use Members\Service\MemberEntity;
 
 $entity = isset($member[0]) ? $member[0] : $member;
 $isNew  = !$entity->getId();
@@ -143,11 +144,7 @@ $isNew  = !$entity->getId();
                 <div class="col-lg-10">
                     <?php if ($entity->hasAvatar()): ?>
                     <div class="mb-3">
-                        <img data-image="preview"
-                             src="<?= $entity->getAvatarUrl('256x256'); ?>"
-                             class="img-thumbnail d-block"
-                             style="max-width: 128px;"
-                             alt="<?= $this->translate('Current avatar'); ?>" />
+                        <img data-image="preview" src="<?= $entity->getAvatarUrl(MemberEntity::AVATAR_PROFILE); ?>" class="img-thumbnail d-block" style="max-width: 128px;" alt="<?= $this->translate('Current avatar'); ?>" />
 
                         <div class="form-check mt-2">
                             <?= Element::checkbox('member[remove_avatar]', false, [
@@ -163,10 +160,7 @@ $isNew  = !$entity->getId();
                     <img data-image="preview" class="img-thumbnail d-none mb-3" style="max-width: 128px;" />
                     <?php endif; ?>
 
-                    <a class="btn btn-outline-primary"
-                       data-button="upload"
-                       data-target="[name='file']"
-                       href="#">
+                    <a class="btn btn-outline-primary" data-button="upload" data-target="[name='file']" href="#">
                         <i class="bi bi-image"></i>
                         <?= $this->translate('Upload an avatar'); ?>
                     </a>

@@ -9,6 +9,8 @@
 
 namespace Members\View;
 
+use Members\Service\MemberEntity;
+
 /**
  * Shapes chat rows into the JSON contract consumed by every client.
  */
@@ -239,10 +241,11 @@ final class ChatPresenter
         }
 
         return sprintf(
-            '%s%s/%d/128x128/%s',
+            '%s%s/%d/%s/%s',
             $this->rootUrl,
             $this->avatarDir,
             (int) $memberId,
+            MemberEntity::AVATAR_SMALL,
             rawurlencode($avatar)
         );
     }

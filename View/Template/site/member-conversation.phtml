@@ -1,5 +1,7 @@
 <?php
 
+use Members\Service\MemberEntity;
+
 /**
  * Members conversation — thread, send form, polling.
  *
@@ -26,7 +28,7 @@ $lastId = empty($messages) ? 0 : (int) end($messages)['id'];
 
             <div class="col d-flex align-items-center justify-content-end gap-2">
                 <?php if ($otherMember !== false && $otherMember->hasAvatar()): ?>
-                <img src="<?= $otherMember->getAvatarUrl('64x64'); ?>" class="rounded-circle object-fit-cover" width="32" height="32" alt="" />
+                <img src="<?= $otherMember->getAvatarUrl(MemberEntity::AVATAR_THUMB); ?>" class="rounded-circle object-fit-cover" width="32" height="32" alt="" />
                 <?php else: ?>
                 <i class="bi bi-person-circle text-secondary fs-2"></i>
                 <?php endif; ?>

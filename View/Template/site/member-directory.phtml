@@ -1,6 +1,7 @@
 <?php
 
 use Krystal\Form\Element;
+use Members\Service\MemberEntity;
 
 $activeTagSet = array_flip($filterTags);
 
@@ -85,7 +86,7 @@ $activeTagSet = array_flip($filterTags);
                 <a href="<?= $this->url('Members:Directory@profileAction', [$member->getId()]); ?>" class="card h-100 text-decoration-none text-body shadow-sm border-0">
                     <div class="card-body text-center p-4">
                         <?php if ($member->hasAvatar()): ?>
-                        <img src="<?= $member->getAvatarUrl('256x256'); ?>" class="rounded-circle mb-3 member-avatar-lg" alt="<?= htmlspecialchars($name); ?>" />
+                        <img src="<?= $member->getAvatarUrl(MemberEntity::AVATAR_PROFILE); ?>" class="rounded-circle mb-3 member-avatar-lg" alt="<?= htmlspecialchars($name); ?>" />
                         <?php else: ?>
                         <i class="bi bi-person-circle text-body-secondary mb-3 member-avatar-icon-lg"></i>
                         <?php endif; ?>

@@ -9,6 +9,8 @@
 
 namespace Members\Controller\Api;
 
+use Members\Service\MemberEntity;
+
 final class Profile extends AbstractApiController
 {
     /**
@@ -144,7 +146,7 @@ final class Profile extends AbstractApiController
 
         return $this->json([
             'message' => $this->translator->translate($messageKey),
-            'avatar' => $member->hasAvatar() ? $member->getAvatarUrl('128x128') : null,
+            'avatar' => $member->hasAvatar() ? $member->getAvatarUrl(MemberEntity::AVATAR_PROFILE) : null,
         ]);
     }
 
@@ -202,7 +204,7 @@ final class Profile extends AbstractApiController
             'address' => $member->getAddress(),
             'title' => $member->getTitle(),
             'bio' => $member->getBio(),
-            'avatar' => $member->hasAvatar() ? $member->getAvatarUrl('256x256') : null,
+            'avatar' => $member->hasAvatar() ? $member->getAvatarUrl(MemberEntity::AVATAR_PROFILE) : null
         ];
     }
 }

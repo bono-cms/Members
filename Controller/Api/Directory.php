@@ -10,6 +10,7 @@
 namespace Members\Controller\Api;
 
 use Krystal\Iso\ISO3166\Country;
+use Members\Service\MemberEntity;
 
 final class Directory extends AbstractApiController
 {
@@ -123,7 +124,7 @@ final class Directory extends AbstractApiController
             'company' => $member->getCompany(),
             'country' => $member->getCountry(),
             'bio' => $member->getBio(),
-            'avatar' => $member->hasAvatar() ? $member->getAvatarUrl('128x128') : null
+            'avatar' => $member->hasAvatar() ? $member->getAvatarUrl(MemberEntity::AVATAR_SMALL) : null
         ];
     }
 }

@@ -1,6 +1,7 @@
 <?php
 
 use Krystal\Stdlib\VirtualEntity;
+use Members\Service\MemberEntity;
 
 ?>
 
@@ -23,7 +24,7 @@ use Krystal\Stdlib\VirtualEntity;
                     <div class="card-body p-4">
                         <div class="d-flex align-items-center gap-3">
                             <?php if ($member->hasAvatar()): ?>
-                            <img src="<?= $member->getAvatarUrl('128x128'); ?>" class="rounded-circle member-avatar-md" alt="" />
+                            <img src="<?= $member->getAvatarUrl(MemberEntity::AVATAR_SMALL); ?>" class="rounded-circle member-avatar-md" alt="" />
                             <?php else: ?>
                             <i class="bi bi-person-circle text-body-secondary member-avatar-icon-md"></i>
                             <?php endif; ?>

@@ -1,5 +1,7 @@
 <?php
 
+use Members\Service\MemberEntity;
+
 /**
  * Public member profile — read-only view of a confirmed member
  *
@@ -17,7 +19,7 @@ $name = $member->getDisplayName();
             <div class="card-body p-4">
                 <div class="d-flex flex-column flex-sm-row align-items-center gap-4">
                     <?php if ($member->hasAvatar()): ?>
-                    <img src="<?= $member->getAvatarUrl('256x256'); ?>" class="rounded-circle member-avatar-xl" alt="<?= htmlspecialchars($name); ?>" />
+                    <img src="<?= $member->getAvatarUrl(MemberEntity::AVATAR_PROFILE); ?>" class="rounded-circle member-avatar-xl" alt="<?= htmlspecialchars($name); ?>" />
                     <?php else: ?>
                     <i class="bi bi-person-circle text-body-secondary member-avatar-icon-xl"></i>
                     <?php endif; ?>

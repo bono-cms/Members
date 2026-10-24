@@ -3,6 +3,7 @@
 use Krystal\Form\Element;
 use Krystal\Iso\ISO3166\Country;
 use Krystal\Stdlib\VirtualEntity;
+use Members\Service\MemberEntity;
 use Cms\Service\LanguageManager;
 
 $entity = isset($member[0]) ? $member[0] : $member;
@@ -74,7 +75,7 @@ $entity = isset($member[0]) ? $member[0] : $member;
                     <div class="row mb-3">
                         <label class="col-lg-3 col-form-label" for="member_avatar"><?= $this->translate('Avatar'); ?></label>
                         <div class="col-lg-9">
-                            <img id="avatar-preview" src="<?= $entity->hasAvatar() ? $entity->getAvatarUrl('256x256') : ''; ?>" class="rounded-circle mb-3 member-avatar-lg <?= $entity->hasAvatar() ? '' : 'd-none'; ?>" alt="<?= $this->translate('Avatar preview'); ?>" />
+                            <img id="avatar-preview" src="<?= $entity->hasAvatar() ? $entity->getAvatarUrl(MemberEntity::AVATAR_PROFILE) : ''; ?>" class="rounded-circle mb-3 member-avatar-lg <?= $entity->hasAvatar() ? '' : 'd-none'; ?>" alt="<?= $this->translate('Avatar preview'); ?>" />
 
                             <?= Element::file('file', 'image/x-png, image/gif, image/jpeg', ['class' => 'form-control', 'id' => 'member_avatar']); ?>
 

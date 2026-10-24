@@ -14,13 +14,17 @@ use Krystal\Iso\ISO3166\Country;
 
 final class MemberEntity extends VirtualEntity
 {
+    const AVATAR_THUMB   = '64x64';
+    const AVATAR_SMALL   = '256x256';
+    const AVATAR_PROFILE = '256x256';
+
     /**
      * Returns avatar URL for a given size
-     * 
-     * @param string $size e.g. "256x256"
+     *
+     * @param string $size e.g. "256x256", or one of the AVATAR_* constants
      * @return string|null
      */
-    public function getAvatarUrl($size = '256x256')
+    public function getAvatarUrl($size = self::AVATAR_PROFILE)
     {
         if (!$this->hasAvatar()) {
             return null;

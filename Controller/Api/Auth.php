@@ -10,6 +10,7 @@
 namespace Members\Controller\Api;
 
 use Krystal\Authentication\JWT;
+use Members\Service\MemberEntity;
 
 final class Auth extends AbstractApiController
 {
@@ -125,7 +126,7 @@ final class Auth extends AbstractApiController
             'email' => $member->getEmail(),
             'login' => $member->getLogin(),
             'confirmed' => (bool) $member->getConfirmed(),
-            'avatar' => $member->hasAvatar() ? $member->getAvatarUrl('128x128') : null,
+            'avatar' => $member->hasAvatar() ? $member->getAvatarUrl(MemberEntity::AVATAR_SMALL) : null
         ]);
     }
 }
