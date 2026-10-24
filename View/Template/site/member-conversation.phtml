@@ -18,60 +18,65 @@ $this->getPluginBag()->appendScript($this->moduleAsset('chat.jquery.js', 'Member
 $lastId = empty($messages) ? 0 : (int) end($messages)['id'];
 
 ?>
+<section class="flex-grow-1 d-flex justify-content-center align-items-start py-5 bg-light">
+    <div class="container">
 
-<div class="card shadow-sm border-0">
-    <div class="card-header bg-white">
-        <div class="row align-items-center g-0">
-            <div class="col-auto">
-                <a href="<?= $this->url('Members:Chat@inboxAction'); ?>" class="text-decoration-none"><i class="bi bi-arrow-left"></i> <?= $this->translate('Back to inbox'); ?></a>
+        <div class="card shadow-sm border-0">
+            <div class="card-header bg-white">
+                <div class="row align-items-center g-0">
+                    <div class="col-auto">
+                        <a href="<?= $this->url('Members:Chat@inboxAction'); ?>" class="text-decoration-none"><i class="bi bi-arrow-left"></i> <?= $this->translate('Back to inbox'); ?></a>
+                    </div>
+
+                    <div class="col d-flex align-items-center justify-content-end gap-2">
+                        <?php if ($otherMember !== false && $otherMember->hasAvatar()): ?>
+                        <img src="<?= $otherMember->getAvatarUrl(MemberEntity::AVATAR_THUMB); ?>" class="rounded-circle object-fit-cover" width="32" height="32" alt="" />
+                        <?php else: ?>
+                        <i class="bi bi-person-circle text-secondary fs-2"></i>
+                        <?php endif; ?>
+
+                        <?php if ($otherMember !== false): ?>
+                        <a href="<?= $this->url('Members:Directory@profileAction', [$otherMember->getId()]); ?>" class="fw-semibold text-decoration-none text-body text-truncate">
+                            <?= htmlspecialchars($otherMember->getName() ?: $otherMember->getDisplayName()); ?>
+                        </a>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
 
-            <div class="col d-flex align-items-center justify-content-end gap-2">
-                <?php if ($otherMember !== false && $otherMember->hasAvatar()): ?>
-                <img src="<?= $otherMember->getAvatarUrl(MemberEntity::AVATAR_THUMB); ?>" class="rounded-circle object-fit-cover" width="32" height="32" alt="" />
-                <?php else: ?>
-                <i class="bi bi-person-circle text-secondary fs-2"></i>
-                <?php endif; ?>
+            <div class="card-body" id="thread">
+                <?php foreach ($messages as $message): ?>
+                <?php $isMine = (int) $message['sender_id'] === (int) $meId; ?>
+                <div class="mb-3 <?= $isMine ? 'text-end' : 'text-start'; ?>">
+                    <div class="d-inline-block p-2 rounded chat-bubble <?= $isMine ? 'bg-primary text-white' : 'bg-body-secondary'; ?>">
+                        <?php if (!empty($message['deleted_at'])): ?>
+                        <em class="opacity-75"><?= $this->translate('[deleted]'); ?></em>
+                        <?php else: ?>
+                        <?= htmlspecialchars($message['body']); ?>
+                        <?php endif; ?>
+                    </div>
+                    <div class="small text-muted mt-1">
+                        <?= htmlspecialchars(date('M j, H:i', strtotime($message['created_at']))); ?>
+                        <?php if (!empty($message['edited_at'])): ?>
+                        &middot; <?= $this->translate('(edited)'); ?>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endforeach; ?>
 
-                <?php if ($otherMember !== false): ?>
-                <a href="<?= $this->url('Members:Directory@profileAction', [$otherMember->getId()]); ?>" class="fw-semibold text-decoration-none text-body text-truncate">
-                    <?= htmlspecialchars($otherMember->getName() ?: $otherMember->getDisplayName()); ?>
-                </a>
+                <?php if (empty($messages)): ?>
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-chat-square fs-2"></i>
+                    <p class="mt-2 mb-0"><?= $this->translate('Say hi to start the conversation.'); ?></p>
+                </div>
                 <?php endif; ?>
-            </div>            
+            </div>
+
+            <form class="card-footer bg-white d-flex gap-2" id="chat-form" data-conversation="<?= (int) $conversationId; ?>" data-last-id="<?= (int) $lastId; ?>" data-send-url="<?= $this->url('Members:Chat@sendAction'); ?>" data-poll-url="<?= $this->url('Members:Chat@pollAction'); ?>" data-me-id="<?= (int) $meId; ?>" data-translations="<?= htmlspecialchars(json_encode(['[deleted]' => $this->translate('[deleted]')]), ENT_QUOTES); ?>" autocomplete="off">
+                <textarea name="body" class="form-control" rows="1" maxlength="5000" required placeholder="<?= $this->translate('Type a message…'); ?>"></textarea>
+                <button class="btn btn-primary" type="submit"><i class="bi bi-send"></i> <span class="d-none d-md-inline"><?= $this->translate('Send'); ?></span></button>
+            </form>
         </div>
+
     </div>
-
-    <div class="card-body" id="thread">
-        <?php foreach ($messages as $message): ?>
-        <?php $isMine = (int) $message['sender_id'] === (int) $meId; ?>
-        <div class="mb-3 <?= $isMine ? 'text-end' : 'text-start'; ?>">
-            <div class="d-inline-block p-2 rounded chat-bubble <?= $isMine ? 'bg-primary text-white' : 'bg-body-secondary'; ?>">
-                <?php if (!empty($message['deleted_at'])): ?>
-                <em class="opacity-75"><?= $this->translate('[deleted]'); ?></em>
-                <?php else: ?>
-                <?= htmlspecialchars($message['body']); ?>
-                <?php endif; ?>
-            </div>
-            <div class="small text-muted mt-1">
-                <?= htmlspecialchars(date('M j, H:i', strtotime($message['created_at']))); ?>
-                <?php if (!empty($message['edited_at'])): ?>
-                &middot; <?= $this->translate('(edited)'); ?>
-                <?php endif; ?>
-            </div>
-        </div>
-        <?php endforeach; ?>
-
-        <?php if (empty($messages)): ?>
-        <div class="text-center py-4 text-muted">
-            <i class="bi bi-chat-square fs-2"></i>
-            <p class="mt-2 mb-0"><?= $this->translate('Say hi to start the conversation.'); ?></p>
-        </div>
-        <?php endif; ?>
-    </div>
-
-    <form class="card-footer bg-white d-flex gap-2" id="chat-form" data-conversation="<?= (int) $conversationId; ?>" data-last-id="<?= (int) $lastId; ?>" data-send-url="<?= $this->url('Members:Chat@sendAction'); ?>" data-poll-url="<?= $this->url('Members:Chat@pollAction'); ?>" data-me-id="<?= (int) $meId; ?>" data-translations="<?= htmlspecialchars(json_encode(['[deleted]' => $this->translate('[deleted]')]), ENT_QUOTES); ?>" autocomplete="off">
-        <textarea name="body" class="form-control" rows="1" maxlength="5000" required placeholder="<?= $this->translate('Type a message…'); ?>"></textarea>
-        <button class="btn btn-primary" type="submit"><i class="bi bi-send"></i> <span class="d-none d-md-inline"><?= $this->translate('Send'); ?></span></button>
-    </form>
-</div>
+</section>

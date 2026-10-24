@@ -99,17 +99,17 @@ $this->getPluginBag()->appendStylesheet($this->moduleAsset('site.style.css', 'Me
 
 <?php $this->loadPartial('bs-flash'); ?>
 
+<?= $fragment; ?>
+
 <main class="flex-grow-1 d-flex justify-content-center align-items-start py-5">
     <div class="container">
-        <?= $fragment; ?>
     </div>
 </main>
 
 <footer class="flex-shrink-0 py-4 text-center text-body-secondary small">
     <div class="container">
         <?= date('Y'); ?> &copy;
-        <?= isset($siteName) && $siteName ? $siteName : $this->translate('Members Area'); ?>
-        — <?= $this->translate('All rights reserved.'); ?>
+        <?= isset($siteName) && $siteName ? $siteName : $this->translate('Members Area'); ?> — <?= $this->translate('All rights reserved.'); ?>
     </div>
 </footer>
 

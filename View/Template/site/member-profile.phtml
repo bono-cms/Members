@@ -10,179 +10,183 @@ $entity = isset($member[0]) ? $member[0] : $member;
 
 ?>
 
-<div class="row justify-content-center">
-    <div class="col-lg-9">
-        <form class="card shadow-sm border-0" method="POST" action="<?= $this->url('Members:Profile@updateAction'); ?>" enctype="multipart/form-data" autocomplete="off">
-            <?= Element::hidden('member[id]', $entity->getId()); ?>
+<section class="flex-grow-1 d-flex justify-content-center align-items-start py-5 bg-light">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-9">
+                <form class="card shadow-sm border-0" method="POST" action="<?= $this->url('Members:Profile@updateAction'); ?>" enctype="multipart/form-data" autocomplete="off">
+                    <?= Element::hidden('member[id]', $entity->getId()); ?>
 
-            <?php if (!empty($pending)): ?>
-            <div class="alert alert-info d-flex align-items-start gap-2">
-                <i class="bi bi-clock-history fs-5"></i>
-                <div><?= $this->translate('You have %d pending change(s) awaiting review. Submitting the form again will create a new submission.', count($pending)); ?></div>
-            </div>
-            <?php endif; ?>
-
-            <div class="card-header bg-white">
-                <ul class="nav nav-tabs card-header-tabs" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <a class="nav-link active" href="#data" role="tab" data-bs-toggle="tab"><i class="bi bi-person"></i> <?= $this->translate('Data'); ?></a>
-                    </li>
-
-                    <?php foreach ($languages as $language): ?>
-                    <li class="nav-item" role="presentation">
-                        <a class="nav-link" href="#language-<?= $language->getId(); ?>" role="tab" data-bs-toggle="tab"><i class="bi bi-translate"></i> <?= $language->getName(); ?></a>
-                    </li>
-                    <?php endforeach; ?>
-                </ul>
-            </div>
-
-            <div class="card-body tab-content">
-                <div class="tab-pane fade show active" id="data" role="tabpanel">
-                    <div class="row mb-3">
-                        <label class="col-lg-3 col-form-label" for="member_phone"><?= $this->translate('Phone'); ?></label>
-                        <div class="col-lg-9">
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="bi bi-telephone"></i></span>
-                                <?= Element::text('member[phone]', $entity->getPhone(), ['class' => 'form-control', 'id' => 'member_phone']); ?>
-                            </div>
-                        </div>
+                    <?php if (!empty($pending)): ?>
+                    <div class="alert alert-info d-flex align-items-start gap-2">
+                        <i class="bi bi-clock-history fs-5"></i>
+                        <div><?= $this->translate('You have %d pending change(s) awaiting review. Submitting the form again will create a new submission.', count($pending)); ?></div>
                     </div>
-
-                    <div class="row mb-3">
-                        <label class="col-lg-3 col-form-label" for="member_country"><?= $this->translate('Country'); ?></label>
-                        <div class="col-lg-9">
-                            <?= Element::select('member[country]', (new Country())->getAll(), $entity->getCountry(), ['class' => 'form-select', 'id' => 'member_country']); ?>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <label class="col-lg-3 col-form-label" for="member_company"><?= $this->translate('Company'); ?></label>
-                        <div class="col-lg-9">
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="bi bi-building"></i></span>
-                                <?= Element::text('member[company]', $entity->getCompany(), ['class' => 'form-control', 'id' => 'member_company']); ?>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <label class="col-lg-3 col-form-label" for="member_address"><?= $this->translate('Address'); ?></label>
-                        <div class="col-lg-9">
-                            <?= Element::textarea('member[address]', $entity->getAddress(), ['class' => 'form-control', 'id' => 'member_address', 'rows' => 3]); ?>
-                        </div>
-                    </div>
-
-                    <div class="row mb-3">
-                        <label class="col-lg-3 col-form-label" for="member_avatar"><?= $this->translate('Avatar'); ?></label>
-                        <div class="col-lg-9">
-                            <img id="avatar-preview" src="<?= $entity->hasAvatar() ? $entity->getAvatarUrl(MemberEntity::AVATAR_PROFILE) : ''; ?>" class="rounded-circle mb-3 member-avatar-lg <?= $entity->hasAvatar() ? '' : 'd-none'; ?>" alt="<?= $this->translate('Avatar preview'); ?>" />
-
-                            <?= Element::file('file', 'image/x-png, image/gif, image/jpeg', ['class' => 'form-control', 'id' => 'member_avatar']); ?>
-
-                            <?php if ($entity->hasAvatar()): ?>
-                            <div class="form-check mt-2">
-                                <?= Element::checkbox('member[remove_avatar]', false, ['class' => 'form-check-input', 'id' => 'remove_avatar']); ?>
-                                <label class="form-check-label text-danger" for="remove_avatar"><?= $this->translate('Remove this avatar'); ?></label>
-                            </div>
-                            <?php endif; ?>
-
-                            <?= Element::hidden('member[avatar]', $entity->getAvatar()); ?>
-                        </div>
-                    </div>
-
-                    <hr class="my-4">
-
-                    <div class="row mb-3">
-                        <label class="col-lg-3 col-form-label" for="member_password"><?= $this->translate('New password'); ?></label>
-                        <div class="col-lg-9">
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                                <?= Element::password('member[password]', '', ['class' => 'form-control', 'id' => 'member_password', 'minlength' => 6, 'placeholder' => $this->translate('Leave blank to keep current password')]); ?>
-                            </div>
-                            <small class="text-body-secondary"><?= $this->translate('Leave blank to keep the current password unchanged.'); ?></small>
-                        </div>
-                    </div>
-
-                    <hr class="my-4">
-
-                    <h5 class="mb-3 text-secondary">
-                        <i class="bi bi-tags"></i> <?= $this->translate('Tags'); ?>
-                    </h5>
-
-                    <?php if (empty($payload)): ?>
-                    <p class="text-muted mb-0"><?= $this->translate('No tags available yet.'); ?></p>
-                    <?php else: ?>
-                    <?php foreach ($payload as $block): ?>
-                    <fieldset class="mb-4">
-                        <legend class="fs-6 fw-semibold"><?= htmlspecialchars($block['group']['name']); ?></legend>
-
-                        <?php if (!empty($block['group']['description'])): ?>
-                        <p class="text-body-secondary small"><?= htmlspecialchars($block['group']['description']); ?></p>
-                        <?php endif; ?>
-
-                        <div class="d-flex flex-wrap gap-2">
-                            <?php foreach ($block['tags'] as $tag): ?>
-                            <?php $tagId = (int) $tag['id']; ?>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" name="tags[]" value="<?= $tagId; ?>" id="tag-<?= $tagId; ?>" <?= in_array($tagId, $selected) ? 'checked' : ''; ?>>
-                                <label class="form-check-label" for="tag-<?= $tagId; ?>"><?= htmlspecialchars($tag['label']); ?></label>
-                            </div>
-                            <?php endforeach; ?>
-                        </div>
-                    </fieldset>
-                    <?php endforeach; ?>
                     <?php endif; ?>
-                </div>
 
-                <?php foreach ($languages as $language): ?>
-                <?php
-                $translation = is_array($member) ? LanguageManager::findByLangId($language->getId(), $member) : $member;
+                    <div class="card-header bg-white">
+                        <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link active" href="#data" role="tab" data-bs-toggle="tab"><i class="bi bi-person"></i> <?= $this->translate('Data'); ?></a>
+                            </li>
 
-                if (!$translation instanceof VirtualEntity) {
-                    $translation = new VirtualEntity();
-                }
-                ?>
+                            <?php foreach ($languages as $language): ?>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link" href="#language-<?= $language->getId(); ?>" role="tab" data-bs-toggle="tab"><i class="bi bi-translate"></i> <?= $language->getName(); ?></a>
+                            </li>
+                            <?php endforeach; ?>
+                        </ul>
+                    </div>
 
-                <div class="tab-pane fade" id="language-<?= $language->getId(); ?>" role="tabpanel">
-                    <?= Element::hidden(sprintf('translation[%s][lang_id]', $language->getId()), $language->getId()); ?>
+                    <div class="card-body tab-content">
+                        <div class="tab-pane fade show active" id="data" role="tabpanel">
+                            <div class="row mb-3">
+                                <label class="col-lg-3 col-form-label" for="member_phone"><?= $this->translate('Phone'); ?></label>
+                                <div class="col-lg-9">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-telephone"></i></span>
+                                        <?= Element::text('member[phone]', $entity->getPhone(), ['class' => 'form-control', 'id' => 'member_phone']); ?>
+                                    </div>
+                                </div>
+                            </div>
 
-                    <div class="row mb-3">
-                        <label class="col-lg-3 col-form-label" for="translation_<?= $language->getId(); ?>_name"><?= $this->translate('Name'); ?></label>
-                        <div class="col-lg-9">
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="bi bi-person"></i></span>
-                                <?= Element::text(
-                                    sprintf('translation[%s][name]', $language->getId()),
-                                    $translation->getName(),
-                                    ['class' => 'form-control', 'id' => sprintf('translation_%s_name', $language->getId())]
-                                ); ?>
+                            <div class="row mb-3">
+                                <label class="col-lg-3 col-form-label" for="member_country"><?= $this->translate('Country'); ?></label>
+                                <div class="col-lg-9">
+                                    <?= Element::select('member[country]', (new Country())->getAll(), $entity->getCountry(), ['class' => 'form-select', 'id' => 'member_country']); ?>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <label class="col-lg-3 col-form-label" for="member_company"><?= $this->translate('Company'); ?></label>
+                                <div class="col-lg-9">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-building"></i></span>
+                                        <?= Element::text('member[company]', $entity->getCompany(), ['class' => 'form-control', 'id' => 'member_company']); ?>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <label class="col-lg-3 col-form-label" for="member_address"><?= $this->translate('Address'); ?></label>
+                                <div class="col-lg-9">
+                                    <?= Element::textarea('member[address]', $entity->getAddress(), ['class' => 'form-control', 'id' => 'member_address', 'rows' => 3]); ?>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <label class="col-lg-3 col-form-label" for="member_avatar"><?= $this->translate('Avatar'); ?></label>
+                                <div class="col-lg-9">
+                                    <img id="avatar-preview" src="<?= $entity->hasAvatar() ? $entity->getAvatarUrl(MemberEntity::AVATAR_PROFILE) : ''; ?>" class="rounded-circle mb-3 member-avatar-lg <?= $entity->hasAvatar() ? '' : 'd-none'; ?>" alt="<?= $this->translate('Avatar preview'); ?>" />
+
+                                    <?= Element::file('file', 'image/x-png, image/gif, image/jpeg', ['class' => 'form-control', 'id' => 'member_avatar']); ?>
+
+                                    <?php if ($entity->hasAvatar()): ?>
+                                    <div class="form-check mt-2">
+                                        <?= Element::checkbox('member[remove_avatar]', false, ['class' => 'form-check-input', 'id' => 'remove_avatar']); ?>
+                                        <label class="form-check-label text-danger" for="remove_avatar"><?= $this->translate('Remove this avatar'); ?></label>
+                                    </div>
+                                    <?php endif; ?>
+
+                                    <?= Element::hidden('member[avatar]', $entity->getAvatar()); ?>
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <div class="row mb-3">
+                                <label class="col-lg-3 col-form-label" for="member_password"><?= $this->translate('New password'); ?></label>
+                                <div class="col-lg-9">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                                        <?= Element::password('member[password]', '', ['class' => 'form-control', 'id' => 'member_password', 'minlength' => 6, 'placeholder' => $this->translate('Leave blank to keep current password')]); ?>
+                                    </div>
+                                    <small class="text-body-secondary"><?= $this->translate('Leave blank to keep the current password unchanged.'); ?></small>
+                                </div>
+                            </div>
+
+                            <hr class="my-4">
+
+                            <h5 class="mb-3 text-secondary">
+                                <i class="bi bi-tags"></i> <?= $this->translate('Tags'); ?>
+                            </h5>
+
+                            <?php if (empty($payload)): ?>
+                            <p class="text-muted mb-0"><?= $this->translate('No tags available yet.'); ?></p>
+                            <?php else: ?>
+                            <?php foreach ($payload as $block): ?>
+                            <fieldset class="mb-4">
+                                <legend class="fs-6 fw-semibold"><?= htmlspecialchars($block['group']['name']); ?></legend>
+
+                                <?php if (!empty($block['group']['description'])): ?>
+                                <p class="text-body-secondary small"><?= htmlspecialchars($block['group']['description']); ?></p>
+                                <?php endif; ?>
+
+                                <div class="d-flex flex-wrap gap-2">
+                                    <?php foreach ($block['tags'] as $tag): ?>
+                                    <?php $tagId = (int) $tag['id']; ?>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="tags[]" value="<?= $tagId; ?>" id="tag-<?= $tagId; ?>" <?= in_array($tagId, $selected) ? 'checked' : ''; ?>>
+                                        <label class="form-check-label" for="tag-<?= $tagId; ?>"><?= htmlspecialchars($tag['label']); ?></label>
+                                    </div>
+                                    <?php endforeach; ?>
+                                </div>
+                            </fieldset>
+                            <?php endforeach; ?>
+                            <?php endif; ?>
+                        </div>
+
+                        <?php foreach ($languages as $language): ?>
+                        <?php
+                        $translation = is_array($member) ? LanguageManager::findByLangId($language->getId(), $member) : $member;
+
+                        if (!$translation instanceof VirtualEntity) {
+                            $translation = new VirtualEntity();
+                        }
+                        ?>
+
+                        <div class="tab-pane fade" id="language-<?= $language->getId(); ?>" role="tabpanel">
+                            <?= Element::hidden(sprintf('translation[%s][lang_id]', $language->getId()), $language->getId()); ?>
+
+                            <div class="row mb-3">
+                                <label class="col-lg-3 col-form-label" for="translation_<?= $language->getId(); ?>_name"><?= $this->translate('Name'); ?></label>
+                                <div class="col-lg-9">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                                        <?= Element::text(
+                                            sprintf('translation[%s][name]', $language->getId()),
+                                            $translation->getName(),
+                                            ['class' => 'form-control', 'id' => sprintf('translation_%s_name', $language->getId())]
+                                        ); ?>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <label class="col-lg-3 col-form-label" for="translation_<?= $language->getId(); ?>_title"><?= $this->translate('Title'); ?></label>
+                                <div class="col-lg-9">
+                                    <div class="input-group">
+                                        <span class="input-group-text"><i class="bi bi-pencil"></i></span>
+                                        <?= Element::text(sprintf('translation[%s][title]', $language->getId()), $translation->getTitle(), ['class' => 'form-control', 'id' => sprintf('translation_%s_title', $language->getId())]); ?>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row mb-3">
+                                <label class="col-lg-3 col-form-label" for="translation_<?= $language->getId(); ?>_bio"><?= $this->translate('Bio'); ?></label>
+                                <div class="col-lg-9">
+                                    <?= Element::textarea(sprintf('translation[%s][bio]', $language->getId()), $translation->getBio(), ['class' => 'form-control', 'id' => sprintf('translation_%s_bio', $language->getId()), 'rows' => 4]); ?>
+                                </div>
                             </div>
                         </div>
+                        <?php endforeach; ?>
                     </div>
 
-                    <div class="row mb-3">
-                        <label class="col-lg-3 col-form-label" for="translation_<?= $language->getId(); ?>_title"><?= $this->translate('Title'); ?></label>
-                        <div class="col-lg-9">
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="bi bi-pencil"></i></span>
-                                <?= Element::text(sprintf('translation[%s][title]', $language->getId()), $translation->getTitle(), ['class' => 'form-control', 'id' => sprintf('translation_%s_title', $language->getId())]); ?>
-                            </div>
-                        </div>
+                    <div class="card-footer bg-white d-flex justify-content-end">
+                        <button type="submit" class="btn btn-primary" data-button="submit"><i class="bi bi-save"></i> <?= $this->translate('Save changes'); ?></button>
                     </div>
-
-                    <div class="row mb-3">
-                        <label class="col-lg-3 col-form-label" for="translation_<?= $language->getId(); ?>_bio"><?= $this->translate('Bio'); ?></label>
-                        <div class="col-lg-9">
-                            <?= Element::textarea(sprintf('translation[%s][bio]', $language->getId()), $translation->getBio(), ['class' => 'form-control', 'id' => sprintf('translation_%s_bio', $language->getId()), 'rows' => 4]); ?>
-                        </div>
-                    </div>
-                </div>
-                <?php endforeach; ?>
+                </form>
             </div>
-
-            <div class="card-footer bg-white d-flex justify-content-end">
-                <button type="submit" class="btn btn-primary" data-button="submit"><i class="bi bi-save"></i> <?= $this->translate('Save changes'); ?></button>
-            </div>
-        </form>    
+        </div>
     </div>
-</div>
+</section>
