@@ -30,81 +30,50 @@ $this->getPluginBag()->appendStylesheet($this->moduleAsset('site.style.css', 'Me
 </head>
 
 <body class="bg-body-tertiary d-flex flex-column min-vh-100">
-<header class="bg-white border-bottom">
-    <nav class="navbar navbar-expand-md container">
-        <a class="navbar-brand fw-semibold" href="<?= $this->url('home'); ?>">
-            <i class="bi bi-people-fill me-1"></i>
-            <?= isset($siteName) && $siteName ? $siteName : $this->translate('Members Area'); ?>
-        </a>
 
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#membersNav" aria-controls="membersNav" aria-expanded="false" aria-label="<?= $this->translate('Toggle navigation'); ?>">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+<section class="flex-grow-1 d-flex justify-content-center align-items-start pt-3 bg-light">
+    <div class="container">
+        <div class="d-flex flex-wrap justify-content-end align-items-center gap-2 mb-4">
+            <a href="<?= $this->url('Members:Directory@indexAction'); ?>" class="btn btn-sm btn-outline-secondary px-3 py-2 rounded-0">
+                <i class="bi bi-people"></i>
+                <span><?= $this->translate('Members'); ?></span>
+            </a>
 
-        <div class="collapse navbar-collapse" id="membersNav">
-            <ul class="navbar-nav ms-auto">
-                <li class="nav-item">
-                    <a class="nav-link" href="<?= $this->url('Members:Directory@indexAction'); ?>">
-                        <i class="bi bi-people"></i>
-                        <?= $this->translate('Members'); ?>
-                    </a>
-                </li>
-
-                <?php if ($isLoggedIn): ?>
-                <li class="nav-item">
-                    <a class="nav-link" href="<?= $this->url('Members:Profile@indexAction'); ?>">
-                        <i class="bi bi-person-circle"></i>
-                        <?= $this->translate('My profile'); ?>
-                    </a>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link" href="<?= $this->url('Members:Chat@inboxAction'); ?>">
-                        <i class="bi bi-chat-dots"></i>
-                        <?= $this->translate('Messages'); ?>
-
-                        <?php if (!empty($unreadMessagesCount)): ?>
-                        <span class="badge bg-danger rounded-pill">
-                            <?= $unreadMessagesCount > 99 ? '99+' : (int) $unreadMessagesCount; ?>
-                        </span>
-                        <?php endif; ?>
-                    </a>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link" href="<?= $this->url('Members:Auth@logoutAction'); ?>">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <?= $this->translate('Logout'); ?>
-                    </a>
-                </li>
-                <?php else: ?>
-                <li class="nav-item">
-                    <a class="nav-link" href="<?= $this->url('Members:Auth@indexAction'); ?>">
-                        <i class="bi bi-box-arrow-in-right"></i>
-                        <?= $this->translate('Login'); ?>
-                    </a>
-                </li>
-
-                <li class="nav-item">
-                    <a class="nav-link" href="<?= $this->url('Members:Register@indexAction'); ?>">
-                        <i class="bi bi-person-plus"></i>
-                        <?= $this->translate('Register'); ?>
-                    </a>
-                </li>
+            <?php if ($isLoggedIn): ?>
+            <a href="<?= $this->url('Members:Chat@inboxAction'); ?>" class="btn btn-sm btn-outline-secondary position-relative px-3 py-2 rounded-0">
+                <i class="bi bi-chat-dots"></i>
+                <span><?= $this->translate('Messages'); ?></span>
+                <?php if (!empty($unreadMessagesCount)): ?>
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    <?= $unreadMessagesCount > 99 ? '99+' : (int) $unreadMessagesCount; ?>
+                </span>
                 <?php endif; ?>
-            </ul>
+            </a>
+            <a href="<?= $this->url('Members:Profile@indexAction'); ?>" class="btn btn-sm btn-outline-secondary px-3 py-2 rounded-0">
+                <i class="bi bi-person-circle"></i>
+                <span><?= $this->translate('My account'); ?></span>
+            </a>
+            <a href="<?= $this->url('Members:Auth@logoutAction'); ?>" class="btn btn-sm btn-outline-danger px-3 py-2 rounded-0">
+                <i class="bi bi-box-arrow-right"></i>
+                <span><?= $this->translate('Logout'); ?></span>
+            </a>
+            <?php else: ?>
+            <a href="<?= $this->url('Members:Auth@indexAction'); ?>" class="btn btn-sm btn-outline-secondary px-3 py-2 rounded-0">
+                <i class="bi bi-box-arrow-in-right"></i>
+                <span><?= $this->translate('Login'); ?></span>
+            </a>
+            <a href="<?= $this->url('Members:Register@indexAction'); ?>" class="btn btn-sm btn-primary px-3 py-2 rounded-0">
+                <i class="bi bi-person-plus"></i>
+                <span><?= $this->translate('Register'); ?></span>
+            </a>
+            <?php endif; ?>
         </div>
-    </nav>
-</header>
+    </div>
+</section>
 
 <?php $this->loadPartial('bs-flash'); ?>
 
 <?= $fragment; ?>
-
-<main class="flex-grow-1 d-flex justify-content-center align-items-start py-5">
-    <div class="container">
-    </div>
-</main>
 
 <footer class="flex-shrink-0 py-4 text-center text-body-secondary small">
     <div class="container">
