@@ -89,8 +89,23 @@ $activeTagSet = array_flip($filterTags);
                         <?php else: ?>
                         <i class="bi bi-person-circle text-body-secondary mb-3 member-avatar-icon-lg"></i>
                         <?php endif; ?>
-                        <h2 class="h5 mb-0"><?= htmlspecialchars($name); ?></h2>
-                    </div>
+
+                        <h2 class="h5 mb-1"><?= htmlspecialchars($name); ?></h2>
+
+                        <?php if ($member->getCompany()): ?>
+                        <p class="text-body-secondary small mb-0">
+                            <i class="bi bi-building"></i>
+                            <?= $member->getCompany(); ?>
+                        </p>
+                        <?php endif; ?>
+
+                        <?php if ($member->getCountryName()): ?>
+                        <p class="text-body-secondary small mb-0">
+                            <i class="bi bi-geo-alt"></i>
+                            <?= $member->getCountryName(); ?>
+                        </p>
+                        <?php endif; ?>
+                    </div>                    
                 </a>
             </div>
             <?php endforeach; ?>

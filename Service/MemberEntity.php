@@ -10,6 +10,7 @@
 namespace Members\Service;
 
 use Krystal\Stdlib\VirtualEntity;
+use Krystal\Iso\ISO3166\Country;
 
 final class MemberEntity extends VirtualEntity
 {
@@ -70,5 +71,26 @@ final class MemberEntity extends VirtualEntity
         }
 
         return '#' . (int) $this->getId();
+    }
+
+    /**
+     * Returns the human-readable name of the member's country.
+     *
+     * Resolves the stored ISO 3166-1 alpha-2 code against the
+     * framework's country map. Returns null when the member has
+     * no country set, or when the stored code is not a known
+     * ISO 3166-1 code (e.g. a stale or hand-edited value).
+     *
+     * @return string|null
+     */
+    public function getCountryName()
+    {
+        $code = $this->getCountry();
+
+        if ($code === null || $code === '') {
+            return null;
+        }
+
+        return (new Country())->getCountryByCode(strtolower((string) $code));
     }
 }
