@@ -137,7 +137,9 @@ final class MemberManager extends AbstractService
      */
     public function fetchDistinctCompanies()
     {
-        return $this->mapper->fetchDistinctCompanies();
+        $rows = $this->mapper->fetchDistinctCompanies();
+
+        return ArrayUtils::valuefy($rows);
     }
 
     /**
