@@ -53,11 +53,10 @@ final class MemberEntity extends VirtualEntity
 
     /**
      * Returns the member's display name
-     *
-     * Prefers the name column, falls back to the login, and finally
-     * to a numbered placeholder. The placeholder covers legacy rows
-     * that have neither name nor login set.
-     *
+     * 
+     * Prefers the name column, falls back to the email, and finally
+     * to a numbered placeholder
+     * 
      * @return string
      */
     public function getDisplayName()
@@ -68,10 +67,10 @@ final class MemberEntity extends VirtualEntity
             return (string) $name;
         }
 
-        $login = $this->getLogin();
+        $email = $this->getEmail();
 
-        if ($login !== null && $login !== '') {
-            return (string) $login;
+        if ($email !== null && $email !== '') {
+            return (string) $email;
         }
 
         return '#' . (int) $this->getId();

@@ -95,7 +95,6 @@ final class MemberChangeMapper extends AbstractMapper
                 self::column('*'),
                 MemberTranslationMapper::column('name') => 'member_name',
                 MemberMapper::column('email') => 'member_email',
-                MemberMapper::column('login') => 'member_login',
                 MemberMapper::column('avatar') => 'member_avatar',
             ])
             ->from(self::getTableName())

@@ -55,20 +55,6 @@ use Krystal\Form\Element;
                 </div>
 
                 <div class="mb-3">
-                    <label class="form-label" for="member_login">
-                        <?= $this->translate('Login'); ?>
-                    </label>
-                    <div class="input-group">
-                        <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
-                        <?= Element::text('member[login]', '', [
-                            'class' => 'form-control',
-                            'id' => 'member_login',
-                            'placeholder' => $this->translate('Username')
-                        ]); ?>
-                    </div>
-                </div>
-
-                <div class="mb-3">
                     <label class="form-label" for="member_password">
                         <?= $this->translate('Password'); ?>
                     </label>

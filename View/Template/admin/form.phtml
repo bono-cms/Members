@@ -53,23 +53,6 @@ $isNew  = !$entity->getId();
             </h5>
 
             <div class="row mb-3">
-                <label class="col-lg-2 col-form-label"><?= $this->translate('Login'); ?></label>
-                <div class="col-lg-10">
-                    <div class="input-group">
-                        <?= Element::text('member[login]', $entity->getLogin(), [
-                            'class' => 'form-control',
-                            'placeholder' => $this->translate('Username'),
-                            'readonly' => !$isNew
-                        ]); ?>
-                        <span class="input-group-text"><i class="bi bi-person-badge"></i></span>
-                    </div>
-                    <?php if (!$isNew): ?>
-                    <small class="text-muted"><?= $this->translate('Login cannot be changed after creation.'); ?></small>
-                    <?php endif; ?>
-                </div>
-            </div>
-
-            <div class="row mb-3">
                 <label class="col-lg-2 col-form-label"><?= $this->translate('Email'); ?></label>
                 <div class="col-lg-10">
                     <div class="input-group">

@@ -43,7 +43,6 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
         return [
             self::column('id'),
             self::column('email'),
-            self::column('login'),
             self::column('password_hash'),
             self::column('company'),
             self::column('phone'),
@@ -463,7 +462,6 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
 
         $db = $this->db->select([
                 self::column('id'),
-                self::column('login'),
                 self::column('avatar'),
                 MemberTranslationMapper::column('name'),
             ])
@@ -475,20 +473,6 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
             ->whereIn(self::column('id'), $ids);
 
         return $db->queryAll();
-    }
-    /**
-     * Finds a member by their login
-     * 
-     * @param string $login
-     * @return array|boolean Row as array on success, false if not found
-     */
-    public function findByLogin($login)
-    {
-        $db = $this->db->select('*')
-                       ->from(self::getTableName())
-                       ->whereEquals('login', $login);
-
-        return $db->query();
     }
 
     /**

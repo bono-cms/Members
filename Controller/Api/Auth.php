@@ -55,8 +55,7 @@ final class Auth extends AbstractApiController
                 'id' => (int) $member['id'],
                 'name' => $member['name'],
                 'email' => $member['email'],
-                'login' => $member['login'],
-                'confirmed' => (bool) $member['confirmed'],
+                'confirmed' => (bool) $member['confirmed']
             ],
         ]);
     }
@@ -124,7 +123,6 @@ final class Auth extends AbstractApiController
             'id' => $member->getId(),
             'name' => $member->getDisplayName(),
             'email' => $member->getEmail(),
-            'login' => $member->getLogin(),
             'confirmed' => (bool) $member->getConfirmed(),
             'avatar' => $member->hasAvatar() ? $member->getAvatarUrl(MemberEntity::AVATAR_SMALL) : null
         ]);

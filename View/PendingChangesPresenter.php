@@ -188,10 +188,6 @@ final class PendingChangesPresenter
             return $submission['member_name'];
         }
 
-        if (!empty($submission['member_login'])) {
-            return $submission['member_login'];
-        }
-
         if (isset($submission['member_id'])) {
             return '#' . (int) $submission['member_id'];
         }

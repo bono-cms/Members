@@ -67,7 +67,6 @@ final class MemberManager extends AbstractService
         $entity->setId((int) $row['id'])
                ->setName(isset($row['name']) ? $row['name'] : null)
                ->setEmail($row['email'])
-               ->setLogin($row['login'])
                ->setPhone(isset($row['phone']) ? $row['phone'] : null)
                ->setCountry(isset($row['country']) ? $row['country'] : null)
                ->setAddress(isset($row['address']) ? $row['address'] : null)
@@ -185,7 +184,6 @@ final class MemberManager extends AbstractService
             $result[(int) $row['id']] = [
                 'id' => (int) $row['id'],
                 'name' => isset($row['name']) ? $row['name'] : null,
-                'login' => isset($row['login']) ? $row['login'] : null,
                 'avatar' => isset($row['avatar']) ? $row['avatar'] : null
             ];
         }
@@ -482,10 +480,6 @@ final class MemberManager extends AbstractService
     {
         $row = $this->mapper->findByEmail($identifier);
 
-        if (!$row) {
-            $row = $this->mapper->findByLogin($identifier);
-        }
-
         if ($row && password_verify($password, $row['password_hash'])) {
             $translation = $this->mapper->fetchTranslation($row['id']);
 
@@ -493,7 +487,6 @@ final class MemberManager extends AbstractService
                 'id' => $row['id'],
                 'name' => $translation ? $translation['name'] : null,
                 'email' => $row['email'],
-                'login' => $row['login'],
                 'confirmed' => (bool) $row['confirmed']
             ]);
 

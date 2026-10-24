@@ -5,7 +5,6 @@ DROP TABLE IF EXISTS `bono_module_members`;
 CREATE TABLE `bono_module_members` (
   `id`                    INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
   `email`                 VARCHAR(254) NOT NULL,
-  `login`                 VARCHAR(254) NOT NULL,
   `password_hash`         VARCHAR(254) NOT NULL,
   `password_changed_at`   DATETIME NULL,
   `company`               VARCHAR(120) NULL,
@@ -20,8 +19,7 @@ CREATE TABLE `bono_module_members` (
   `last_seen_at`          DATETIME NULL,
   `is_banned`             TINYINT(1) NOT NULL DEFAULT 0,
   `created_at`            DATETIME NOT NULL,
-  UNIQUE KEY `uq_email` (`email`),
-  UNIQUE KEY `uq_login` (`login`)
+  UNIQUE KEY `uq_email` (`email`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------

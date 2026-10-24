@@ -118,9 +118,6 @@ final class Register extends AbstractController
                   ->addRule('email')
                   ->addRule('uniqueEmail');
 
-        $validator->field('member.login')
-                  ->required();
-
         $validator->field('member.password')
                   ->required()
                   ->addRule('minlength', null, ['min' => 6]);

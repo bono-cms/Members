@@ -74,13 +74,12 @@ filenames below are the ones the module looks up.
 
 The file must be named `member-login.phtml`. It receives a `$page` entity
 for SEO and title metadata. The login form posts to the login endpoint with
-two fields: `identifier` (email or login) and `password`.
+two fields: `identifier` (email) and `password`.
 
 ## Member registration template
 
 The file must be named `member-register.phtml`. It receives a `$page`
-entity. The form posts `member[name]`, `member[email]`, `member[login]`
-and `member[password]`. On success the member is redirected to the
+entity. The form posts `member[name]`, `member[email]` and `member[password]`. On success the member is redirected to the
 registration success page, and a confirmation email is sent.
 
 ## Member profile (dashboard) template
@@ -359,7 +358,7 @@ Authenticate and receive a JWT. Public.
 
 | Name         | Type   | Required | Notes                  |
 |--------------|--------|----------|------------------------|
-| `identifier` | string | yes      | Email address or login |
+| `identifier` | string | yes      | Email address          |
 | `password`   | string | yes      | Plain-text password    |
 
 **Response 200**
@@ -371,7 +370,6 @@ Authenticate and receive a JWT. Public.
     "id": 42,
     "name": "Jane Doe",
     "email": "jane@example.com",
-    "login": "jane",
     "confirmed": true
   }
 }
@@ -417,7 +415,6 @@ Validate the current token and return fresh user data. Protected.
   "id": 42,
   "name": "Jane Doe",
   "email": "jane@example.com",
-  "login": "jane",
   "confirmed": true,
   "avatar": "https://example.com/data/uploads/module/members/avatars/42/128x128/abc.jpg"
 }
@@ -439,7 +436,6 @@ confirmation link is clicked. Public.
 |--------------------|--------|----------|---------------------|
 | `member[name]`     | string | yes      | Min length 2        |
 | `member[email]`    | string | yes      | Valid, unique email |
-| `member[login]`    | string | yes      | Unique              |
 | `member[password]` | string | yes      | Min length 6        |
 
 **Response 201**
@@ -483,7 +479,6 @@ any pending moderation changes. Protected.
   "user": {
     "id": 42,
     "name": "Jane Doe",
-    "login": "jane",
     "email": "jane@example.com",
     "confirmed": true,
     "company": "Acme",

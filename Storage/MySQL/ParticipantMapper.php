@@ -282,7 +282,6 @@ final class ParticipantMapper extends AbstractMapper
                     MemberTranslationMapper::column('name', 'translation'),
 
                     // Login / avatar from the members table (via the "member" alias)
-                    MemberMapper::column('login',  'member'),
                     MemberMapper::column('avatar', 'member'),
                 ])
                 ->from($participantsTable, 'participant')

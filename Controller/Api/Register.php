@@ -35,9 +35,6 @@ final class Register extends AbstractApiController
                   ->addRule('email')
                   ->addRule('uniqueEmail');
 
-        $validator->field('member.login')
-                  ->required();
-
         $validator->field('member.password')
                   ->required()
                   ->addRule('minlength', null, ['min' => 6]);

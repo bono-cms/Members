@@ -1,12 +1,5 @@
 # TODO LIST
 
-## Now
-
-- [ ] Decide on removing the `login` attribute
-- [ ] Improve overall look
-
-## Later
-
 - [ ] Rework Roles
 - [ ] Add filters to tables
 - [ ] Profile approvals (with enable/disable option)

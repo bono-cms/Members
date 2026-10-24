@@ -34,7 +34,7 @@ return [
             // handled separately (password reset flow, registration)
             // and cannot be staged or applied through the profile
             // edit form.
-            'reserved' => ['id', 'password', 'remove_avatar', 'email', 'login'],
+            'reserved' => ['id', 'password', 'remove_avatar', 'email'],
 
             // Fields applied immediately, never staged
             'skip' => ['phone', 'password'],

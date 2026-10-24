@@ -172,9 +172,6 @@ final class Members extends AbstractController
                   ->addRule('email')
                   ->addRule('uniqueEmail');
 
-        $validator->field('member.login')
-                  ->required();
-
         $validator->field('member.password')
                   ->required(null, empty($input['id']))
                   ->addRule('minlength', null, ['min' => 6]);

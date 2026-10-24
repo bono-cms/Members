@@ -180,10 +180,6 @@ final class ChatPresenter
             return (string) $member['name'];
         }
 
-        if (!empty($member['login'])) {
-            return (string) $member['login'];
-        }
-
         return '#' . (int) $member['id'];
     }
 
