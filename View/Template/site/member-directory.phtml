@@ -1,19 +1,10 @@
 <?php
 
 use Krystal\Form\Element;
-use Krystal\Iso\ISO3166\Country;
-
-$countryOptions = (new Country())->getAll();
-$companyOptions = ['' => $this->translate('All companies')];
-
-foreach ($companies as $name) {
-    $companyOptions[$name] = $name;
-}
 
 $activeTagSet = array_flip($filterTags);
 
 ?>
-
 
 <div class="row g-4">
     <!-- Filter sidebar -->
@@ -26,12 +17,12 @@ $activeTagSet = array_flip($filterTags);
             <div class="card-body">
                 <div class="mb-3">
                     <label class="form-label" for="filter_country"><?= $this->translate('Country'); ?></label>
-                    <?= Element::select('country', $countryOptions, $filterCountry ?: '', ['class' => 'form-select', 'id' => 'filter_country'], $this->translate('All countries')); ?>
+                    <?= Element::select('country', $this->translateArray($countries), $filterCountry ?: '', ['class' => 'form-select', 'id' => 'filter_country'], $this->translate('All countries')); ?>
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label" for="filter_company"><?= $this->translate('Company'); ?></label>
-                    <?= Element::select('company', $companyOptions, $filterCompany ?: '', ['class' => 'form-select', 'id' => 'filter_company']); ?>
+                    <?= Element::select('company', $companies , $filterCompany ?: '', ['class' => 'form-select', 'id' => 'filter_company'], $this->translate('All companies')); ?>
                 </div>
 
                 <?php if (!empty($payload)): ?>

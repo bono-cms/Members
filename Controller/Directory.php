@@ -10,7 +10,6 @@
 namespace Members\Controller;
 
 use Krystal\Stdlib\VirtualEntity;
-use Krystal\Iso\ISO3166\Country;
 
 final class Directory extends AbstractController
 {
@@ -48,7 +47,7 @@ final class Directory extends AbstractController
             'members' => $members,
             'paginator' => $memberManager->getPaginator(),
             'total' => $memberManager->getPaginator()->getTotalAmount(),
-            'countries' => (new Country())->getAll(),
+            'countries' => $memberManager->fetchAvailableCountries(),
             'companies' => $memberManager->fetchDistinctCompanies(),
             'payload' => $memberTagService->fetchPickerPayload(),
             'filterCountry' => $country,

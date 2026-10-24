@@ -81,6 +81,25 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
     }
 
     /**
+     * Returns distinct, non-empty ISO 3166-1 alpha-2 country codes
+     * from confirmed members.
+     *
+     * @return array
+     */
+    public function fetchDistinctCountries()
+    {
+        $db = $this->db->select(self::column('country'), true)
+                      ->from(self::getTableName())
+                      ->whereEquals(self::column('confirmed'), '1')
+                      ->andWhere('country', 'IS NOT', new RawSqlFragment('NULL'))
+                      ->andWhereNotEquals('country', '')
+                      ->orderBy('country')
+                      ->asc();
+
+        return $db->queryAll('country');
+    }
+
+    /**
      * Returns distinct non-empty company names from confirmed members
      *
      * Company is stored on the base members table, not in translations.
@@ -89,22 +108,15 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
      */
     public function fetchDistinctCompanies()
     {
-        $companies = $this->db->select(self::column('company'), true)
-                              ->from(self::getTableName())
-                              ->whereEquals(self::column('confirmed'), '1')
-                              ->andWhere('company', 'IS NOT', new RawSqlFragment('NULL'))
-                              ->andWhereNotEquals('company', '')
-                              ->orderBy('company')
-                              ->asc()
-                              ->queryAll();
+        $db = $this->db->select(self::column('company'), true)
+                      ->from(self::getTableName())
+                      ->whereEquals(self::column('confirmed'), '1')
+                      ->andWhere('company', 'IS NOT', new RawSqlFragment('NULL'))
+                      ->andWhereNotEquals('company', '')
+                      ->orderBy('company')
+                      ->asc();
 
-        $result = [];
-
-        foreach ($companies as $row) {
-            $result[] = $row['company'];
-        }
-
-        return $result;
+        return $db->queryAll('company');
     }
 
     /**

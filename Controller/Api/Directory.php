@@ -67,7 +67,7 @@ final class Directory extends AbstractApiController
                     'tags' => $tagIds
                 ],
                 'available' => [
-                    'countries' => (new Country())->getAll(),
+                    'countries' => $memberManager->fetchAvailableCountries(),
                     'companies' => $memberManager->fetchDistinctCompanies(),
                     'tags' => $memberTagService->fetchPickerPayload()
                 ]

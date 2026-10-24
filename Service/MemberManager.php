@@ -13,6 +13,7 @@ use Krystal\Application\Model\AbstractService;
 use Krystal\Stdlib\VirtualEntity;
 use Krystal\Stdlib\ArrayUtils;
 use Krystal\Image\Tool\ImageManagerInterface;
+use Krystal\Iso\ISO3166\Country;
 use Members\Storage\MySQL\MemberMapper;
 
 final class MemberManager extends AbstractService
@@ -86,6 +87,38 @@ final class MemberManager extends AbstractService
         $entity->setAvatarBag($avatarBag);
 
         return $entity;
+    }
+
+    /**
+     * Returns only the ISO 3166-1 countries that have at least one
+     * confirmed member, as a [code => name] map.
+     *
+     * The list is built by intersecting the full ISO map with the
+     * distinct country codes currently stored on confirmed members,
+     * so the result is already in the exact shape a <select> needs.
+     *
+     * @return array<string, string>
+     */
+    public function fetchAvailableCountries()
+    {
+        $codes = $this->mapper->fetchDistinctCountries();
+
+        if (empty($codes)) {
+            return [];
+        }
+
+        $all = (new Country())->getAll();
+        $available = [];
+
+        foreach ($codes as $code) {
+            $code = strtolower(trim((string) $code));
+
+            if (isset($all[$code])) {
+                $available[$code] = $all[$code];
+            }
+        }
+
+        return $available;
     }
 
     /**
