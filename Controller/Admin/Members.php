@@ -147,8 +147,21 @@ final class Members extends AbstractController
     public function saveAction()
     {
         $input = $this->request->getPost('member');
+        $service = $this->getModuleService('memberManager');
 
         $validator = $this->createValidation();
+
+        $validator->setFieldRule('uniqueEmail', function ($email) use ($service, $input) {
+            // Treat an unchanged email as free
+            if (!empty($input['id'])) {
+                $member = $service->fetchById((int) $input['id']);
+                if ($member && $member->getEmail() === $email) {
+                    return true;
+                }
+            }
+
+            return $service->isFree($email);
+        }, 'This email is already taken');
 
         $validator->field('translation.*.name')
                   ->required()
@@ -156,7 +169,8 @@ final class Members extends AbstractController
 
         $validator->field('member.email')
                   ->required()
-                  ->addRule('email');
+                  ->addRule('email')
+                  ->addRule('uniqueEmail');
 
         $validator->field('member.login')
                   ->required();
@@ -174,7 +188,6 @@ final class Members extends AbstractController
             ]);
         }
 
-        $service = $this->getModuleService('memberManager');
         $memberTagService = $this->getModuleService('memberTagService');
 
         if (!empty($input['id'])) {
@@ -187,9 +200,6 @@ final class Members extends AbstractController
             $this->flashBag->set('success', 'The element has been created successfully');
         }
 
-        // Persist the tag selection. The sanitizer strips any id
-        // that is not an active tag, so a crafted POST cannot
-        // attach an inactive or foreign tag.
         $submittedTags = (array) $this->request->getPost('tags', []);
         $safeTags = $memberTagService->sanitizeSelection($submittedTags);
         $memberTagService->saveSelection($memberId, $safeTags);
@@ -204,6 +214,7 @@ final class Members extends AbstractController
             'redirect' => $this->createUrl('Members:Admin:Members@editAction', [$memberId])
         ]);
     }
+
 
     /**
      * Renders the members grid

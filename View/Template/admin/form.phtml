@@ -75,14 +75,10 @@ $isNew  = !$entity->getId();
                     <div class="input-group">
                         <?= Element::text('member[email]', $entity->getEmail(), [
                             'class' => 'form-control',
-                            'placeholder' => 'example@domain.com',
-                            'readonly' => !$isNew
+                            'placeholder' => 'example@domain.com'
                         ]); ?>
                         <span class="input-group-text"><i class="bi bi-envelope"></i></span>
                     </div>
-                    <?php if (!$isNew): ?>
-                    <small class="text-muted"><?= $this->translate('Email cannot be changed after creation.'); ?></small>
-                    <?php endif; ?>
                 </div>
             </div>
 
