@@ -4,55 +4,59 @@ use Krystal\Form\Element;
 
 ?>
 
-<form class="card shadow-sm border-0" autocomplete="off" id="login-form" method="POST" action="<?= $this->url('Members:Auth@loginAction'); ?>">
-    <div class="card-header bg-white border-0 pt-4 px-4">
-        <h4 class="mb-0">
-            <i class="bi bi-box-arrow-in-right"></i>
-            <?= $this->translate('Login'); ?>
-        </h4>
-    </div>
-
-    <div class="card-body px-4 pb-4">
-        <div class="mb-3">
-            <label class="form-label"><?= $this->translate('Email or login'); ?></label>
-            <div class="input-group">
-                <span class="input-group-text"><i class="bi bi-person"></i></span>
-                <?= Element::text('identifier', '', [
-                    'class' => 'form-control',
-                    'placeholder' => $this->translate('Email or login'),
-                    'autofocus' => true
-                ]); ?>
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <form class="card shadow-sm border-0" autocomplete="off" id="login-form" method="POST" action="<?= $this->url('Members:Auth@loginAction'); ?>">
+            <div class="card-header bg-white border-0 pt-4 px-4">
+                <h4 class="mb-0">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    <?= $this->translate('Login'); ?>
+                </h4>
             </div>
-        </div>
 
-        <div class="mb-3">
-            <label class="form-label"><?= $this->translate('Password'); ?></label>
-            <div class="input-group">
-                <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                <?= Element::password('password', '', [
-                    'class' => 'form-control',
-                    'placeholder' => $this->translate('Password')
-                ]); ?>
+            <div class="card-body px-4 pb-4">
+                <div class="mb-3">
+                    <label class="form-label"><?= $this->translate('Email or login'); ?></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                        <?= Element::text('identifier', '', [
+                            'class' => 'form-control',
+                            'placeholder' => $this->translate('Email or login'),
+                            'autofocus' => true
+                        ]); ?>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label"><?= $this->translate('Password'); ?></label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                        <?= Element::password('password', '', [
+                            'class' => 'form-control',
+                            'placeholder' => $this->translate('Password')
+                        ]); ?>
+                    </div>
+                </div>
+
+                <div class="mb-0">
+                    <a href="<?= $this->url('Members:Recovery@indexAction'); ?>" class="small text-decoration-none">
+                        <?= $this->translate('Forgot your password?'); ?>
+                    </a>
+                </div>
             </div>
-        </div>
 
-        <div class="mb-0">
-            <a href="<?= $this->url('Members:Recovery@indexAction'); ?>" class="small text-decoration-none">
-                <?= $this->translate('Forgot your password?'); ?>
-            </a>
-        </div>
+            <div class="card-footer bg-white border-0 d-flex justify-content-between align-items-center px-4 py-3">
+                <a href="<?= $this->url('Members:Register@indexAction'); ?>" class="small text-decoration-none">
+                    <?= $this->translate('Create an account'); ?>
+                </a>
+
+                <button type="submit" class="btn btn-primary"
+                        data-button="submit"
+                        data-url="<?= $this->url('Members:Auth@indexAction'); ?>">
+                    <i class="bi bi-box-arrow-in-right"></i>
+                    <?= $this->translate('Login'); ?>
+                </button>
+            </div>
+        </form>    
     </div>
-
-    <div class="card-footer bg-white border-0 d-flex justify-content-between align-items-center px-4 py-3">
-        <a href="<?= $this->url('Members:Register@indexAction'); ?>" class="small text-decoration-none">
-            <?= $this->translate('Create an account'); ?>
-        </a>
-
-        <button type="submit" class="btn btn-primary"
-                data-button="submit"
-                data-url="<?= $this->url('Members:Auth@indexAction'); ?>">
-            <i class="bi bi-box-arrow-in-right"></i>
-            <?= $this->translate('Login'); ?>
-        </button>
-    </div>
-</form>
+</div>

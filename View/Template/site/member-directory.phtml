@@ -5,6 +5,7 @@ use Krystal\Iso\ISO3166\Country;
 
 $countryOptions = (new Country())->getAll();
 $companyOptions = ['' => $this->translate('All companies')];
+
 foreach ($companies as $name) {
     $companyOptions[$name] = $name;
 }
@@ -12,6 +13,7 @@ foreach ($companies as $name) {
 $activeTagSet = array_flip($filterTags);
 
 ?>
+
 
 <div class="row g-4">
     <!-- Filter sidebar -->

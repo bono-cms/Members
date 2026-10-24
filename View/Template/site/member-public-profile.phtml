@@ -14,64 +14,68 @@ $country = $member->getCountry();
 
 ?>
 
-<div class="card shadow-sm border-0">
-    <div class="card-body p-4">
-        <div class="d-flex flex-column flex-sm-row align-items-center gap-4">
-            <?php if ($member->hasAvatar()): ?>
-            <img src="<?= $member->getAvatarUrl('256x256'); ?>" class="rounded-circle member-avatar-xl" alt="<?= htmlspecialchars($name); ?>" />
-            <?php else: ?>
-            <i class="bi bi-person-circle text-body-secondary member-avatar-icon-xl"></i>
-            <?php endif; ?>
+<div class="row justify-content-center">
+    <div class="col-lg-9">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <div class="d-flex flex-column flex-sm-row align-items-center gap-4">
+                    <?php if ($member->hasAvatar()): ?>
+                    <img src="<?= $member->getAvatarUrl('256x256'); ?>" class="rounded-circle member-avatar-xl" alt="<?= htmlspecialchars($name); ?>" />
+                    <?php else: ?>
+                    <i class="bi bi-person-circle text-body-secondary member-avatar-icon-xl"></i>
+                    <?php endif; ?>
 
-            <div class="text-center text-sm-start">
-                <h1 class="h3 mb-1"><?= htmlspecialchars($name); ?></h1>
-                <?php if ($member->getTitle()): ?>
-                <p class="text-body-secondary mb-1"><?= htmlspecialchars($member->getTitle()); ?></p>
-                <?php endif; ?>
-                <?php if ($member->getCompany()): ?>
-                <p class="text-body-secondary mb-1"><i class="bi bi-building"></i> <?= htmlspecialchars($member->getCompany()); ?></p>
-                <?php endif; ?>
-                <?php if ($country): ?>
-                <p class="text-body-secondary mb-0"><i class="bi bi-geo-alt"></i> <?= htmlspecialchars((new Country())->getCountryByCode($country)); ?></p>
-                <?php endif; ?>
+                    <div class="text-center text-sm-start">
+                        <h1 class="h3 mb-1"><?= htmlspecialchars($name); ?></h1>
+                        <?php if ($member->getTitle()): ?>
+                        <p class="text-body-secondary mb-1"><?= htmlspecialchars($member->getTitle()); ?></p>
+                        <?php endif; ?>
+                        <?php if ($member->getCompany()): ?>
+                        <p class="text-body-secondary mb-1"><i class="bi bi-building"></i> <?= htmlspecialchars($member->getCompany()); ?></p>
+                        <?php endif; ?>
+                        <?php if ($country): ?>
+                        <p class="text-body-secondary mb-0"><i class="bi bi-geo-alt"></i> <?= htmlspecialchars((new Country())->getCountryByCode($country)); ?></p>
+                        <?php endif; ?>
+                    </div>
+                </div>
             </div>
         </div>
+
+        <?php if (!empty($tagGroups)): ?>
+        <div class="card shadow-sm border-0 mt-4">
+            <div class="card-body p-4">
+                <h2 class="h5 mb-3"><i class="bi bi-tags"></i> <?= $this->translate('Tags'); ?></h2>
+
+                <dl class="row mb-0">
+                    <?php foreach ($tagGroups as $group): ?>
+                    <dt class="col-sm-4 col-md-3 text-body-secondary fw-normal">
+                        <?= htmlspecialchars($group['group']['name']); ?>
+                    </dt>
+                    <dd class="col-sm-8 col-md-9 mb-2">
+                        <?= htmlspecialchars(implode(', ', array_column($group['tags'], 'label'))); ?>
+                    </dd>
+                    <?php endforeach; ?>
+                </dl>
+
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <?php if ($member->getBio()): ?>
+        <div class="card shadow-sm border-0 mt-4">
+            <div class="card-body p-4">
+                <h2 class="h5 mb-3"><i class="bi bi-person-lines-fill"></i> <?= $this->translate('About'); ?></h2>
+                <p class="mb-0"><?= nl2br(htmlspecialchars($member->getBio())); ?></p>
+            </div>
+        </div>
+        <?php endif; ?>
+
+        <div class="mt-4 d-flex gap-2 flex-wrap">
+            <a href="<?= $this->url('Members:Directory@indexAction'); ?>" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> <?= $this->translate('Back to members'); ?></a>
+
+            <?php if ($isLoggedIn && (int) $member->getId() !== (int) ($meId ?? 0)): ?>
+            <a href="<?= $this->url('Members:Chat@withAction', [$member->getId()]); ?>" class="btn btn-primary"><i class="bi bi-chat-dots"></i> <?= $this->translate('Message this member'); ?></a>
+            <?php endif; ?>
+        </div>    
     </div>
-</div>
-
-<?php if (!empty($tagGroups)): ?>
-<div class="card shadow-sm border-0 mt-4">
-    <div class="card-body p-4">
-        <h2 class="h5 mb-3"><i class="bi bi-tags"></i> <?= $this->translate('Tags'); ?></h2>
-
-        <dl class="row mb-0">
-            <?php foreach ($tagGroups as $group): ?>
-            <dt class="col-sm-4 col-md-3 text-body-secondary fw-normal">
-                <?= htmlspecialchars($group['group']['name']); ?>
-            </dt>
-            <dd class="col-sm-8 col-md-9 mb-2">
-                <?= htmlspecialchars(implode(', ', array_column($group['tags'], 'label'))); ?>
-            </dd>
-            <?php endforeach; ?>
-        </dl>
-
-    </div>
-</div>
-<?php endif; ?>
-
-<?php if ($member->getBio()): ?>
-<div class="card shadow-sm border-0 mt-4">
-    <div class="card-body p-4">
-        <h2 class="h5 mb-3"><i class="bi bi-person-lines-fill"></i> <?= $this->translate('About'); ?></h2>
-        <p class="mb-0"><?= nl2br(htmlspecialchars($member->getBio())); ?></p>
-    </div>
-</div>
-<?php endif; ?>
-
-<div class="mt-4 d-flex gap-2 flex-wrap">
-    <a href="<?= $this->url('Members:Directory@indexAction'); ?>" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> <?= $this->translate('Back to members'); ?></a>
-
-    <?php if ($isLoggedIn && (int) $member->getId() !== (int) ($meId ?? 0)): ?>
-    <a href="<?= $this->url('Members:Chat@withAction', [$member->getId()]); ?>" class="btn btn-primary"><i class="bi bi-chat-dots"></i> <?= $this->translate('Message this member'); ?></a>
-    <?php endif; ?>
 </div>

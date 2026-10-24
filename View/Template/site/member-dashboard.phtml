@@ -4,71 +4,75 @@ use Krystal\Stdlib\VirtualEntity;
 
 ?>
 
-<?php if (!$member->getConfirmed()): ?>
-<div class="alert alert-warning d-flex align-items-start gap-3 mb-4" role="alert">
-    <i class="bi bi-exclamation-triangle-fill fs-4"></i>
-    <div>
-        <h5 class="alert-heading mb-1"><?= $this->translate('Please confirm your email address'); ?></h5>
-        <p class="mb-2"><?= $this->translate('We sent a confirmation link to %s. Click the link in that email to activate all features of your account.', $member->getEmail()); ?></p>
-        <a href="<?= $this->url('Members:Register@resendAction'); ?>" class="btn btn-sm btn-warning"><i class="bi bi-envelope-arrow-up"></i> <?= $this->translate('Resend confirmation email'); ?></a>
-    </div>
-</div>
-<?php endif; ?>
+<div class="row justify-content-center">
+    <div class="col-lg-6">
+        <?php if (!$member->getConfirmed()): ?>
+        <div class="alert alert-warning d-flex align-items-start gap-3 mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill fs-4"></i>
+            <div>
+                <h5 class="alert-heading mb-1"><?= $this->translate('Please confirm your email address'); ?></h5>
+                <p class="mb-2"><?= $this->translate('We sent a confirmation link to %s. Click the link in that email to activate all features of your account.', $member->getEmail()); ?></p>
+                <a href="<?= $this->url('Members:Register@resendAction'); ?>" class="btn btn-sm btn-warning"><i class="bi bi-envelope-arrow-up"></i> <?= $this->translate('Resend confirmation email'); ?></a>
+            </div>
+        </div>
+        <?php endif; ?>
 
-<div class="row g-4">
-    <div class="col-12">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body p-4">
-                <div class="d-flex align-items-center gap-3">
-                    <?php if ($member->hasAvatar()): ?>
-                    <img src="<?= $member->getAvatarUrl('128x128'); ?>" class="rounded-circle member-avatar-md" alt="" />
-                    <?php else: ?>
-                    <i class="bi bi-person-circle text-body-secondary member-avatar-icon-md"></i>
-                    <?php endif; ?>
-                    <div>
-                        <h1 class="h4 mb-1"><?= $this->translate('Hello, %s', $member->getName()); ?></h1>
-                        <p class="text-body-secondary mb-0"><?= $member->getEmail(); ?></p>
+        <div class="row g-4">
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-center gap-3">
+                            <?php if ($member->hasAvatar()): ?>
+                            <img src="<?= $member->getAvatarUrl('128x128'); ?>" class="rounded-circle member-avatar-md" alt="" />
+                            <?php else: ?>
+                            <i class="bi bi-person-circle text-body-secondary member-avatar-icon-md"></i>
+                            <?php endif; ?>
+                            <div>
+                                <h1 class="h4 mb-1"><?= $this->translate('Hello, %s', $member->getName()); ?></h1>
+                                <p class="text-body-secondary mb-0"><?= $member->getEmail(); ?></p>
+                            </div>
+                        </div>
+
+                        <?php if (!empty($tagGroups)): ?>
+                        <ul class="list-unstyled small mt-3 mb-0">
+                            <?php foreach ($tagGroups as $group): ?>
+                            <li class="mb-1">
+                                <span class="text-body-secondary"><?= htmlspecialchars($group['group']['name']); ?>:</span>
+                                <?= htmlspecialchars(implode(', ', array_column($group['tags'], 'label'))); ?>
+                            </li>
+                            <?php endforeach; ?>
+                        </ul>
+                        <?php endif; ?>
                     </div>
                 </div>
-
-                <?php if (!empty($tagGroups)): ?>
-                <ul class="list-unstyled small mt-3 mb-0">
-                    <?php foreach ($tagGroups as $group): ?>
-                    <li class="mb-1">
-                        <span class="text-body-secondary"><?= htmlspecialchars($group['group']['name']); ?>:</span>
-                        <?= htmlspecialchars(implode(', ', array_column($group['tags'], 'label'))); ?>
-                    </li>
-                    <?php endforeach; ?>
-                </ul>
-                <?php endif; ?>
             </div>
-        </div>
-    </div>
 
-    <div class="col-12 col-md-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h5 class="card-title"><i class="bi bi-person-badge text-primary"></i> <?= $this->translate('Profile'); ?></h5>
-                <p class="text-body-secondary"><?= $this->translate('View and update your personal details, contact information, and public profile.'); ?></p>
-                <a href="<?= $this->url('Members:Profile@editAction'); ?>" class="btn btn-outline-primary"><i class="bi bi-pencil"></i> <?= $this->translate('Edit profile'); ?></a>
+            <div class="col-12 col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-person-badge text-primary"></i> <?= $this->translate('Profile'); ?></h5>
+                        <p class="text-body-secondary"><?= $this->translate('View and update your personal details, contact information, and public profile.'); ?></p>
+                        <a href="<?= $this->url('Members:Profile@editAction'); ?>" class="btn btn-outline-primary"><i class="bi bi-pencil"></i> <?= $this->translate('Edit profile'); ?></a>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
 
-    <div class="col-12 col-md-6">
-        <div class="card border-0 shadow-sm h-100">
-            <div class="card-body">
-                <h5 class="card-title"><i class="bi bi-chat-dots text-primary"></i> <?= $this->translate('Messages'); ?></h5>
-                <p class="text-body-secondary"><?= $this->translate('Chat with other members, send messages, and keep up with your conversations.'); ?></p>
-                <a href="<?= $this->url('Members:Chat@inboxAction'); ?>" class="btn btn-outline-primary"><i class="bi bi-envelope"></i> <?= $this->translate('Go to inbox'); ?></a>
+            <div class="col-12 col-md-6">
+                <div class="card border-0 shadow-sm h-100">
+                    <div class="card-body">
+                        <h5 class="card-title"><i class="bi bi-chat-dots text-primary"></i> <?= $this->translate('Messages'); ?></h5>
+                        <p class="text-body-secondary"><?= $this->translate('Chat with other members, send messages, and keep up with your conversations.'); ?></p>
+                        <a href="<?= $this->url('Members:Chat@inboxAction'); ?>" class="btn btn-outline-primary"><i class="bi bi-envelope"></i> <?= $this->translate('Go to inbox'); ?></a>
+                    </div>
+                </div>
             </div>
-        </div>
-    </div>
 
-    <div class="col-12">
-        <div class="card border-0 shadow-sm">
-            <div class="card-body text-end">
-                <a href="<?= $this->url('Members:Auth@logoutAction'); ?>" class="btn btn-outline-danger"><i class="bi bi-box-arrow-right"></i> <?= $this->translate('Logout'); ?></a>
+            <div class="col-12">
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body text-end">
+                        <a href="<?= $this->url('Members:Auth@logoutAction'); ?>" class="btn btn-outline-danger"><i class="bi bi-box-arrow-right"></i> <?= $this->translate('Logout'); ?></a>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
