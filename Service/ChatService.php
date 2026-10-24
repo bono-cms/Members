@@ -122,7 +122,7 @@ final class ChatService
             return false;
         }
 
-        return $this->memberManager->fetchById((int) $participant['member_id']);
+        return $this->memberManager->fetchByIdForCurrentLang((int) $participant['member_id']);
     }
 
     /**

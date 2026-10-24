@@ -34,9 +34,11 @@ $lastId = empty($messages) ? 0 : (int) end($messages)['id'];
                 <?php endif; ?>
 
                 <?php if ($otherMember !== false): ?>
-                <a href="<?= $this->url('Members:Directory@profileAction', [$otherMember->getId()]); ?>" class="fw-semibold text-decoration-none text-body text-truncate"><?= htmlspecialchars($otherMember->getDisplayName()); ?></a>
+                <a href="<?= $this->url('Members:Directory@profileAction', [$otherMember->getId()]); ?>" class="fw-semibold text-decoration-none text-body text-truncate">
+                    <?= htmlspecialchars($otherMember->getName() ?: $otherMember->getDisplayName()); ?>
+                </a>
                 <?php endif; ?>
-            </div>
+            </div>            
         </div>
     </div>
 
