@@ -145,19 +145,18 @@ final class MemberManager extends AbstractService
 
     /**
      * Fetches a paginated list of confirmed members, optionally
-     * filtered by country, company, and tags
+     * filtered by country, company, and tags.
      *
      * @param int $pageNumber
      * @param int $itemsPerPage
-     * @param string|null $country
-     * @param string|null $company
-     * @param array $tagIds
+     * @param array $filters
+     * @param bool $random Whether to shuffle the result set
      * @return array
      */
-    public function fetchFiltered($pageNumber, $itemsPerPage, $country = null, $company = null, array $tagIds = [])
+    public function fetchFiltered($pageNumber, $itemsPerPage, array $filters = [], $random = true)
     {
         return $this->prepareResults(
-            $this->mapper->fetchFiltered($pageNumber, $itemsPerPage, $country, $company, $tagIds)
+            $this->mapper->fetchFiltered($pageNumber, $itemsPerPage, $filters, $random)
         );
     }
 

@@ -120,27 +120,28 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
 
     /**
      * Fetches a paginated list of confirmed members, optionally
-     * filtered by country, company, tag ids, and member ids
+     * filtered by country, company, tag ids, and member ids.
      *
-     * Pagination runs through the framework's paginate(), which clones
-     * the query builder internally to compute the total count.
+     * By default, rows are returned in random order (`ORDER BY RAND()`).
+     * Pass `false` as `$random` to order by id DESC instead.
      *
      * Supported filters (all optional, all AND-combined):
-     *   - country   string   ISO 3166-1 alpha-2 country code
-     *   - company   string   Exact company name
-     *   - tagIds    array    Tag ids; members carrying any of them
-     *   - memberIds array    Restrict to these member ids
+     *   - country   string  ISO 3166-1 alpha-2 country code
+     *   - company   string  Exact company name
+     *   - tagIds    array   Tag ids; members carrying any of them
+     *   - memberIds array   Restrict to these member ids
      *
      * @param int $pageNumber Current page number
      * @param int $itemsPerPage Per page count
      * @param array $filters Associative array of filters
+     * @param bool $random Whether to shuffle the result set
      * @return array
      */
-    public function fetchFiltered($pageNumber, $itemsPerPage, array $filters = [])
+    public function fetchFiltered($pageNumber, $itemsPerPage, array $filters = [], $random = true)
     {
-        $country = isset($filters['country']) && $filters['country'] !== '' ? $filters['country'] : null;
-        $company = isset($filters['company']) && $filters['company'] !== '' ? $filters['company'] : null;
-        $tagIds = isset($filters['tagIds']) ? array_values(array_filter(array_map('intval', (array) $filters['tagIds']))) : [];
+        $country   = isset($filters['country']) && $filters['country'] !== '' ? $filters['country'] : null;
+        $company   = isset($filters['company']) && $filters['company'] !== '' ? $filters['company'] : null;
+        $tagIds    = isset($filters['tagIds']) ? array_values(array_filter(array_map('intval', (array) $filters['tagIds']))) : [];
         $memberIds = isset($filters['memberIds']) ? array_values(array_filter(array_map('intval', (array) $filters['memberIds']))) : [];
 
         $db = $this->db->select([
@@ -182,9 +183,15 @@ final class MemberMapper extends AbstractMapper implements MemberMapperInterface
             $db->andWhereIn(self::column('id'), $memberIds);
         }
 
-        return $db->orderBy(self::column($this->getPk()))
-                  ->desc()
-                  ->paginate($pageNumber, $itemsPerPage)
+        if ($random) {
+            $db->orderBy()
+               ->rand();
+        } else {
+            $db->orderBy(self::column($this->getPk()))
+               ->desc();
+        }
+
+        return $db->paginate($pageNumber, $itemsPerPage)
                   ->queryAll();
     }
 
