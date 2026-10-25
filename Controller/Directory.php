@@ -31,7 +31,7 @@ final class Directory extends AbstractController
         $tagIds = (array) $this->request->getQuery('tags', []);
         $memberIds = (array) $this->request->getQuery('member_ids', []);
 
-        $members = $memberManager->fetchFiltered($pageNumber, 20, [
+        $members = $memberManager->fetchFiltered($pageNumber, 21, [
             'country' => $country,
             'company' => $company,
             'tagIds' => $tagIds,
