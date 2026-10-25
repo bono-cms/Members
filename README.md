@@ -10,17 +10,16 @@ top of it.
 
 # Contents
 
- - [Requirements](#requirements)
- - [Installation](#installation)
- - [Configuration](#configuration)
- - [Features](#features)
- - [How it works](#how-it-works)
- - [Routes](#routes)
- - [Templates](#templates)
- - [Services](#services)
- - [URL generation](#url-generation)
- - [API](#api)
- - [Localization](#localization)
+ - [Requirements](#Requirements)
+ - [Configuration](#Configuration)
+ - [Features](#Features)
+ - [How it works](#How-it-works)
+ - [Routes](#Routes)
+ - [Templates](#Templates)
+ - [Services](#Services)
+ - [URL generation](#Yrl-generation)
+ - [API](#Api)
+ - [Localization](#Localization)
  - [Data and storage](#data-and-storage)
  - [Notes](#notes)
  - [Known limitations](#known-limitations)
@@ -29,24 +28,10 @@ top of it.
 
  - Bono CMS with the `Cms` module loaded (the module uses its language
    manager and mailer)
- - PHP 7.0+ with `mbstring` and `fileinfo`
- - MySQL / MariaDB with InnoDB and `utf8mb4`
  - A working mailer configured in the `Cms` module (registration and
    recovery emails)
  - For the bundled templates: Bootstrap 5 and Bootstrap Icons on the page.
    For the bundled chat script: jQuery 3.x
-
-# Installation
-
-1. Run `Storage/MySQL/schema.sql` against your database. It is a
-   **fresh-install script**: it contains `DROP TABLE IF EXISTS` statements,
-   so never run it on a database that already holds member data.
-2. Make `/data/uploads/module/members/` writable by the web server. It holds
-   the live avatars (`avatars/`) and the avatars awaiting moderation
-   (`pending/`).
-3. Replace the placeholder `api.jwt_secret` (see below) before exposing the
-   API.
-4. Uninstalling the module drops all of its tables (`Storage/MySQL/Dropper.php`).
 
 # Configuration
 
@@ -113,7 +98,6 @@ variable support.
  - Full administration panel: members, tags, pending changes, change history
  - Translatable member data (name, title, bio) and tags, via the `Cms`
    language manager
- - Russian and Uzbek translations included
 
 ## Member features
 
