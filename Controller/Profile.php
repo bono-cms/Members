@@ -102,10 +102,16 @@ final class Profile extends AbstractController
         $memberManager = $this->getModuleService('memberManager');
         $changeService = $this->getModuleService('profileChangeService');
         $memberTagService = $this->getModuleService('memberTagService');
+        $normalizer = $this->getModuleService('inputNormalizer');
 
         $memberId = (int) $memberManager->getMember('id');
 
         $input = $this->request->getAll();
+
+        $input['data']['translation'] = $normalizer->normalizeTranslations(
+            (array) ($input['data']['translation'] ?? [])
+        );
+
         $password = isset($input['data']['member']['password']) ? $input['data']['member']['password'] : '';
 
         unset($input['data']['member']['password']);

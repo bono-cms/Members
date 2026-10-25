@@ -9,6 +9,8 @@
 
 namespace Members;
 
+use Cms\AbstractCmsModule;
+use Krystal\Image\Tool\ImageManager;
 use Members\Service\SiteService;
 use Members\Service\MemberManager;
 use Members\Service\ProfileChangeService;
@@ -16,8 +18,7 @@ use Members\Service\ChatService;
 use Members\Service\TagGroupService;
 use Members\Service\TagService;
 use Members\Service\MemberTagService;
-use Cms\AbstractCmsModule;
-use Krystal\Image\Tool\ImageManager;
+use Members\Service\InputNormalizer;
 
 final class Module extends AbstractCmsModule
 {
@@ -64,6 +65,11 @@ final class Module extends AbstractCmsModule
                 $this->getMapper('/Members/Storage/MySQL/MemberTagMapper'),
                 $this->getMapper('/Members/Storage/MySQL/TagGroupMapper'),
                 $this->getMapper('/Members/Storage/MySQL/TagMapper')
+            ),
+            'inputNormalizer' => new InputNormalizer(
+                $this->getModuleManager()
+                     ->getModule('Cms')
+                     ->getService('languageManager')
             )
         ];
     }

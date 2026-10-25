@@ -102,6 +102,7 @@ final class Register extends AbstractController
     public function saveAction()
     {
         $memberManager = $this->getModuleService('memberManager');
+        $normalizer = $this->getModuleService('inputNormalizer');
 
         $validator = $this->createValidation();
 
@@ -130,6 +131,10 @@ final class Register extends AbstractController
 
         $input = $this->request->getAll();
 
+        $input['data']['translation'] = $normalizer->normalizeTranslations(
+            (array) ($input['data']['translation'] ?? [])
+        );
+
         $key = $memberManager->generateActivationKey();
         $input['data']['member']['activation_key'] = $key;
 
@@ -139,9 +144,11 @@ final class Register extends AbstractController
             ]);
         }
 
+        $name = $normalizer->resolveRegistrationName($input);
+
         $this->sendConfirmationEmail(
             $input['data']['member']['email'],
-            $input['data']['member']['name'],
+            $name ?? '',
             $key
         );
 

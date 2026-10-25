@@ -56,7 +56,7 @@ final class Profile extends AbstractApiController
         $memberManager = $this->getModuleService('memberManager');
         $changeService = $this->getModuleService('profileChangeService');
         $memberTagService = $this->getModuleService('memberTagService');
-        $languageManager = $this->getService('Cms', 'languageManager');
+        $normalizer = $this->getModuleService('inputNormalizer');
 
         $memberId = $this->getAuthUserId();
 
@@ -79,25 +79,10 @@ final class Profile extends AbstractApiController
         // The client may key translation rows by id (translation[1]) or
         // by language code (translation[en]). Normalize to id-keyed rows
         // and keep only the language requested via ?lang=.
-        $requestLangId = $this->getRequestLanguageId();
-
-        $translations = isset($input['data']['translation'])
-            ? (array) $input['data']['translation']
-            : [];
-
-        $normalized = [];
-
-        foreach ($translations as $key => $row) {
-            $langId = is_numeric($key)
-                ? (int) $key
-                : (int) $languageManager->fetchIdByCode((string) $key);
-
-            if ($langId > 0 && $langId === $requestLangId) {
-                $normalized[$langId] = $row;
-            }
-        }
-
-        $input['data']['translation'] = $normalized;
+        $input['data']['translation'] = $normalizer->normalizeTranslations(
+            (array) ($input['data']['translation'] ?? []),
+            $this->getRequestLanguageId()
+        );
 
         $messageKey = $changeService->updateProfile($memberId, $input, '');
 
