@@ -1,0 +1,334 @@
+<?php
+
+/**
+ * This file is part of the Bono CMS
+ *
+ * For the full copyright and license information, please view
+ * the license file that was distributed with this source code
+ */
+namespace Members\Controller\Api;
+
+use Members\Service\EventEntity;
+
+/**
+ * API controller for the Events extension.
+ *
+ * Provides JSON endpoints for the mobile app. Public endpoints
+ * (catalog, detail) require no auth. Protected endpoints (create,
+ * my events, analytics) require JWT.
+ */
+final class Event extends AbstractApiController
+{
+    /**
+     * GET /api/v1/members/events
+     *
+     * Returns a paginated list of approved events.
+     *
+     * @return string JSON
+     */
+    public function indexAction()
+    {
+        $pageNumber = (int) $this->request->getQuery('page', 1);
+        $eventService = $this->getModuleService('eventService');
+        $events = $eventService->fetchApproved($pageNumber, 20);
+        $paginator = $eventService->getPaginator();
+
+        return $this->json([
+            'data' => $this->presentEvents($events),
+            'meta' => [
+                'page'       => $paginator->getCurrentPage(),
+                'perPage'    => $paginator->getItemsPerPage(),
+                'total'      => $paginator->getTotalAmount(),
+                'totalPages' => $paginator->getLastPage(),
+            ],
+        ]);
+    }
+
+    /**
+     * GET /api/v1/members/events/:id
+     *
+     * Returns a single event and records a view.
+     *
+     * @return string JSON
+     */
+    public function viewAction($id)
+    {
+        $eventService = $this->getModuleService('eventService');
+        $event = $eventService->findById((int) $id);
+
+        if ($event === false || $event->getStatus() !== EventEntity::STATUS_APPROVED) {
+            $this->response->setStatusCode(404);
+            return $this->json(['error' => 'Event not found']);
+        }
+
+        $analyticsService = $this->getModuleService('eventAnalyticsService');
+        $memberId         = $this->getAuthUserId();
+
+        $analyticsService->recordView(
+            (int) $id,
+            $memberId > 0 ? $memberId : null,
+            'api',
+            $this->request->getClientIP(),
+            $this->request->getUserAgent()
+        );
+
+        return $this->json([
+            'data' => $this->presentEvent($event),
+        ]);
+    }
+
+    /**
+     * POST /api/v1/members/events
+     *
+     * Creates a new event on behalf of the authenticated member.
+     *
+     * @return string JSON
+     */
+    public function storeAction()
+    {
+        $validator = $this->createEventValidator($this->request->getPost('event'));
+
+        if (!$validator->isPassed()) {
+            $this->response->setStatusCode(422);
+
+            return $this->json(['errors' => $validator->getErrors()]);
+        }
+
+        $memberId = $this->getAuthUserId();
+
+        if ($memberId <= 0) {
+            $this->response->setStatusCode(401);
+            return $this->json(['error' => 'Unauthorized']);
+        }
+
+        $eventService = $this->getModuleService('eventService');
+        $data = $this->prepareEventData($this->request->getPost('event'));
+
+        try {
+            $eventId = $eventService->createForUser($memberId, $data);
+            $this->response->setStatusCode(201);
+
+            return $this->json([
+                'id'      => $eventId,
+                'message' => 'The event has been created and is pending review',
+            ]);
+        } catch (\InvalidArgumentException $exception) {
+            $this->response->setStatusCode(422);
+
+            return $this->json(['error' => $exception->getMessage()]);
+        }
+    }
+
+    /**
+     * GET /api/v1/members/me/events
+     * 
+     * Returns the authenticated member's own events with a summary.
+     * 
+     * @return string JSON
+     */
+    public function myAction()
+    {
+        $memberId = $this->getAuthUserId();
+
+        if ($memberId <= 0) {
+            $this->response->setStatusCode(401);
+
+            return $this->json(['error' => 'Unauthorized']);
+        }
+
+        $pageNumber = (int) $this->request->getQuery('page', 1);
+        $eventService = $this->getModuleService('eventService');
+        $analyticsService = $this->getModuleService('eventAnalyticsService');
+        $events = $eventService->fetchByCreatorId($memberId, $pageNumber, 20);
+        $dashboard = $analyticsService->fetchForMemberDashboard($memberId);
+        $paginator = $eventService->getPaginator();
+
+        return $this->json([
+            'data'    => $this->presentEvents($events),
+            'summary' => $dashboard,
+            'meta'    => [
+                'page' => $paginator->getCurrentPage(),
+                'perPage' => $paginator->getItemsPerPage(),
+                'total' => $paginator->getTotalAmount(),
+                'totalPages' => $paginator->getLastPage(),
+            ]
+        ]);
+    }
+
+    /**
+     * GET /api/v1/members/me/events/:id/analytics
+     *
+     * Returns detailed analytics for the member's own event.
+     *
+     * @return string JSON
+     */
+    public function analyticsAction($id)
+    {
+        $memberId = $this->getAuthUserId();
+
+        if ($memberId <= 0) {
+            $this->response->setStatusCode(401);
+            return $this->json(['error' => 'Unauthorized']);
+        }
+
+        $analyticsService = $this->getModuleService('eventAnalyticsService');
+        $analytics = $analyticsService->fetchForMemberEvent((int) $id, $memberId);
+
+        if ($analytics === null) {
+            $this->response->setStatusCode(404);
+            return $this->json(['error' => 'Event not found or access denied']);
+        }
+
+        return $this->json([
+            'data' => $this->presentAnalytics($analytics),
+        ]);
+    }
+
+    /**
+     * GET /api/v1/members/events/:id/click
+     *
+     * Returns the registration link and records a click.
+     * The mobile app opens this URL in an external browser.
+     *
+     * @param string $id Event id
+     * @return string JSON
+     */
+    public function clickAction($id)
+    {
+        $eventService = $this->getModuleService('eventService');
+        $event = $eventService->findById((int) $id);
+
+        if ($event === false || $event->getStatus() !== EventEntity::STATUS_APPROVED) {
+            $this->response->setStatusCode(404);
+            return $this->json(['error' => 'Event not found']);
+        }
+
+        if (!$event->hasLink()) {
+            $this->response->setStatusCode(404);
+            return $this->json(['error' => 'No registration link available']);
+        }
+
+        $analyticsService = $this->getModuleService('eventAnalyticsService');
+        $memberId = $this->getAuthUserId();
+
+        $analyticsService->recordClick(
+            (int) $id,
+            $memberId > 0 ? $memberId : null,
+            'api',
+            $this->request->getClientIP(),
+            $this->request->getUserAgent()
+        );
+
+        return $this->json([
+            'link' => $event->getLink()
+        ]);
+    }
+
+    /**
+     * Presents a collection of events for API output
+     *
+     * @param  array $events Event rows
+     * @return array
+     */
+    private function presentEvents(array $events)
+    {
+        $result = [];
+
+        foreach ($events as $event) {
+            $result[] = $this->presentEvent($event);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Presents a single event for API output
+     *
+     * @param  object $event Event row
+     * @return array
+     */
+    private function presentEvent($event)
+    {
+        return [
+            'id'           => $event->getId(),
+            'title'        => $event->getTitle(),
+            'description'  => $event->getDescription(),
+            'link'         => $event->getLink(),
+            'locationName' => $event->getLocationName(),
+            'latitude'     => $event->getLatitude(),
+            'longitude'    => $event->getLongitude(),
+            'startsAt'     => $event->getStartsAt(),
+            'endsAt'       => $event->getEndsAt(),
+            'status'       => $event->getStatus(),
+            'creatorName'  => $event->getCreatorName(),
+            'viewsCount'   => $event->getViewsCount(),
+            'clicksCount'  => $event->getClicksCount(),
+        ];
+    }
+
+    /**
+     * Presents analytics data for API output
+     *
+     * @param  array $analytics Analytics payload
+     * @return array
+     */
+    private function presentAnalytics(array $analytics)
+    {
+        return [
+            'event'       => $this->presentEvent($analytics['event']),
+            'views'       => $analytics['views'],
+            'clicks'      => $analytics['clicks'],
+            'conversion'  => $analytics['conversion'],
+            'dailyStats'  => $analytics['dailyStats'],
+            'sourceStats' => $analytics['sourceStats'],
+        ];
+    }
+
+    /**
+     * Creates a validator for the event form
+     *
+     * @param  array $data Form data
+     * @return \Krystal\Validation\Validator
+     */
+    private function createEventValidator($data)
+    {
+        $validator = $this->createValidation();
+
+        $validator->field('event.title')
+            ->required()
+            ->addRule('maxlength', null, ['max' => 200]);
+
+        $validator->field('event.location_name')
+            ->required()
+            ->addRule('maxlength', null, ['max' => 255]);
+
+        $validator->field('event.starts_at')
+            ->required();
+
+        $validator->field('event.link')
+            ->addRule('maxlength', null, ['max' => 500]);
+
+        return $validator;
+    }
+
+    /**
+     * Prepares event data from the form payload
+     *
+     * @param  array $data Form data
+     * @return array
+     */
+    private function prepareEventData($data)
+    {
+        return [
+            'title'           => isset($data['title']) ? $data['title'] : '',
+            'description'     => isset($data['description']) ? $data['description'] : null,
+            'link'            => isset($data['link']) ? $data['link'] : null,
+            'location_name'   => isset($data['location_name']) ? $data['location_name'] : '',
+            'latitude'        => isset($data['latitude']) && $data['latitude'] !== '' ? (float) $data['latitude'] : null,
+            'longitude'       => isset($data['longitude']) && $data['longitude'] !== '' ? (float) $data['longitude'] : null,
+            'location_source' => isset($data['location_source']) ? $data['location_source'] : 'none',
+            'starts_at'       => isset($data['starts_at']) ? $data['starts_at'] : '',
+            'ends_at'         => isset($data['ends_at']) && $data['ends_at'] !== '' ? $data['ends_at'] : null,
+        ];
+    }
+}
