@@ -114,7 +114,7 @@ return [
         'controller' => 'Chat@withAction',
         'middleware' => [AuthRequiredMiddleware::class],
     ],
-    '/member/messages/converstation/(:var)' => [
+    '/member/messages/conversation/(:var)' => [
         'controller' => 'Chat@conversationAction',
         'middleware' => [AuthRequiredMiddleware::class],
     ],
