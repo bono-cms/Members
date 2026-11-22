@@ -82,7 +82,8 @@ function EventForm(options) {
         throw new Error('EventForm: form element not found');
     }
 
-    this.parseUrl = this.$form.data('parse-url');
+    this.parseUrl = this.$form.attr('data-parse-url');
+
     if (!this.parseUrl) {
         throw new Error('EventForm: data-parse-url attribute is required');
     }
