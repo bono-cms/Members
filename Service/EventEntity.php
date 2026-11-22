@@ -1,0 +1,319 @@
+<?php
+
+/**
+ * This file is part of the Bono CMS
+ *
+ * For the full copyright and license information, please view
+ * the license file that was distributed with this source code
+ */
+namespace Members\Service;
+
+use Krystal\Stdlib\VirtualEntity;
+
+/**
+ * Domain entity for an event.
+ *
+ * Encapsulates business rules (isPast, isOfficial, hasLink) and
+ * UI helpers (status badge class, formatted dates) so templates
+ * stay declarative and free of date-parsing logic.
+ */
+final class EventEntity extends VirtualEntity
+{
+    /**
+     * Event status constants
+     *
+     * @const string
+     */
+    const STATUS_PENDING = 'pending';
+    const STATUS_APPROVED = 'approved';
+    const STATUS_REJECTED = 'rejected';
+
+    /**
+     * Location source constants
+     *
+     * @const string
+     */
+    const LOCATION_SOURCE_MANUAL = 'manual';
+    const LOCATION_SOURCE_URL = 'url';
+    const LOCATION_SOURCE_NONE = 'none';
+
+    /**
+     * Tells whether the event is official (created by admin on behalf of the association)
+     *
+     * @return bool
+     */
+    public function isOfficial()
+    {
+        return $this->getCreatorId() === null;
+    }
+
+    /**
+     * Tells whether the event has already ended
+     *
+     * Uses ends_at when present, otherwise falls back to starts_at.
+     * Returns false when no reference time is set, so a malformed
+     * event never renders as "past".
+     *
+     * @return bool
+     */
+    public function isPast()
+    {
+        $referenceTime = $this->getEndsAt();
+
+        if (empty($referenceTime)) {
+            $referenceTime = $this->getStartsAt();
+        }
+
+        if (empty($referenceTime)) {
+            return false;
+        }
+
+        $timestamp = strtotime($referenceTime);
+
+        if ($timestamp === false) {
+            return false;
+        }
+
+        return $timestamp < time();
+    }
+
+    /**
+     * Tells whether the event has a registration link
+     *
+     * @return bool
+     */
+    public function hasLink()
+    {
+        $link = $this->getLink();
+
+        return $link !== null && $link !== '';
+    }
+
+    /**
+     * Tells whether the event has a location name
+     *
+     * @return bool
+     */
+    public function hasLocation()
+    {
+        $location = $this->getLocationName();
+
+        return $location !== null && $location !== '';
+    }
+
+    /**
+     * Tells whether the event has valid coordinates
+     *
+     * @return bool
+     */
+    public function hasCoordinates()
+    {
+        return $this->getLatitude() !== null && $this->getLongitude() !== null;
+    }
+
+    /**
+     * Tells whether the event has a description
+     *
+     * @return bool
+     */
+    public function hasDescription()
+    {
+        $description = $this->getDescription();
+
+        return $description !== null && $description !== '';
+    }
+
+    /**
+     * Tells whether the event has a creator (user or admin)
+     *
+     * @return bool
+     */
+    public function hasCreator()
+    {
+        return $this->getCreatorName() !== null;
+    }
+
+    /**
+     * Returns the Bootstrap badge class for the current status
+     *
+     * @return string
+     */
+    public function getStatusBadgeClass()
+    {
+        $map = [
+            self::STATUS_PENDING => 'warning',
+            self::STATUS_APPROVED => 'success',
+            self::STATUS_REJECTED => 'danger',
+        ];
+
+        $status = $this->getStatus();
+
+        return isset($map[$status]) ? $map[$status] : 'secondary';
+    }
+
+    /**
+     * Returns the translation key for the current status
+     *
+     * @return string
+     */
+    public function getStatusTranslationKey()
+    {
+        $map = [
+            self::STATUS_PENDING => 'Pending approval',
+            self::STATUS_APPROVED => 'Approved',
+            self::STATUS_REJECTED => 'Rejected',
+        ];
+
+        $status = $this->getStatus();
+
+        return isset($map[$status]) ? $map[$status] : (string) $status;
+    }
+
+    /**
+     * Returns the formatted start date (e.g. "Nov 22, 2026")
+     *
+     * @return string
+     */
+    public function getFormattedDate()
+    {
+        $startsAt = $this->getStartsAt();
+
+        if (empty($startsAt)) {
+            return '';
+        }
+
+        $timestamp = strtotime($startsAt);
+
+        if ($timestamp === false) {
+            return '';
+        }
+
+        return date('M j, Y', $timestamp);
+    }
+
+    /**
+     * Returns the formatted start time (e.g. "18:55")
+     *
+     * @return string
+     */
+    public function getFormattedTime()
+    {
+        $startsAt = $this->getStartsAt();
+
+        if (empty($startsAt)) {
+            return '';
+        }
+
+        $timestamp = strtotime($startsAt);
+
+        if ($timestamp === false) {
+            return '';
+        }
+
+        return date('H:i', $timestamp);
+    }
+
+    /**
+     * Returns the full formatted start date and time (e.g. "Saturday, November 22, 2026")
+     *
+     * @return string
+     */
+    public function getFormattedStartDateTime()
+    {
+        $startsAt = $this->getStartsAt();
+
+        if (empty($startsAt)) {
+            return '';
+        }
+
+        $timestamp = strtotime($startsAt);
+
+        if ($timestamp === false) {
+            return '';
+        }
+
+        return date('l, F j, Y', $timestamp);
+    }
+
+    /**
+     * Returns the month abbreviation for the start date (e.g. "NOV")
+     *
+     * @return string
+     */
+    public function getStartMonth()
+    {
+        $startsAt = $this->getStartsAt();
+
+        if (empty($startsAt)) {
+            return '';
+        }
+
+        $timestamp = strtotime($startsAt);
+
+        if ($timestamp === false) {
+            return '';
+        }
+
+        return strtoupper(date('M', $timestamp));
+    }
+
+    /**
+     * Returns the day number for the start date (e.g. "22")
+     *
+     * @return int
+     */
+    public function getStartDay()
+    {
+        $startsAt = $this->getStartsAt();
+
+        if (empty($startsAt)) {
+            return 0;
+        }
+
+        $timestamp = strtotime($startsAt);
+
+        if ($timestamp === false) {
+            return 0;
+        }
+
+        return (int) date('d', $timestamp);
+    }
+
+    /**
+     * Returns the formatted end time (e.g. "22:57")
+     *
+     * @return string
+     */
+    public function getFormattedEndTime()
+    {
+        $endsAt = $this->getEndsAt();
+
+        if (empty($endsAt)) {
+            return '';
+        }
+
+        $timestamp = strtotime($endsAt);
+
+        if ($timestamp === false) {
+            return '';
+        }
+
+        return date('H:i', $timestamp);
+    }
+
+    /**
+     * Returns the conversion rate (clicks / views * 100)
+     *
+     * @return float
+     */
+    public function getConversionRate()
+    {
+        $views = $this->getViewsCount();
+
+        if ($views <= 0) {
+            return 0.0;
+        }
+
+        return round(($this->getClicksCount() / $views) * 100, 2);
+    }
+}
