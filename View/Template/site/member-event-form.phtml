@@ -1,33 +1,28 @@
 <?php
-
 use Krystal\Form\Element;
+
 $isNew = !$event->getId();
 
+$this->getPluginBag()->appendScript($this->moduleAsset('event-form.js', 'Members'));
 ?>
-
 <section class="flex-grow-1 d-flex justify-content-center align-items-start py-5 bg-light">
     <div class="container">
         <div class="row justify-content-center">
             <div class="col-lg-9">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <h1 class="h3 mb-0"><i class="bi bi-calendar-event"></i> <?= $isNew ? $this->translate('Create event') : $this->translate('Edit event'); ?></h1>
-                    <a href="<?= $this->url('Members:Event@indexAction'); ?>" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left"></i> <?= $this->translate('Back'); ?>
-                    </a>
+                    <a href="<?= $this->url('Members:Event@indexAction'); ?>" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> <?= $this->translate('Back'); ?></a>
                 </div>
-
-                <form class="card border-0 shadow-sm" autocomplete="off" method="POST" action="<?= $isNew ? $this->url('Members:Event@storeAction') : $this->url('Members:Event@updateAction', [$event->getId()]); ?>">
+                <form class="card border-0 shadow-sm" autocomplete="off" method="POST" action="<?= $isNew ? $this->url('Members:Event@storeAction') : $this->url('Members:Event@updateAction', [$event->getId()]); ?>" data-event-form data-parse-url="<?= $this->url('Members:Event@parseLocationAction'); ?>">
                     <div class="card-body">
                         <div class="mb-3">
                             <label class="form-label"><?= $this->translate('Title'); ?></label>
                             <?= Element::text('event[title]', $event->getTitle(), ['class' => 'form-control', 'maxlength' => 200, 'required' => true]); ?>
                         </div>
-
                         <div class="mb-3">
                             <label class="form-label"><?= $this->translate('Description'); ?></label>
                             <?= Element::textarea('event[description]', $event->getDescription(), ['class' => 'form-control', 'rows' => 4]); ?>
                         </div>
-
                         <div class="mb-3">
                             <label class="form-label"><?= $this->translate('Registration link'); ?></label>
                             <div class="input-group">
@@ -36,121 +31,59 @@ $isNew = !$event->getId();
                             </div>
                             <small class="text-muted"><?= $this->translate('Leave blank if registration is not required'); ?></small>
                         </div>
-
                         <div class="mb-3">
                             <label class="form-label"><?= $this->translate('Location name'); ?></label>
                             <?= Element::text('event[location_name]', $event->getLocationName(), ['class' => 'form-control', 'maxlength' => 255, 'required' => true]); ?>
                         </div>
-
                         <div class="mb-3">
                             <label class="form-label"><?= $this->translate('Map URL'); ?></label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
-                                <input type="text" id="map-url-input" class="form-control" placeholder="<?= $this->translate('Paste Google Maps, Yandex, OSM or 2GIS URL'); ?>" />
-                                <button type="button" class="btn btn-outline-secondary" id="parse-location-btn"><i class="bi bi-arrow-clockwise"></i> <?= $this->translate('Extract'); ?></button>
+                                <input type="text" data-role="map-url" class="form-control" placeholder="<?= $this->translate('Paste Google Maps, Yandex, OSM or 2GIS URL'); ?>" />
+                                <button type="button" class="btn btn-outline-secondary" data-action="parse-location"><i class="bi bi-arrow-clockwise"></i> <?= $this->translate('Extract'); ?></button>
                             </div>
                             <small class="text-muted"><?= $this->translate('Supports Google Maps, Yandex Maps, OpenStreetMap, 2GIS'); ?></small>
                         </div>
-
                         <div class="mb-3">
                             <label class="form-label"><?= $this->translate('Coordinates'); ?></label>
                             <div class="row g-2">
                                 <div class="col-md-5">
                                     <div class="input-group">
                                         <span class="input-group-text"><?= $this->translate('Latitude'); ?></span>
-                                        <?= Element::text('event[latitude]', $event->getLatitude(), ['class' => 'form-control', 'id' => 'latitude-input', 'step' => '0.00000001']); ?>
+                                        <?= Element::text('event[latitude]', $event->getLatitude(), ['class' => 'form-control', 'data-role' => 'latitude', 'step' => '0.00000001']); ?>
                                     </div>
                                 </div>
-
                                 <div class="col-md-5">
                                     <div class="input-group">
                                         <span class="input-group-text"><?= $this->translate('Longitude'); ?></span>
-                                        <?= Element::text('event[longitude]', $event->getLongitude(), ['class' => 'form-control', 'id' => 'longitude-input', 'step' => '0.00000001']); ?>
+                                        <?= Element::text('event[longitude]', $event->getLongitude(), ['class' => 'form-control', 'data-role' => 'longitude', 'step' => '0.00000001']); ?>
                                     </div>
                                 </div>
-
                                 <div class="col-md-2">
-                                    <?= Element::select('event[location_source]', ['none' => '—', 'manual' => $this->translate('Manual'), 'url' => $this->translate('From URL')], $event->getLocationSource(), ['class' => 'form-select', 'id' => 'location-source-input']); ?>
+                                    <?= Element::select('event[location_source]', ['none' => '—', 'manual' => $this->translate('Manual'), 'url' => $this->translate('From URL')], $event->getLocationSource(), ['class' => 'form-select', 'data-role' => 'location-source']); ?>
                                 </div>
                             </div>
                         </div>
-
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label"><?= $this->translate('Starts at'); ?></label>
                                 <?= Element::datetime('event[starts_at]', $event->getStartsAt(), ['class' => 'form-control', 'required' => true]); ?>
                             </div>
-
                             <div class="col-md-6">
                                 <label class="form-label"><?= $this->translate('Ends at'); ?></label>
                                 <?= Element::datetime('event[ends_at]', $event->getEndsAt(), ['class' => 'form-control']); ?>
                             </div>
                         </div>
-
                         <div class="alert alert-info mt-3 mb-0">
                             <i class="bi bi-info-circle"></i> <?= $this->translate('After submission, your event will be reviewed by the association and published upon approval.'); ?>
                         </div>
                     </div>
-
                     <div class="card-footer bg-white d-flex justify-content-end gap-2">
-                        <a href="<?= $this->url('Members:Event@indexAction'); ?>" class="btn btn-outline-secondary">
-                            <i class="bi bi-x-lg"></i> <?= $this->translate('Cancel'); ?>
-                        </a>
-                        <button type="submit" class="btn btn-primary" data-button="submit">
-                            <i class="bi bi-send"></i> <?= $isNew ? $this->translate('Submit for review') : $this->translate('Save changes'); ?>
-                        </button>
+                        <a href="<?= $this->url('Members:Event@indexAction'); ?>" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i> <?= $this->translate('Cancel'); ?></a>
+                        <button type="submit" class="btn btn-primary" data-button="submit"><i class="bi bi-send"></i> <?= $isNew ? $this->translate('Submit for review') : $this->translate('Save changes'); ?></button>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 </section>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    var parseBtn = document.getElementById('parse-location-btn');
-    var urlInput = document.getElementById('map-url-input');
-    var latInput = document.getElementById('latitude-input');
-    var lngInput = document.getElementById('longitude-input');
-    var sourceInput = document.getElementById('location-source-input');
-    var parseUrl = <?= json_encode($this->url('Members:Event@parseLocationAction')); ?>;
-
-    parseBtn.addEventListener('click', function () {
-        var url = urlInput.value.trim();
-
-        if (!url) {
-            return;
-        }
-
-        parseBtn.disabled = true;
-        parseBtn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i>';
-
-        fetch(parseUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Requested-With': 'XMLHttpRequest'
-            },
-            body: 'url=' + encodeURIComponent(url) + '&token=' + encodeURIComponent(document.querySelector('meta[name="csrf-token"]').getAttribute('content'))
-        })
-        .then(function (response) { return response.json(); })
-        .then(function (data) {
-            parseBtn.disabled = false;
-            parseBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> <?= $this->translate('Extract'); ?>';
-
-            if (data.error) {
-                alert(data.error);
-                return;
-            }
-
-            latInput.value = data.lat;
-            lngInput.value = data.lng;
-            sourceInput.value = data.source;
-        })
-        .catch(function () {
-            parseBtn.disabled = false;
-            parseBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> <?= $this->translate('Extract'); ?>';
-        });
-    });
-});
-</script>

@@ -5,10 +5,11 @@
  *
  * @var \Krystal\Stdlib\VirtualEntity $page
  * @var \Members\Service\EventEntity $event
- * @var array $analytics Analytics payload with keys: views, clicks, conversion, dailyStats, sourceStats
+ * @var array $analytics Analytics payload
  */
 
 $this->getPluginBag()->appendScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js');
+$this->getPluginBag()->appendScript($this->moduleAsset('event-analytics.js', 'Members'));
 
 ?>
 
@@ -23,7 +24,6 @@ $this->getPluginBag()->appendScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.0
                     </div>
                     <a href="<?= $this->url('Members:Event@indexAction'); ?>" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> <?= $this->translate('Back'); ?></a>
                 </div>
-
                 <div class="row g-3 mb-4">
                     <div class="col-6 col-md-3">
                         <div class="card border-0 shadow-sm h-100">
@@ -58,13 +58,12 @@ $this->getPluginBag()->appendScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.0
                         </div>
                     </div>
                 </div>
-
-                <div class="row g-3">
+                <div class="row g-3" data-event-analytics data-daily-stats="<?= htmlspecialchars(json_encode($analytics['dailyStats']), ENT_QUOTES); ?>" data-source-stats="<?= htmlspecialchars(json_encode($analytics['sourceStats']), ENT_QUOTES); ?>" data-translations="<?= htmlspecialchars(json_encode(['views' => $this->translate('Views'), 'clicks' => $this->translate('Clicks')]), ENT_QUOTES); ?>">
                     <div class="col-md-8">
                         <div class="card border-0 shadow-sm h-100">
                             <div class="card-body">
                                 <h6 class="card-title"><i class="bi bi-graph-up"></i> <?= $this->translate('Views and clicks over the last 14 days'); ?></h6>
-                                <canvas id="daily-chart" height="140"></canvas>
+                                <canvas data-role="daily-chart" height="140"></canvas>
                             </div>
                         </div>
                     </div>
@@ -75,7 +74,7 @@ $this->getPluginBag()->appendScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.0
                                 <?php if (empty($analytics['sourceStats'])): ?>
                                     <p class="text-muted mb-0"><?= $this->translate('No data yet'); ?></p>
                                 <?php else: ?>
-                                    <canvas id="source-chart" height="200"></canvas>
+                                    <canvas data-role="source-chart" height="200"></canvas>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -85,40 +84,3 @@ $this->getPluginBag()->appendScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.0
         </div>
     </div>
 </section>
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    var dailyStats = <?= json_encode($analytics['dailyStats']); ?>;
-    var labels = dailyStats.map(function (row) { return row.date; });
-    var views = dailyStats.map(function (row) { return row.views; });
-    var clicks = dailyStats.map(function (row) { return row.clicks; });
-
-    new Chart(document.getElementById('daily-chart').getContext('2d'), {
-        type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
-                { label: <?= json_encode($this->translate('Views')); ?>, data: views, borderColor: '#0d6efd', backgroundColor: 'rgba(13, 110, 253, 0.1)', fill: true, tension: 0.3 },
-                { label: <?= json_encode($this->translate('Clicks')); ?>, data: clicks, borderColor: '#198754', backgroundColor: 'rgba(25, 135, 84, 0.1)', fill: true, tension: 0.3 }
-            ]
-        },
-        options: {
-            responsive: true,
-            plugins: { legend: { position: 'bottom' } },
-            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
-        }
-    });
-
-    <?php if (!empty($analytics['sourceStats'])): ?>
-    var sourceStats = <?= json_encode($analytics['sourceStats']); ?>;
-    new Chart(document.getElementById('source-chart').getContext('2d'), {
-        type: 'pie',
-        data: {
-            labels: sourceStats.map(function (row) { return row.source; }),
-            datasets: [{ data: sourceStats.map(function (row) { return row.views + row.clicks; }), backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545'] }]
-        },
-        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
-    });
-    <?php endif; ?>
-});
-</script>
