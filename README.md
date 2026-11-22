@@ -330,7 +330,7 @@ member selection of them.
 ### Creation flow
 
 A member submits an event via `Members:Event@storeAction` (web) or
-`POST /api/v1/members/events` (API):
+`POST /api/v1/members/events/store` (API):
 
 1. The payload is validated (title, location name and start time are
    required; link, description, coordinates are optional).

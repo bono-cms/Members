@@ -319,7 +319,7 @@ return [
     '/api/v1/members/events/(:var)' => [
         'controller' => 'Api:Event@viewAction',
     ],
-    '/api/v1/members/events' => [
+    '/api/v1/members/events/store' => [
         'controller' => 'Api:Event@storeAction',
         'methods'    => ['POST'],
         'middleware' => [JwtAuthMiddleware::class],
