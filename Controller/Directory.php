@@ -83,5 +83,4 @@ final class Directory extends AbstractController
             'tagGroups' => $memberTagService->fetchGroupedByMember((int) $id)
         ]);
     }
-    
 }

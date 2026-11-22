@@ -117,7 +117,7 @@ final class MemberManager extends AbstractService
             }
         }
 
-        sort($available);
+        ksort($available);
         return $available;
     }
 
