@@ -4,6 +4,7 @@ use Krystal\Form\Element;
 $isNew = !$event->getId();
 
 $this->getPluginBag()->appendScript($this->moduleAsset('event-form.js', 'Members'));
+
 ?>
 <section class="flex-grow-1 d-flex justify-content-center align-items-start py-5 bg-light">
     <div class="container">
@@ -14,68 +15,88 @@ $this->getPluginBag()->appendScript($this->moduleAsset('event-form.js', 'Members
                     <a href="<?= $this->url('Members:Event@indexAction'); ?>" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> <?= $this->translate('Back'); ?></a>
                 </div>
                 <form class="card border-0 shadow-sm" autocomplete="off" method="POST" action="<?= $isNew ? $this->url('Members:Event@storeAction') : $this->url('Members:Event@updateAction', [$event->getId()]); ?>" data-event-form data-parse-url="<?= $this->url('Members:Event@parseLocationAction'); ?>">
-                    <div class="card-body">
-                        <div class="mb-3">
-                            <label class="form-label"><?= $this->translate('Title'); ?></label>
-                            <?= Element::text('event[title]', $event->getTitle(), ['class' => 'form-control', 'maxlength' => 200, 'required' => true]); ?>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label"><?= $this->translate('Description'); ?></label>
-                            <?= Element::textarea('event[description]', $event->getDescription(), ['class' => 'form-control', 'rows' => 4]); ?>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label"><?= $this->translate('Registration link'); ?></label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
-                                <?= Element::text('event[link]', $event->getLink(), ['class' => 'form-control', 'maxlength' => 500, 'placeholder' => 'https://...']); ?>
+                    <div class="card-header bg-white">
+                        <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link active" href="#main" role="tab" data-bs-toggle="tab"><i class="bi bi-info-circle"></i> <?= $this->translate('Main'); ?></a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link" href="#location" role="tab" data-bs-toggle="tab"><i class="bi bi-geo-alt"></i> <?= $this->translate('Location'); ?></a>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <a class="nav-link" href="#schedule" role="tab" data-bs-toggle="tab"><i class="bi bi-calendar-event"></i> <?= $this->translate('Schedule'); ?></a>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="card-body tab-content">
+                        <div class="tab-pane fade show active" id="main" role="tabpanel">
+                            <div class="mb-3">
+                                <label class="form-label"><?= $this->translate('Title'); ?></label>
+                                <?= Element::text('event[title]', $event->getTitle(), ['class' => 'form-control', 'maxlength' => 200, 'required' => true]); ?>
                             </div>
-                            <small class="text-muted"><?= $this->translate('Leave blank if registration is not required'); ?></small>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label"><?= $this->translate('Location name'); ?></label>
-                            <?= Element::text('event[location_name]', $event->getLocationName(), ['class' => 'form-control', 'maxlength' => 255, 'required' => true]); ?>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label"><?= $this->translate('Map URL'); ?></label>
-                            <div class="input-group">
-                                <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
-                                <input type="text" data-role="map-url" class="form-control" placeholder="<?= $this->translate('Paste Google Maps, Yandex, OSM or 2GIS URL'); ?>" />
-                                <button type="button" class="btn btn-outline-secondary" data-action="parse-location"><i class="bi bi-arrow-clockwise"></i> <?= $this->translate('Extract'); ?></button>
+                            <div class="mb-3">
+                                <label class="form-label"><?= $this->translate('Description'); ?></label>
+                                <?= Element::textarea('event[description]', $event->getDescription(), ['class' => 'form-control', 'rows' => 4]); ?>
                             </div>
-                            <small class="text-muted"><?= $this->translate('Supports Google Maps, Yandex Maps, OpenStreetMap, 2GIS'); ?></small>
+                            <div class="mb-3">
+                                <label class="form-label"><?= $this->translate('Registration link'); ?></label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
+                                    <?= Element::text('event[link]', $event->getLink(), ['class' => 'form-control', 'maxlength' => 500, 'placeholder' => 'https://...']); ?>
+                                </div>
+                                <small class="text-muted"><?= $this->translate('Leave blank if registration is not required'); ?></small>
+                            </div>
                         </div>
-                        <div class="mb-3">
-                            <label class="form-label"><?= $this->translate('Coordinates'); ?></label>
-                            <div class="row g-2">
-                                <div class="col-md-5">
-                                    <div class="input-group">
-                                        <span class="input-group-text"><?= $this->translate('Latitude'); ?></span>
-                                        <?= Element::text('event[latitude]', $event->getLatitude(), ['class' => 'form-control', 'data-role' => 'latitude', 'step' => '0.00000001']); ?>
+                        <div class="tab-pane fade" id="location" role="tabpanel">
+                            <div class="mb-3">
+                                <label class="form-label"><?= $this->translate('Location name'); ?></label>
+                                <?= Element::text('event[location_name]', $event->getLocationName(), ['class' => 'form-control', 'maxlength' => 255, 'required' => true]); ?>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"><?= $this->translate('Map URL'); ?></label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
+                                    <input type="text" data-role="map-url" class="form-control" placeholder="<?= $this->translate('Paste Google Maps, Yandex, OSM or 2GIS URL'); ?>" />
+                                    <button type="button" class="btn btn-outline-secondary" data-action="parse-location"><i class="bi bi-arrow-clockwise"></i> <?= $this->translate('Extract'); ?></button>
+                                </div>
+                                <small class="text-muted"><?= $this->translate('Supports Google Maps, Yandex Maps, OpenStreetMap, 2GIS'); ?></small>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label"><?= $this->translate('Coordinates'); ?></label>
+                                <div class="row g-2">
+                                    <div class="col-md-5">
+                                        <div class="input-group">
+                                            <span class="input-group-text"><?= $this->translate('Latitude'); ?></span>
+                                            <?= Element::text('event[latitude]', $event->getLatitude(), ['class' => 'form-control', 'data-role' => 'latitude', 'step' => '0.00000001']); ?>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-5">
+                                        <div class="input-group">
+                                            <span class="input-group-text"><?= $this->translate('Longitude'); ?></span>
+                                            <?= Element::text('event[longitude]', $event->getLongitude(), ['class' => 'form-control', 'data-role' => 'longitude', 'step' => '0.00000001']); ?>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <?= Element::select('event[location_source]', ['none' => '—', 'manual' => $this->translate('Manual'), 'url' => $this->translate('From URL')], $event->getLocationSource(), ['class' => 'form-select', 'data-role' => 'location-source']); ?>
                                     </div>
                                 </div>
-                                <div class="col-md-5">
-                                    <div class="input-group">
-                                        <span class="input-group-text"><?= $this->translate('Longitude'); ?></span>
-                                        <?= Element::text('event[longitude]', $event->getLongitude(), ['class' => 'form-control', 'data-role' => 'longitude', 'step' => '0.00000001']); ?>
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <?= Element::select('event[location_source]', ['none' => '—', 'manual' => $this->translate('Manual'), 'url' => $this->translate('From URL')], $event->getLocationSource(), ['class' => 'form-select', 'data-role' => 'location-source']); ?>
-                                </div>
                             </div>
                         </div>
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label class="form-label"><?= $this->translate('Starts at'); ?></label>
-                                <?= Element::datetime('event[starts_at]', $event->getStartsAt(), ['class' => 'form-control', 'required' => true]); ?>
+                        <div class="tab-pane fade" id="schedule" role="tabpanel">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label"><?= $this->translate('Starts at'); ?></label>
+                                    <?= Element::datetime('event[starts_at]', $event->getStartsAt(), ['class' => 'form-control', 'required' => true]); ?>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label"><?= $this->translate('Ends at'); ?></label>
+                                    <?= Element::datetime('event[ends_at]', $event->getEndsAt(), ['class' => 'form-control']); ?>
+                                    <small class="text-muted"><?= $this->translate('Optional'); ?></small>
+                                </div>
                             </div>
-                            <div class="col-md-6">
-                                <label class="form-label"><?= $this->translate('Ends at'); ?></label>
-                                <?= Element::datetime('event[ends_at]', $event->getEndsAt(), ['class' => 'form-control']); ?>
+                            <div class="alert alert-info mt-4 mb-0">
+                                <i class="bi bi-info-circle"></i> <?= $this->translate('After submission, your event will be reviewed by the association and published upon approval.'); ?>
                             </div>
-                        </div>
-                        <div class="alert alert-info mt-3 mb-0">
-                            <i class="bi bi-info-circle"></i> <?= $this->translate('After submission, your event will be reviewed by the association and published upon approval.'); ?>
                         </div>
                     </div>
                     <div class="card-footer bg-white d-flex justify-content-end gap-2">
