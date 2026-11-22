@@ -1,0 +1,61 @@
+<?php
+
+/**
+ * Detail page of a single approved event
+ * 
+ * @var \Krystal\Stdlib\VirtualEntity $page
+ * @var \Members\Service\EventEntity $event
+ */
+
+?>
+<section class="flex-grow-1 d-flex justify-content-center align-items-start py-5 bg-light">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-9">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <a href="<?= $this->url('Members:Event@catalogAction'); ?>" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> <?= $this->translate('Back to events'); ?></a>
+                    <?php if ($event->isPast()): ?>
+                        <span class="badge bg-secondary"><i class="bi bi-clock-history"></i> <?= $this->translate('Past event'); ?></span>
+                    <?php endif; ?>
+                </div>
+                <div class="card border-0 shadow-sm">
+                    <div class="card-body p-4 p-md-5">
+                        <div class="d-flex flex-column flex-md-row align-items-md-start gap-4 mb-4">
+                            <div class="bg-primary bg-opacity-10 text-primary rounded-3 d-flex flex-column align-items-center justify-content-center flex-shrink-0" style="width:96px;height:96px;">
+                                <div class="fw-bold" style="font-size:2rem;line-height:1;"><?= $event->getStartMonth(); ?></div>
+                                <div class="fw-bold" style="font-size:1.75rem;line-height:1;"><?= $event->getStartDay(); ?></div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h1 class="h2 mb-2"><?= htmlspecialchars($event->getTitle()); ?></h1>
+                                <p class="text-muted mb-2">
+                                    <i class="bi bi-calendar-event"></i> <?= htmlspecialchars($event->getFormattedStartDateTime()); ?>
+                                    &middot; <i class="bi bi-clock"></i> <?= htmlspecialchars($event->getFormattedTime()); ?>
+                                    <?php if ($event->getEndsAt()): ?>
+                                        — <?= htmlspecialchars($event->getFormattedEndTime()); ?>
+                                    <?php endif; ?>
+                                </p>
+                                <?php if ($event->hasLocation()): ?>
+                                    <p class="text-muted mb-0"><i class="bi bi-geo-alt"></i> <?= htmlspecialchars($event->getLocationName()); ?></p>
+                                <?php endif; ?>
+                                <?php if ($event->hasCreator()): ?>
+                                    <p class="text-muted small mt-2 mb-0"><i class="bi bi-person"></i> <?= $this->translate('Organized by'); ?> <strong><?= htmlspecialchars($event->getCreatorName()); ?></strong></p>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                        <?php if ($event->hasDescription()): ?>
+                            <hr class="my-4">
+                            <div class="mb-4" style="white-space:pre-wrap;"><?= nl2br(htmlspecialchars($event->getDescription())); ?></div>
+                        <?php endif; ?>
+                        <?php if ($event->hasLink()): ?>
+                            <div class="d-flex flex-wrap gap-2">
+                                <a href="<?= $this->url('Members:Event@clickAction', [$event->getId()]); ?>" class="btn btn-primary btn-lg" target="_blank" rel="noopener">
+                                    <i class="bi bi-box-arrow-up-right"></i> <?= $this->translate('Sign up'); ?>
+                                </a>
+                            </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>

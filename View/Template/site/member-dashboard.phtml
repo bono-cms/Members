@@ -70,6 +70,16 @@ use Members\Service\MemberEntity;
                         </div>
                     </div>
 
+                    <div class="col-12 col-md-6">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="bi bi-calendar-event text-primary"></i> <?= $this->translate('My events'); ?></h5>
+                                <p class="text-body-secondary"><?= $this->translate('Create and manage your events, track views and registrations.'); ?></p>
+                                <a href="<?= $this->url('Members:Event@indexAction'); ?>" class="btn btn-outline-primary"><i class="bi bi-calendar-event"></i> <?= $this->translate('Go to events'); ?></a>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="col-12">
                         <div class="card border-0 shadow-sm">
                             <div class="card-body text-end">

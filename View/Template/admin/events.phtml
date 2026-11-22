@@ -1,0 +1,141 @@
+<?php
+use Cms\View\Icon;
+use Krystal\Date\TimeHelper;
+use Krystal\Form\Element;
+use Krystal\Widget\GridView\GridViewWidget;
+?>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <a class="btn btn-primary" href="<?= $this->url('Members:Admin:Event@createAction'); ?>">
+        <i class="bi bi-calendar-plus"></i> <?= $this->translate('Create event'); ?>
+    </a>
+
+    <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-info" href="<?= $this->url('Members:Admin:Event@dashboardAction'); ?>">
+            <i class="bi bi-graph-up"></i> <?= $this->translate('Analytics'); ?>
+        </a>
+
+        <?php if (!empty($statusBreakdown['pending'])): ?>
+            <a class="btn btn-warning" href="<?= $this->url('Members:Admin:Event@indexAction') . '?status=pending'; ?>">
+                <i class="bi bi-hourglass-split"></i> <?= $this->translate('Pending'); ?> <span class="badge bg-light text-dark ms-1"><?= (int) $statusBreakdown['pending']; ?></span>
+            </a>
+        <?php endif; ?>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white d-flex flex-wrap gap-2 align-items-center">
+        <form method="GET" action="<?= $this->url('Members:Admin:Event@indexAction'); ?>" class="d-flex flex-wrap gap-2">
+            <select name="status" class="form-select form-select-sm" style="width:auto;">
+                <option value=""><?= $this->translate('All statuses'); ?></option>
+                <option value="pending" <?= $statusFilter === 'pending' ? 'selected' : ''; ?>><?= $this->translate('Pending'); ?></option>
+                <option value="approved" <?= $statusFilter === 'approved' ? 'selected' : ''; ?>><?= $this->translate('Approved'); ?></option>
+                <option value="rejected" <?= $statusFilter === 'rejected' ? 'selected' : ''; ?>><?= $this->translate('Rejected'); ?></option>
+            </select>
+
+            <button type="submit" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-funnel"></i> <?= $this->translate('Filter'); ?>
+            </button>
+
+            <?php if ($statusFilter !== ''): ?>
+                <a href="<?= $this->url('Members:Admin:Event@indexAction'); ?>" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-x-lg"></i> <?= $this->translate('Reset'); ?>
+                </a>
+            <?php endif; ?>
+        </form>
+    </div>
+
+    <div class="table-responsive">
+        <?= $this->widget(new GridViewWidget($events, [
+            'tableClass' => 'table table-hover table-bordered table-striped align-middle',
+            'columns'    => [
+                [
+                    'column' => 'title',
+                    'label'  => 'Title',
+                    'value'  => function ($event) {
+                        return htmlspecialchars($event['title']);
+                    },
+                ],
+                [
+                    'column' => 'creator_name',
+                    'label'  => 'Author',
+                    'value'  => function ($event) {
+                        if ($event['creator_id'] === null) {
+                            return '<span class="badge bg-info"><i class="bi bi-building"></i> ' . $this->translate('Official') . '</span>';
+                        }
+
+                        return htmlspecialchars($event['creator_name'] ?: '—');
+                    },
+                ],
+                [
+                    'column' => 'starts_at',
+                    'label'  => 'Date',
+                    'value'  => function ($event) {
+                        return htmlspecialchars(date('M j, Y H:i', strtotime($event['starts_at'])));
+                    },
+                ],
+                [
+                    'column' => 'status',
+                    'label'  => 'Status',
+                    'value'  => function ($event) {
+                        $map = [
+                            'pending'  => ['warning', 'Pending'],
+                            'approved' => ['success', 'Approved'],
+                            'rejected' => ['danger', 'Rejected'],
+                        ];
+
+                        $info = isset($map[$event['status']]) ? $map[$event['status']] : ['secondary', $event['status']];
+
+                        return '<span class="badge bg-' . $info[0] . '">' . $this->translate($info[1]) . '</span>';
+                    },
+                ],
+                [
+                    'column' => 'views_count',
+                    'label'  => 'Views',
+                    'value'  => function ($event) {
+                        return '<i class="bi bi-eye"></i> ' . (int) $event['views_count'] . ' / <i class="bi bi-cursor"></i> ' . (int) $event['clicks_count'];
+                    },
+                ],
+            ],
+            'actions' => [
+                function ($event) {
+                    return Icon::edit(
+                        $this->url('Members:Admin:Event@editAction', [$event['id']]),
+                        $this->translate('Edit event')
+                    );
+                },
+                function ($event) {
+                    return Icon::button('bi bi-graph-up', $this->url('Members:Admin:Event@analyticsAction', [$event['id']]), $this->translate('Analytics'));
+                },
+                function ($event) {
+                    if ($event['status'] === 'pending') {
+                        return Icon::button('bi bi-check-lg', $this->url('Members:Admin:Event@approveAction', [$event['id']]), $this->translate('Approve'));
+                    }
+
+                    return '';
+                },
+                function ($event) {
+                    return Icon::remove(
+                        $this->url('Members:Admin:Event@deleteAction', [$event['id']]),
+                        $this->translate('Remove event')
+                    );
+                },
+            ],
+        ])); ?>
+
+        <?php if (empty($events)): ?>
+            <div class="text-center py-5">
+                <i class="bi bi-calendar text-muted" style="font-size:3rem;"></i>
+                <h3 class="text-muted mt-3"><?= $this->translate('No events yet'); ?></h3>
+                <p class="text-muted"><?= $this->translate('Get started by creating your first event.'); ?></p>
+                <a class="btn btn-primary mt-2" href="<?= $this->url('Members:Admin:Event@createAction'); ?>">
+                    <i class="bi bi-calendar-plus"></i> <?= $this->translate('Create event'); ?>
+                </a>
+            </div>
+        <?php endif; ?>
+    </div>
+
+    <div class="card-footer bg-white">
+        <?php $this->loadPartial('paginator'); ?>
+    </div>
+</div>

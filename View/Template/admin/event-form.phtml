@@ -1,0 +1,176 @@
+<?php
+
+use Krystal\Form\Element;
+
+$isNew = !$event->getId();
+// An event is official if it exists in DB and has no creator.
+// For brand new forms, it defaults to false.
+$isOfficial = !$isNew && $event->getCreatorId() === null;
+
+?>
+
+<form class="card" autocomplete="off">
+    <?= Element::hidden('event[id]', $event->getId()); ?>
+
+    <div class="card-header bg-white">
+        <h5 class="mb-0">
+            <i class="bi bi-calendar-event"></i>
+            <?= $isNew ? $this->translate('Create event') : $this->translate('Edit event'); ?>
+        </h5>
+    </div>
+
+    <div class="card-body">
+        <div class="row mb-3">
+            <label class="col-lg-2 col-form-label"><?= $this->translate('Title'); ?></label>
+            <div class="col-lg-10">
+                <?= Element::text('event[title]', $event->getTitle(), ['class' => 'form-control', 'maxlength' => 200, 'required' => true]); ?>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <label class="col-lg-2 col-form-label"><?= $this->translate('Description'); ?></label>
+            <div class="col-lg-10">
+                <?= Element::textarea('event[description]', $event->getDescription(), ['class' => 'form-control', 'rows' => 4]); ?>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <label class="col-lg-2 col-form-label"><?= $this->translate('Registration link'); ?></label>
+            <div class="col-lg-10">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
+                    <?= Element::text('event[link]', $event->getLink(), ['class' => 'form-control', 'maxlength' => 500, 'placeholder' => 'https://...']); ?>
+                </div>
+                <small class="text-muted"><?= $this->translate('Leave blank if registration is not required'); ?></small>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <label class="col-lg-2 col-form-label"><?= $this->translate('Location name'); ?></label>
+            <div class="col-lg-10">
+                <?= Element::text('event[location_name]', $event->getLocationName(), ['class' => 'form-control', 'maxlength' => 255, 'required' => true]); ?>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <label class="col-lg-2 col-form-label"><?= $this->translate('Map URL'); ?></label>
+            <div class="col-lg-10">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-geo-alt"></i></span>
+                    <input type="text" id="map-url-input" class="form-control" placeholder="<?= $this->translate('Paste Google Maps, Yandex, OSM or 2GIS URL'); ?>" />
+                    <button type="button" class="btn btn-outline-secondary" id="parse-location-btn"><i class="bi bi-arrow-clockwise"></i> <?= $this->translate('Extract'); ?></button>
+                </div>
+                <small class="text-muted"><?= $this->translate('Supports Google Maps, Yandex Maps, OpenStreetMap, 2GIS'); ?></small>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <label class="col-lg-2 col-form-label"><?= $this->translate('Coordinates'); ?></label>
+            <div class="col-lg-10">
+                <div class="row g-2">
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text"><?= $this->translate('Latitude'); ?></span>
+                            <?= Element::text('event[latitude]', $event->getLatitude(), ['class' => 'form-control', 'id' => 'latitude-input', 'step' => '0.00000001', 'placeholder' => '41.2995']); ?>
+                        </div>
+                    </div>
+
+                    <div class="col-md-5">
+                        <div class="input-group">
+                            <span class="input-group-text"><?= $this->translate('Longitude'); ?></span>
+                            <?= Element::text('event[longitude]', $event->getLongitude(), ['class' => 'form-control', 'id' => 'longitude-input', 'step' => '0.00000001', 'placeholder' => '69.2401']); ?>
+                        </div>
+                    </div>
+
+                    <div class="col-md-2">
+                        <?= Element::select('event[location_source]', ['none' => '—', 'manual' => $this->translate('Manual'), 'url' => $this->translate('From URL')], $event->getLocationSource(), ['class' => 'form-select', 'id' => 'location-source-input']); ?>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <label class="col-lg-2 col-form-label"><?= $this->translate('Starts at'); ?></label>
+            <div class="col-lg-10">
+                <?= Element::datetime('event[starts_at]', $event->getStartsAt(), ['class' => 'form-control', 'required' => true]); ?>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <label class="col-lg-2 col-form-label"><?= $this->translate('Ends at'); ?></label>
+            <div class="col-lg-10">
+                <?= Element::datetime('event[ends_at]', $event->getEndsAt(), ['class' => 'form-control']); ?>
+                <small class="text-muted"><?= $this->translate('Optional'); ?></small>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <label class="col-lg-2 col-form-label"><?= $this->translate('Event type'); ?></label>
+            <div class="col-lg-10">
+                <div class="form-check form-switch mt-2">
+                    <?= Element::checkbox('event[is_official]', $isOfficial, ['class' => 'form-check-input', 'id' => 'is_official']); ?>
+                    <label class="form-check-label" for="is_official">
+                        <?= $this->translate('Official event (on behalf of the association)'); ?>
+                    </label>
+                </div>
+                <small class="text-muted"><?= $this->translate('Official events skip moderation and appear without an author'); ?></small>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-footer bg-white d-flex justify-content-end">
+        <a href="<?= $this->url('Members:Admin:Event@indexAction'); ?>" class="btn btn-outline-secondary me-2"><i class="bi bi-x-lg"></i> <?= $this->translate('Cancel'); ?></a>
+        <button type="submit" class="btn btn-primary" data-button="submit" data-url="<?= $isNew ? $this->url('Members:Admin:Event@storeAction') : $this->url('Members:Admin:Event@updateAction', [$event->getId()]); ?>">
+            <i class="bi bi-save"></i> <?= $this->translate('Save'); ?>
+        </button>
+    </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var parseBtn = document.getElementById('parse-location-btn');
+    var urlInput = document.getElementById('map-url-input');
+    var latInput = document.getElementById('latitude-input');
+    var lngInput = document.getElementById('longitude-input');
+    var sourceInput = document.getElementById('location-source-input');
+    var parseUrl = <?= json_encode($this->url('Members:Admin:Event@parseLocationAction')); ?>;
+
+    parseBtn.addEventListener('click', function () {
+        var url = urlInput.value.trim();
+
+        if (!url) {
+            return;
+        }
+
+        parseBtn.disabled = true;
+        parseBtn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i>';
+
+        fetch(parseUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: 'url=' + encodeURIComponent(url) + '&token=' + encodeURIComponent(document.querySelector('meta[name="csrf-token"]').getAttribute('content'))
+        })
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+            parseBtn.disabled = false;
+            parseBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> <?= $this->translate('Extract'); ?>';
+
+            if (data.error) {
+                alert(data.error);
+                return;
+            }
+
+            latInput.value = data.lat;
+            lngInput.value = data.lng;
+            sourceInput.value = data.source;
+        })
+        .catch(function () {
+            parseBtn.disabled = false;
+            parseBtn.innerHTML = '<i class="bi bi-arrow-clockwise"></i> <?= $this->translate('Extract'); ?>';
+        });
+    });
+});
+</script>

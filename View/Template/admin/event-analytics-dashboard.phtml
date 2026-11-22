@@ -1,0 +1,164 @@
+<?php
+$this->getPluginBag()->appendScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js');
+?>
+
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <a class="btn btn-outline-secondary" href="<?= $this->url('Members:Admin:Event@indexAction'); ?>">
+        <i class="bi bi-arrow-left"></i> <?= $this->translate('Back to events'); ?>
+    </a>
+    <h4 class="mb-0"><i class="bi bi-graph-up"></i> <?= $this->translate('Events analytics'); ?></h4>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <div class="text-muted small text-uppercase"><?= $this->translate('Total events'); ?></div>
+                <div class="h2 mb-0"><?= (int) $dashboard['totalEvents']; ?></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <div class="text-muted small text-uppercase"><?= $this->translate('Total views'); ?></div>
+                <div class="h2 mb-0"><?= (int) $dashboard['totalViews']; ?></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <div class="text-muted small text-uppercase"><?= $this->translate('Total clicks'); ?></div>
+                <div class="h2 mb-0"><?= (int) $dashboard['totalClicks']; ?></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-6 col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body text-center">
+                <div class="text-muted small text-uppercase"><?= $this->translate('Conversion'); ?></div>
+                <div class="h2 mb-0"><?= (float) $dashboard['conversion']; ?>%</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-title"><i class="bi bi-hourglass-split text-warning"></i> <?= $this->translate('By status'); ?></h6>
+                <ul class="list-unstyled mb-0">
+                    <li class="d-flex justify-content-between"><span><?= $this->translate('Pending'); ?></span><span class="badge bg-warning text-dark"><?= (int) $dashboard['statusBreakdown']['pending']; ?></span></li>
+                    <li class="d-flex justify-content-between mt-1"><span><?= $this->translate('Approved'); ?></span><span class="badge bg-success"><?= (int) $dashboard['statusBreakdown']['approved']; ?></span></li>
+                    <li class="d-flex justify-content-between mt-1"><span><?= $this->translate('Rejected'); ?></span><span class="badge bg-danger"><?= (int) $dashboard['statusBreakdown']['rejected']; ?></span></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-9">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-title"><i class="bi bi-graph-up"></i> <?= $this->translate('Views and clicks over the last 14 days'); ?></h6>
+                <canvas id="daily-chart" height="120"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-title"><i class="bi bi-trophy"></i> <?= $this->translate('Top 10 events by views'); ?></h6>
+
+                <?php if (empty($dashboard['topEventsByViews'])): ?>
+                    <p class="text-muted mb-0"><?= $this->translate('No data yet'); ?></p>
+                <?php else: ?>
+                    <ol class="list-group list-group-numbered mb-0">
+                        <?php foreach ($dashboard['topEventsByViews'] as $event): ?>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div class="text-truncate">
+                                    <?= htmlspecialchars($event['title']); ?>
+
+                                    <?php if ($event['creator_name'] !== null): ?>
+                                        <small class="text-muted d-block"><?= htmlspecialchars($event['creator_name']); ?></small>
+                                    <?php else: ?>
+                                        <small class="text-info d-block"><i class="bi bi-building"></i> <?= $this->translate('Official'); ?></small>
+                                    <?php endif; ?>
+                                </div>
+                                <span class="badge bg-primary rounded-pill"><?= (int) $event['counter']; ?></span>
+                            </li>
+                        <?php endforeach; ?>
+                    </ol>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-title"><i class="bi bi-people"></i> <?= $this->translate('Top 5 authors'); ?></h6>
+
+                <?php if (empty($dashboard['topAuthors'])): ?>
+                    <p class="text-muted mb-0"><?= $this->translate('No data yet'); ?></p>
+                <?php else: ?>
+                    <ol class="list-group list-group-numbered mb-0">
+                        <?php foreach ($dashboard['topAuthors'] as $author): ?>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                <div class="text-truncate"><?= htmlspecialchars($author['creator_name']); ?></div>
+                                <span class="badge bg-success rounded-pill"><?= (int) $author['total_views']; ?> <?= $this->translate('views'); ?></span>
+                            </li>
+                        <?php endforeach; ?>
+                    </ol>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var dailyStats = <?= json_encode($dashboard['dailyStats']); ?>;
+    var labels     = dailyStats.map(function (row) { return row.date; });
+    var views      = dailyStats.map(function (row) { return row.views; });
+    var clicks     = dailyStats.map(function (row) { return row.clicks; });
+    var ctx        = document.getElementById('daily-chart').getContext('2d');
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: <?= json_encode($this->translate('Views')); ?>,
+                    data: views,
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                },
+                {
+                    label: <?= json_encode($this->translate('Clicks')); ?>,
+                    data: clicks,
+                    borderColor: '#198754',
+                    backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                    fill: true,
+                    tension: 0.3
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+    });
+});
+</script>

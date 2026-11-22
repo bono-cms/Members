@@ -1,0 +1,124 @@
+<?php
+
+/**
+ * Detailed analytics for a member's own event
+ *
+ * @var \Krystal\Stdlib\VirtualEntity $page
+ * @var \Members\Service\EventEntity $event
+ * @var array $analytics Analytics payload with keys: views, clicks, conversion, dailyStats, sourceStats
+ */
+
+$this->getPluginBag()->appendScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js');
+
+?>
+
+<section class="flex-grow-1 d-flex justify-content-center align-items-start py-5 bg-light">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-9">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <div>
+                        <h1 class="h3 mb-1"><i class="bi bi-graph-up"></i> <?= $this->translate('Event analytics'); ?></h1>
+                        <p class="text-muted mb-0"><?= htmlspecialchars($event->getTitle()); ?></p>
+                    </div>
+                    <a href="<?= $this->url('Members:Event@indexAction'); ?>" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> <?= $this->translate('Back'); ?></a>
+                </div>
+
+                <div class="row g-3 mb-4">
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body text-center">
+                                <div class="text-muted small text-uppercase"><?= $this->translate('Views'); ?></div>
+                                <div class="h2 mb-0"><?= (int) $analytics['views']; ?></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body text-center">
+                                <div class="text-muted small text-uppercase"><?= $this->translate('Clicks'); ?></div>
+                                <div class="h2 mb-0"><?= (int) $analytics['clicks']; ?></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body text-center">
+                                <div class="text-muted small text-uppercase"><?= $this->translate('Conversion'); ?></div>
+                                <div class="h2 mb-0"><?= (float) $analytics['conversion']; ?>%</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-6 col-md-3">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body text-center">
+                                <div class="text-muted small text-uppercase"><?= $this->translate('Event date'); ?></div>
+                                <div class="h6 mb-0"><?= htmlspecialchars($event->getFormattedDate()); ?> <?= htmlspecialchars($event->getFormattedTime()); ?></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-8">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="bi bi-graph-up"></i> <?= $this->translate('Views and clicks over the last 14 days'); ?></h6>
+                                <canvas id="daily-chart" height="140"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card border-0 shadow-sm h-100">
+                            <div class="card-body">
+                                <h6 class="card-title"><i class="bi bi-pie-chart"></i> <?= $this->translate('Traffic sources'); ?></h6>
+                                <?php if (empty($analytics['sourceStats'])): ?>
+                                    <p class="text-muted mb-0"><?= $this->translate('No data yet'); ?></p>
+                                <?php else: ?>
+                                    <canvas id="source-chart" height="200"></canvas>
+                                <?php endif; ?>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var dailyStats = <?= json_encode($analytics['dailyStats']); ?>;
+    var labels = dailyStats.map(function (row) { return row.date; });
+    var views = dailyStats.map(function (row) { return row.views; });
+    var clicks = dailyStats.map(function (row) { return row.clicks; });
+
+    new Chart(document.getElementById('daily-chart').getContext('2d'), {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                { label: <?= json_encode($this->translate('Views')); ?>, data: views, borderColor: '#0d6efd', backgroundColor: 'rgba(13, 110, 253, 0.1)', fill: true, tension: 0.3 },
+                { label: <?= json_encode($this->translate('Clicks')); ?>, data: clicks, borderColor: '#198754', backgroundColor: 'rgba(25, 135, 84, 0.1)', fill: true, tension: 0.3 }
+            ]
+        },
+        options: {
+            responsive: true,
+            plugins: { legend: { position: 'bottom' } },
+            scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+    });
+
+    <?php if (!empty($analytics['sourceStats'])): ?>
+    var sourceStats = <?= json_encode($analytics['sourceStats']); ?>;
+    new Chart(document.getElementById('source-chart').getContext('2d'), {
+        type: 'pie',
+        data: {
+            labels: sourceStats.map(function (row) { return row.source; }),
+            datasets: [{ data: sourceStats.map(function (row) { return row.views + row.clicks; }), backgroundColor: ['#0d6efd', '#198754', '#ffc107', '#dc3545'] }]
+        },
+        options: { responsive: true, plugins: { legend: { position: 'bottom' } } }
+    });
+    <?php endif; ?>
+});
+</script>
