@@ -1,37 +1,38 @@
-Members module
-==============
+# Members module
 
 This module provides a shared membership system for your site: member
 accounts, authentication, profiles, a public directory, tags, optional
-profile moderation, and 1-to-1 private messaging. It ships both a
-server-rendered site area (Bootstrap 5 templates) and a JSON API (JWT) for
-mobile apps and SPAs. Other modules that need "a logged-in user" build on
-top of it.
+profile moderation, 1-to-1 private messaging, and a full events system
+with analytics. It ships both a server-rendered site area (Bootstrap 5
+templates) and a JSON API (JWT) for mobile apps and SPAs. Other modules
+that need "a logged-in user" build on top of it.
 
 # Contents
 
- - [Requirements](#Requirements)
- - [Configuration](#Configuration)
- - [Features](#Features)
- - [How it works](#How-it-works)
- - [Routes](#Routes)
- - [Templates](#Templates)
- - [Services](#Services)
- - [URL generation](#Yrl-generation)
- - [API](#Api)
- - [Localization](#Localization)
- - [Data and storage](#data-and-storage)
- - [Notes](#notes)
- - [Known limitations](#known-limitations)
+- [Requirements](#requirements)
+- [Configuration](#configuration)
+- [Features](#features)
+- [How it works](#how-it-works)
+- [Routes](#routes)
+- [Templates](#templates)
+- [Services](#services)
+- [URL generation](#url-generation)
+- [API](#api)
+- [Localization](#localization)
+- [Data and storage](#data-and-storage)
+- [Events JavaScript](#events-javascript)
+- [Notes](#notes)
+- [Known limitations](#known-limitations)
 
 # Requirements
 
- - Bono CMS with the `Cms` module loaded (the module uses its language
-   manager and mailer)
- - A working mailer configured in the `Cms` module (registration and
-   recovery emails)
- - For the bundled templates: Bootstrap 5 and Bootstrap Icons on the page.
-   For the bundled chat script: jQuery 3.x
+- Bono CMS with the `Cms` module loaded (the module uses its language
+  manager and mailer)
+- A working mailer configured in the `Cms` module (registration and
+  recovery emails)
+- For the bundled templates: Bootstrap 5 and Bootstrap Icons on the page.
+  For the bundled chat script: jQuery 3.x
+- For the events analytics charts: Chart.js 4.x (loaded from CDN)
 
 # Configuration
 
@@ -39,15 +40,17 @@ Everything lives in `Config/module.config.php`.
 
 ## Moderation
 
-    'moderation' => [
-        'enabled' => true,
-        'fields' => [
-            'reserved'     => ['id', 'password', 'remove_avatar', 'email'],
-            'skip'         => ['phone', 'password'],
-            'translatable' => ['bio', 'title', 'name'],
-            'base'         => ['address', 'avatar', 'company']
-        ]
+```php
+'moderation' => [
+    'enabled' => true,
+    'fields' => [
+        'reserved'     => ['id', 'password', 'remove_avatar', 'email'],
+        'skip'         => ['phone', 'password'],
+        'translatable' => ['bio', 'title', 'name'],
+        'base'         => ['address', 'avatar', 'company']
     ]
+]
+```
 
 | Key            | Meaning                                                                          |
 |----------------|----------------------------------------------------------------------------------|
@@ -59,101 +62,168 @@ Everything lives in `Config/module.config.php`.
 
 Important details:
 
- - Which fields a member may write at all is **hard-coded** in
-   `ProfileChangeService`: base fields `phone`, `address`, `country`,
-   `company`, `avatar`, and translation fields `name`, `title`, `bio`.
-   Anything else submitted is silently dropped. The config buckets only
-   decide whether an allowed field is staged or applied immediately; they
-   cannot add new writable fields.
- - With the default config, `phone` and `country` are applied immediately
-   (they are not in a staged bucket); `address`, `company`, `avatar`,
-   `name`, `title` and `bio` are staged.
- - The email address and the password cannot be changed through the profile
-   form. The password has its own path and never goes through moderation.
+- Which fields a member may write at all is **hard-coded** in
+  `ProfileChangeService`: base fields `phone`, `address`, `country`,
+  `company`, `avatar`, and translation fields `name`, `title`, `bio`.
+  Anything else submitted is silently dropped. The config buckets only
+  decide whether an allowed field is staged or applied immediately; they
+  cannot add new writable fields.
+- With the default config, `phone` and `country` are applied immediately
+  (they are not in a staged bucket); `address`, `company`, `avatar`,
+  `name`, `title` and `bio` are staged.
+- The email address and the password cannot be changed through the profile
+  form. The password has its own path and never goes through moderation.
 
 ## API
 
-    'api' => [
-        'jwt_secret' => 'REPLACE-ME-with-a-long-random-string-at-least-32-chars',
-        'jwt_ttl'    => 604800 // seconds, 7 days
-    ]
+```php
+'api' => [
+    'jwt_secret' => 'REPLACE-ME-with-a-long-random-string-at-least-32-chars',
+    'jwt_ttl'    => 604800 // seconds, 7 days
+]
+```
 
 If `jwt_secret` is empty, every protected API request is rejected with
 `401`. If it is left as the shipped placeholder, every token is forgeable.
 The secret is read from the module config only; there is no environment
 variable support.
 
+## Events
+
+```php
+'extensions' => [
+    'events' => [
+        'enabled'      => true,
+        'ip_hash_salt' => 'REPLACE-ME-with-a-long-random-string',
+    ],
+],
+```
+
+| Key            | Meaning                                                                                          |
+|----------------|--------------------------------------------------------------------------------------------------|
+| `enabled`      | Master switch for the Events extension. When `false`, all event routes, menu items and dashboard widgets are hidden. |
+| `ip_hash_salt` | Salt used to hash visitor IPs for analytics deduplication. The raw IP is never stored — only `SHA1(ip + salt)`. Replace with a long random string in production. |
+
 # Features
 
 ## General features
 
- - Session-based login for the site, JWT-based login for the API
- - Registration with email confirmation
- - Password recovery by email
- - Editable member profiles with avatar, title, company, country and bio
- - Public member directory with filtering by country, company and tags
- - Tag system, grouped for the member-facing picker
- - Optional profile moderation (approve / reject edits before they go live)
- - 1-to-1 private chat with unread counts and an inbox
- - Full administration panel: members, tags, pending changes, change history
- - Translatable member data (name, title, bio) and tags, via the `Cms`
-   language manager
+- Session-based login for the site, JWT-based login for the API
+- Registration with email confirmation
+- Password recovery by email
+- Editable member profiles with avatar, title, company, country and bio
+- Public member directory with filtering by country, company and tags
+- Tag system, grouped for the member-facing picker
+- Optional profile moderation (approve / reject edits before they go live)
+- 1-to-1 private chat with unread counts and an inbox
+- Full administration panel: members, tags, pending changes, change history
+- Translatable member data (name, title, bio) and tags, via the `Cms`
+  language manager
+- Events system with creation, moderation, analytics and a public catalog
 
 ## Member features
 
- - Confirmed and unconfirmed accounts. Unconfirmed accounts can log in, edit
-   their profile and use chat, but do not appear in the public directory and
-   have no public profile page. They cannot use password recovery.
- - Avatar with several pre-rendered sizes (64×64, 128×128, 256×256)
- - Translatable `name`, `title` and `bio`
- - Self-selected tags inside admin-defined tag groups
- - Personal dashboard with profile summary
- - After a forced login the member is sent back to the page they originally
-   requested
- - Change history visible to administrators
+- Confirmed and unconfirmed accounts. Unconfirmed accounts can log in, edit
+  their profile and use chat, but do not appear in the public directory and
+  have no public profile page. They cannot use password recovery.
+- Avatar with several pre-rendered sizes (64×64, 128×128, 256×256)
+- Translatable `name`, `title` and `bio`
+- Self-selected tags inside admin-defined tag groups
+- Personal dashboard with profile summary
+- After a forced login the member is sent back to the page they originally
+  requested
+- Change history visible to administrators
 
 ## Chat features
 
- - Direct (1-to-1) conversations, resolved by member pair
- - Message inbox sorted by most recent activity
- - Unread message counter, per conversation and across all conversations
- - Idempotent message sending (a retried send with the same `client_id`
-   does not duplicate)
- - Soft-deleted messages show as a tombstone
- - Polling-based delivery, with adaptive intervals
- - Optional "load earlier" pagination (API)
+- Direct (1-to-1) conversations, resolved by member pair
+- Message inbox sorted by most recent activity
+- Unread message counter, per conversation and across all conversations
+- Idempotent message sending (a retried send with the same `client_id`
+  does not duplicate)
+- Soft-deleted messages show as a tombstone
+- Polling-based delivery, with adaptive intervals
+- Optional "load earlier" pagination (API)
 
 ## Directory features
 
- - Paginated, filterable list of confirmed members, in random order by
-   default
- - Filter by country (ISO 3166-1 alpha-2)
- - Filter by company (exact match)
- - Filter by tags (any-of semantics)
- - Web only: restrict to a set of member ids with `member_ids[]`
- - Public profile pages per member, with tags grouped by tag group
+- Paginated, filterable list of confirmed members, in random order by
+  default
+- Filter by country (ISO 3166-1 alpha-2)
+- Filter by company (exact match)
+- Filter by tags (any-of semantics)
+- Web only: restrict to a set of member ids with `member_ids[]`
+- Public profile pages per member, with tags grouped by tag group
 
 ## Administration features
 
- - Member grid with pagination (unconfirmed members are highlighted)
- - Create members manually, edit, delete
- - View full change history per member
- - Review pending profile changes with an old/new diff and a preview of
-   staged avatars
- - Manage tag groups and tags, with translations and an active/inactive flag
- - Deleting a member also removes their avatar files, translations, profile
-   change submissions, tag selections and conversation participations
-   (see [Notes](#notes) for what happens to their messages)
+- Member grid with pagination (unconfirmed members are highlighted)
+- Create members manually, edit, delete
+- View full change history per member
+- Review pending profile changes with an old/new diff and a preview of
+  staged avatars
+- Manage tag groups and tags, with translations and an active/inactive flag
+- Deleting a member also removes their avatar files, translations, profile
+  change submissions, tag selections and conversation participations
+  (see [Notes](#notes) for what happens to their messages)
+
+## Events features
+
+### General
+
+- Create, edit and delete events with title, description, registration
+  link, location and schedule
+- Parse map URLs from Google Maps, Yandex Maps, OpenStreetMap and 2GIS to
+  extract coordinates
+- Manual coordinate entry as a fallback when URL parsing fails
+- Three event statuses: `pending`, `approved`, `rejected`
+- Optional end time for multi-hour or multi-day events
+- Past-event detection based on `ends_at` (falls back to `starts_at` when
+  no end time is set)
+
+### Member-facing
+
+- Paginated public catalog of approved events with date badges and location
+- Detail page with full event information and a "Sign up" button
+- "My events" dashboard in the member cabinet with KPI summary (total
+  views, clicks, conversion)
+- Detailed per-event analytics: 14-day trend chart, traffic sources pie
+  chart
+- Member-created events go through moderation before appearing in the
+  catalog
+
+### Administrative
+
+- Admin grid with status filters (pending / approved / rejected) and
+  status breakdown badges
+- Approve or reject pending events with an optional rejection reason
+- Create "official" events on behalf of the association — these skip
+  moderation and appear without an author
+- Edit and delete any event regardless of author
+- Global analytics dashboard: KPI cards, status breakdown, top-10 events
+  by views, top-5 events by clicks, top-5 authors, 14-day trend chart
+- Per-event analytics with the same shape as the member view
+
+### Analytics
+
+- Views tracked on every detail page load (web and API)
+- Clicks tracked via a redirect endpoint (`/events/:id/go`)
+- Anti-spam deduplication: same `ip_hash` + `event_id` + `type` cannot be
+  recorded more than once per 10 minutes
+- Denormalized `views_count` and `clicks_count` counters on the events
+  table for fast list rendering
+- Daily and per-source breakdowns aggregated on demand
+- Conversion rate computed as `clicks / views * 100`
 
 ## Coming soon
 
- - Group conversations (the schema and mappers are already prepared)
- - Message edit / delete / reply endpoints (service and storage support
-   exist, no route exposes them yet)
- - Roles and permissions rework
- - Notification system
- - Profile approvals toggle per member
- - Gamification hooks
+- Group conversations (the schema and mappers are already prepared)
+- Message edit / delete / reply endpoints (service and storage support
+  exist, no route exposes them yet)
+- Roles and permissions rework
+- Notification system
+- Profile approvals toggle per member
+- Gamification hooks
 
 # How it works
 
@@ -174,25 +244,25 @@ variable support.
 
 ## Login and password recovery
 
- - Login is by **email** and password. (The form field is named
-   `identifier`.)
- - Recovery sends a link to the account's email. The response is identical
-   whether or not the email exists, to prevent account enumeration.
- - Opening the link **immediately resets the password** to a random
-   8-character value and displays it on the page; the member then changes it
-   from their profile. Only confirmed accounts can be recovered.
+- Login is by **email** and password. (The form field is named
+  `identifier`.)
+- Recovery sends a link to the account's email. The response is identical
+  whether or not the email exists, to prevent account enumeration.
+- Opening the link **immediately resets the password** to a random
+  8-character value and displays it on the page; the member then changes it
+  from their profile. Only confirmed accounts can be recovered.
 
 ## Profile editing and moderation
 
 A profile edit (`Members:Profile@updateAction`, `POST /api/v1/members/me/update`)
 is processed field by field:
 
- 1. Fields outside the writable allow-list are dropped.
- 2. Fields whose value did not change are ignored.
- 3. With moderation **off**, the rest is applied immediately.
- 4. With moderation **on**, fields in the `base` / `translatable` buckets are
-    staged as a single submission holding both the old and the new value of
-    every field; the others are applied immediately.
+1. Fields outside the writable allow-list are dropped.
+2. Fields whose value did not change are ignored.
+3. With moderation **off**, the rest is applied immediately.
+4. With moderation **on**, fields in the `base` / `translatable` buckets are
+   staged as a single submission holding both the old and the new value of
+   every field; the others are applied immediately.
 
 The member sees one of three messages: *"Your profile has been updated."*,
 *"Your changes were submitted for review."* or *"Some changes were applied
@@ -240,20 +310,103 @@ member selection of them.
 
 ## Chat
 
- - A direct conversation is identified by the key `minId:maxId` (unique
-   index), so the same pair always resolves to the same conversation, even
-   under concurrent requests.
- - Message body is trimmed; empty bodies and bodies over 5000 characters are
-   rejected.
- - Sending marks the conversation read for the sender. Fetching a thread or
-   polling marks it read up to the newest returned message. The read cursor
-   never moves backwards.
- - The inbox excludes archived conversations.
- - Page size defaults to 50 messages (maximum 100 in the service; the
-   endpoints do not expose a limit parameter).
- - Message `type` (`text`, `image`, `file`, `system`), `reply_to_id`,
-   edits, soft delete, muting and archiving exist in the schema and the
-   service layer but are not yet reachable from any route.
+- A direct conversation is identified by the key `minId:maxId` (unique
+  index), so the same pair always resolves to the same conversation, even
+  under concurrent requests.
+- Message body is trimmed; empty bodies and bodies over 5000 characters are
+  rejected.
+- Sending marks the conversation read for the sender. Fetching a thread or
+  polling marks it read up to the newest returned message. The read cursor
+  never moves backwards.
+- The inbox excludes archived conversations.
+- Page size defaults to 50 messages (maximum 100 in the service; the
+  endpoints do not expose a limit parameter).
+- Message `type` (`text`, `image`, `file`, `system`), `reply_to_id`,
+  edits, soft delete, muting and archiving exist in the schema and the
+  service layer but are not yet reachable from any route.
+
+## Events
+
+### Creation flow
+
+A member submits an event via `Members:Event@storeAction` (web) or
+`POST /api/v1/members/events` (API):
+
+1. The payload is validated (title, location name and start time are
+   required; link, description, coordinates are optional).
+2. Coordinates are resolved from the submitted `latitude` / `longitude`
+   pair. If either is missing or out of range, the event is saved without
+   coordinates.
+3. The event is inserted with `status = 'pending'` and
+   `creator_id = <member id>`.
+4. The member is redirected to "My events" with a flash message: *"The
+   event has been created and is pending review."*
+
+An administrator creates an event via `Members:Admin:Event@storeAction`:
+
+1. Same validation and coordinate resolution.
+2. If the "Official event" checkbox is set, `creator_id` is stored as
+   `NULL` — the event is published on behalf of the association.
+3. The event is inserted with `status = 'approved'` and appears in the
+   catalog immediately.
+
+### Map URL parsing
+
+The `LocationParser` service accepts a pasted map URL and returns
+`['lat' => float, 'lng' => float, 'source' => 'url']` or `null`. It
+recognises:
+
+- Google Maps: `?q=LAT,LNG`, `/@LAT,LNG,ZOOM`, `/!3dLAT!4dLNG`
+- Yandex Maps: `?pt=LNG,LAT`, `?ll=LNG,LAT`
+- OpenStreetMap: `?mlat=LAT&mlon=LNG`, `#map=ZOOM/LAT/LNG`
+- 2GIS: `?m=LNG,LAT`
+- Generic fallback: any `LAT,LNG` or `LNG,LAT` pair in the URL, with
+  heuristics to disambiguate the order
+
+Short links (`maps.app.goo.gl`, `yandex.com/s/...`, `2gis.com/...`) are
+**not** resolved — they require an HTTP redirect. The user must paste the
+full URL or enter coordinates manually.
+
+### Moderation
+
+Pending events appear in the admin grid with a yellow "Pending" badge and
+a count in the top bar. An administrator can:
+
+- **Approve** — sets `status = 'approved'` and clears `rejection_reason`.
+- **Reject** — sets `status = 'rejected'` and stores an optional reason
+  (up to 500 characters). The reason is shown to the author in "My events".
+
+An administrator editing a rejected event automatically resets it to
+`approved` and clears the rejection reason.
+
+### Analytics recording
+
+Views and clicks are recorded through `EventAnalyticsService::recordView()`
+and `recordClick()`. Each call:
+
+1. Verifies the event exists.
+2. Computes `ip_hash = SHA1(ip + salt)` — the raw IP is never stored.
+3. Checks `hasRecentEvent()` — if the same `ip_hash` recorded the same
+   `type` for the same `event_id` within the last 10 minutes, the call
+   returns `false` and nothing is written.
+4. Inside a transaction: inserts a row into `event_analytics` and
+   increments the denormalized counter on the events table.
+
+When no IP is available (e.g. behind certain proxies), the anti-spam check
+is skipped and the hit is always recorded — counters may be slightly
+inflated, but legitimate hits are never lost.
+
+### Click tracking
+
+The "Sign up" button on both the catalog card and the detail page points at
+`/events/:id/go`. This endpoint:
+
+1. Verifies the event exists, is approved and has a non-empty `link`.
+2. Records a click via `EventAnalyticsService::recordClick()`.
+3. Issues a 302 redirect to the event's `link`.
+
+If the event has no `link`, the endpoint returns 404 and the button is not
+rendered in the template.
 
 # Routes
 
@@ -283,6 +436,17 @@ member selection of them.
 | `/member/messages/converstation/(:var)`| `Chat@conversationAction`    | login        |
 | `/member/messages/send`                | `Chat@sendAction`            | login        |
 | `/member/messages/poll`                | `Chat@pollAction`            | login        |
+| `/events`                              | `Event@catalogAction`        |              |
+| `/events/(:var)`                       | `Event@viewAction`           |              |
+| `/events/(:var)/go`                    | `Event@clickAction`          |              |
+| `/member/events`                       | `Event@indexAction`          | login        |
+| `/member/events/create`                | `Event@createAction`         | login        |
+| `/member/events/store`                 | `Event@storeAction`          | login        |
+| `/member/events/edit/(:var)`           | `Event@editAction`           | login        |
+| `/member/events/update/(:var)`         | `Event@updateAction`         | login        |
+| `/member/events/delete/(:var)`         | `Event@deleteAction`         | login        |
+| `/member/events/analytics/(:var)`      | `Event@analyticsAction`      | login        |
+| `/member/events/parse-location`        | `Event@parseLocationAction`  | login        |
 
 "login" means `AuthRequiredMiddleware` (redirects to the login page and
 remembers the requested URI; also logs out sessions whose member row was
@@ -309,9 +473,14 @@ All under `/<admin>/module/members`:
 | `/tags`, `/tags/add`, `/tags/edit/(:var)`, `/tags/save`, `/tags/delete/(:var)` | Tag groups |
 | `/tags/group/(:var)`, `/tags/group/(:var)/add` | Tags of a group    |
 | `/tags/tag/edit/(:var)`, `/tags/tag/save`, `/tags/tag/delete/(:var)` | Edit a tag |
+| `/events`, `/events/create`, `/events/store`, `/events/edit/(:var)`, `/events/update/(:var)`, `/events/delete/(:var)` | Create / edit / delete an event |
+| `/events/approve/(:var)`, `/events/reject/(:var)` | Moderate an event (POST) |
+| `/events/analytics`                   | Global analytics dashboard  |
+| `/events/analytics/(:var)`            | Per-event analytics         |
+| `/events/parse-location`              | AJAX map URL parser         |
 
-The admin menu entries are *View all members*, *Review pending changes* and
-*Manage tags*.
+The admin menu entries are *View all members*, *Review pending changes*,
+*Manage tags* and *Events*.
 
 # Templates
 
@@ -324,10 +493,12 @@ look up.
 
 Controllers add these to every page rendered on a GET request:
 
-    $languages            // Language entities (active languages)
-    $isLoggedIn           // bool
-    $meId                 // int, current member id (0 when logged out)
-    $unreadMessagesCount  // int, unread messages across all conversations
+```
+$languages            // Language entities (active languages)
+$isLoggedIn           // bool
+$meId                 // int, current member id (0 when logged out)
+$unreadMessagesCount  // int, unread messages across all conversations
+```
 
 Each page also receives a `$page` entity (title and SEO metadata). The layout
 reads `$page->getTitle()`, `getMetaDescription()`, `getMetaKeywords()` and
@@ -368,28 +539,32 @@ Email templates (`messages/register.phtml` receives `$name` and `$link`;
 
 `member-dashboard.phtml`. Receives:
 
-    $member       // MemberEntity of the logged-in member
-    $tagGroups    // The member's selected tags, grouped by tag group
-    $page         // Page entity
+```
+$member       // MemberEntity of the logged-in member
+$tagGroups    // The member's selected tags, grouped by tag group
+$page         // Page entity
+```
 
 The `$member` entity provides:
 
-    $member->getId();
-    $member->getName();
-    $member->getDisplayName();   // name, else email, else "#<id>"
-    $member->getEmail();
-    $member->getPhone();
-    $member->getCompany();
-    $member->getCountry();       // ISO 3166-1 alpha-2 code
-    $member->getCountryName();   // human-readable name, or null
-    $member->getAddress();
-    $member->getTitle();
-    $member->getBio();
-    $member->getConfirmed();
-    $member->getSubscriber();
-    $member->getCreatedAt();
-    $member->hasAvatar();
-    $member->getAvatarUrl('256x256'); // 64x64, 128x128, 256x256 are generated
+```
+$member->getId();
+$member->getName();
+$member->getDisplayName();   // name, else email, else "#<id>"
+$member->getEmail();
+$member->getPhone();
+$member->getCompany();
+$member->getCountry();       // ISO 3166-1 alpha-2 code
+$member->getCountryName();   // human-readable name, or null
+$member->getAddress();
+$member->getTitle();
+$member->getBio();
+$member->getConfirmed();
+$member->getSubscriber();
+$member->getCreatedAt();
+$member->hasAvatar();
+$member->getAvatarUrl('256x256'); // 64x64, 128x128, 256x256 are generated
+```
 
 `MemberEntity` also defines the constants `AVATAR_THUMB` (`64x64`),
 `AVATAR_SMALL` (`256x256`) and `AVATAR_PROFILE` (`256x256`).
@@ -399,11 +574,13 @@ The `$member` entity provides:
 `member-profile.phtml`. It combines the editable profile fields and the tag
 picker in a single form. It receives:
 
-    $member       // Array of translation entities (one per language), or one entity
-    $pending      // Pending submissions of this member (empty if moderation is off)
-    $payload      // Tag picker payload: [ ['group' => ..., 'tags' => [...]], ... ]
-    $selected     // Array of selected tag ids
-    $page         // Page entity
+```
+$member       // Array of translation entities (one per language), or one entity
+$pending      // Pending submissions of this member (empty if moderation is off)
+$payload      // Tag picker payload: [ ['group' => ..., 'tags' => [...]], ... ]
+$selected     // Array of selected tag ids
+$page         // Page entity
+```
 
 The form posts `member[...]` base fields (`phone`, `country`, `company`,
 `address`, `remove_avatar`, `password`), the avatar as the file field `file`,
@@ -415,19 +592,21 @@ enabled, some changes are staged for review rather than applied immediately.
 The `$payload` variable is structured so you can render groups and their
 tags in one pass:
 
-    <?php foreach ($payload as $block): ?>
-        <fieldset>
-            <legend><?= $block['group']['name']; ?></legend>
-            <?php foreach ($block['tags'] as $tag): ?>
-                <label>
-                    <input type="checkbox" name="tags[]"
-                           value="<?= $tag['id']; ?>"
-                           <?= in_array((int) $tag['id'], array_map('intval', $selected)) ? 'checked' : ''; ?>>
-                    <?= $tag['label']; ?>
-                </label>
-            <?php endforeach; ?>
-        </fieldset>
-    <?php endforeach; ?>
+```php
+<?php foreach ($payload as $block): ?>
+    <fieldset>
+        <legend><?= $block['group']['name']; ?></legend>
+        <?php foreach ($block['tags'] as $tag): ?>
+            <label>
+                <input type="checkbox" name="tags[]"
+                       value="<?= $tag['id']; ?>"
+                       <?= in_array((int) $tag['id'], array_map('intval', $selected)) ? 'checked' : ''; ?>>
+                <?= $tag['label']; ?>
+            </label>
+        <?php endforeach; ?>
+    </fieldset>
+<?php endforeach; ?>
+```
 
 `$block['group']` carries `id`, `code`, `sort_order`, `name`, `description`;
 each tag carries `id`, `group_id`, `code`, `sort_order`, `is_active`,
@@ -438,9 +617,11 @@ each tag carries `id`, `group_id`, `code`, `sort_order`, `is_active`,
 `member-public-profile.phtml`. Rendered for a confirmed member's public page.
 It receives:
 
-    $member       // MemberEntity
-    $tagGroups    // Selected tags grouped by tag group
-    $page         // Page entity
+```
+$member       // MemberEntity
+$tagGroups    // Selected tags grouped by tag group
+$page         // Page entity
+```
 
 Only confirmed members have a public profile. Visiting the URL of an
 unconfirmed member (or of a member with no translation in the active
@@ -451,15 +632,17 @@ this template.
 
 `member-directory.phtml`. It receives:
 
-    $members       // Paginated list of confirmed MemberEntity objects
-    $paginator     // Paginator instance
-    $total         // Total number of matching members
-    $countries     // Countries that have at least one confirmed member
-    $companies     // Array of distinct company names
-    $payload       // Tag picker payload
-    $filterCountry // Currently applied country filter (or null)
-    $filterCompany // Currently applied company filter (or null)
-    $filterTags    // Currently applied tag ids
+```
+$members       // Paginated list of confirmed MemberEntity objects
+$paginator     // Paginator instance
+$total         // Total number of matching members
+$countries     // Countries that have at least one confirmed member
+$companies     // Array of distinct company names
+$payload       // Tag picker payload
+$filterCountry // Currently applied country filter (or null)
+$filterCompany // Currently applied company filter (or null)
+$filterTags    // Currently applied tag ids
+```
 
 The page shows 21 members per page. A typical directory card renders the
 member's display name, company, country and avatar. Use
@@ -470,69 +653,199 @@ in random order.
 
 `member-inbox.phtml`. It receives:
 
-    $conversations // Array of shaped conversation rows
-    $page          // Page entity
+```
+$conversations // Array of shaped conversation rows
+$page          // Page entity
+```
 
 Each conversation row contains:
 
-    [
-        'id'            => int,
-        'type'          => 'direct' | 'group',
-        'displayName'   => string,
-        'other'         => null | ['id' => int, 'name' => string, 'avatar' => string|null],
-        'lastMessage'   => null | ['text' => string, 'createdAt' => string, 'senderId' => int],
-        'lastMessageAt' => string|null, // ISO 8601, UTC
-        'messageCount'  => int,
-        'unreadCount'   => int,
-        'mutedUntil'    => string|null,
-    ]
+```
+[
+    'id'            => int,
+    'type'          => 'direct' | 'group',
+    'displayName'   => string,
+    'other'         => null | ['id' => int, 'name' => string, 'avatar' => string|null],
+    'lastMessage'   => null | ['text' => string, 'createdAt' => string, 'senderId' => int],
+    'lastMessageAt' => string|null, // ISO 8601, UTC
+    'messageCount'  => int,
+    'unreadCount'   => int,
+    'mutedUntil'    => string|null,
+]
+```
 
 ## Member conversation template
 
 `member-conversation.phtml`. It renders a single chat thread. It receives:
 
-    $conversationId // int
-    $messages       // Raw message rows from the service
-    $senders        // Lookup table of sender ids → member rows
-    $meId           // The current member's id
-    $otherMember    // MemberEntity of the other participant, or false
-    $page           // Page entity
+```
+$conversationId // int
+$messages       // Raw message rows from the service
+$senders        // Lookup table of sender ids → member rows
+$meId           // The current member's id
+$otherMember    // MemberEntity of the other participant, or false
+$page           // Page entity
+```
 
 The chat form must carry the following `data-*` attributes for the bundled
 `chat.jquery.js` to work without configuration:
 
-    <form id="chat-form"
-          data-conversation="<?= $conversationId; ?>"
-          data-send-url="<?= $this->url('Members:Chat@sendAction'); ?>"
-          data-poll-url="<?= $this->url('Members:Chat@pollAction'); ?>"
-          data-me-id="<?= $meId; ?>"
-          data-last-id="<?= $messages ? (int) end($messages)['id'] : 0; ?>"
-          data-translations='{"[deleted]": "..."}'>
-        <textarea name="body"></textarea>
-        <button type="submit">Send</button>
-    </form>
+```html
+<form id="chat-form"
+      data-conversation="<?= $conversationId; ?>"
+      data-send-url="<?= $this->url('Members:Chat@sendAction'); ?>"
+      data-poll-url="<?= $this->url('Members:Chat@pollAction'); ?>"
+      data-me-id="<?= $meId; ?>"
+      data-last-id="<?= $messages ? (int) end($messages)['id'] : 0; ?>"
+      data-translations='{"[deleted]": "..."}'>
+    <textarea name="body"></textarea>
+    <button type="submit">Send</button>
+</form>
+```
 
 `data-translations` is optional (JSON; used for the `[deleted]` tombstone
 label). The thread container must have the id `#thread`.
+
+## Events templates
+
+The Events extension ships nine templates. All of them use Bootstrap 5 and
+Bootstrap Icons, and rely on the `EventEntity` class (not raw arrays) for
+event data.
+
+### Admin templates
+
+| Template                              | Variables                                                                 |
+|---------------------------------------|---------------------------------------------------------------------------|
+| `events.phtml`                        | `$events` (array of `EventEntity`), `$paginator`, `$statusFilter`, `$statusBreakdown` |
+| `event-form.phtml`                    | `$event` (`EventEntity` or empty `VirtualEntity` for new), `$isNew` (bool) |
+| `event-analytics-dashboard.phtml`     | `$dashboard` (payload from `EventAnalyticsService::fetchAdminDashboard()`) |
+| `event-analytics.phtml`               | `$event` (`EventEntity`), `$analytics` (payload from `fetchForAdminEvent()`) |
+
+### Site templates
+
+| Template                              | Variables                                                                 |
+|---------------------------------------|---------------------------------------------------------------------------|
+| `events-catalog.phtml`                | `$page`, `$events` (array of `EventEntity`), `$paginator`                 |
+| `event.phtml`                         | `$page`, `$event` (`EventEntity`)                                         |
+| `member-events.phtml`                 | `$page`, `$events`, `$paginator`, `$dashboard` (summary from `fetchForMemberDashboard()`) |
+| `member-event-form.phtml`             | `$page`, `$event` (`EventEntity`), `$isNew`                               |
+| `member-event-analytics.phtml`        | `$page`, `$event` (`EventEntity`), `$analytics`                           |
+
+### Form tabs
+
+The create/edit forms use Bootstrap tabs to group related fields:
+
+| Tab        | Icon              | Fields (admin)                                      | Fields (member)                                   |
+|------------|-------------------|-----------------------------------------------------|---------------------------------------------------|
+| Main       | `bi-info-circle`  | Title, Description, Registration link               | Title, Description, Registration link             |
+| Location   | `bi-geo-alt`      | Location name, Map URL, Coordinates                 | Location name, Map URL, Coordinates               |
+| Schedule   | `bi-calendar-event` | Starts at, Ends at                                | Starts at, Ends at                                |
+| Settings   | `bi-gear`         | Official event checkbox                             | *not shown*                                       |
+
+The "Settings" tab is only rendered for administrators — members cannot
+create official events.
+
+### EventEntity helpers
+
+Templates use `EventEntity` methods. The most common ones:
+
+```php
+$event->getId();
+$event->getTitle();
+$event->getDescription();
+$event->getLink();
+$event->getLocationName();
+$event->getLatitude();        // float or null
+$event->getLongitude();       // float or null
+$event->getStartsAt();        // "Y-m-d H:i:s"
+$event->getEndsAt();          // "Y-m-d H:i:s" or null
+$event->getStatus();          // "pending" | "approved" | "rejected"
+$event->getCreatorName();     // string or null (null = official event)
+$event->getViewsCount();      // int
+$event->getClicksCount();     // int
+
+// Predicates
+$event->isPast();             // true when ends_at (or starts_at) < now
+$event->isOfficial();         // true when creator_id is null
+$event->hasLink();
+$event->hasLocation();
+$event->hasCoordinates();
+$event->hasDescription();
+$event->hasCreator();
+
+// Formatted output
+$event->getFormattedDate();           // "Nov 22, 2026"
+$event->getFormattedTime();           // "18:55"
+$event->getFormattedStartDateTime();  // "Saturday, November 22, 2026"
+$event->getFormattedEndTime();        // "22:57" or ""
+$event->getStartMonth();              // "NOV"
+$event->getStartDay();                // 22
+$event->getStatusBadgeClass();        // "warning" | "success" | "danger"
+$event->getStatusTranslationKey();    // "Pending approval" | "Approved" | "Rejected"
+$event->getConversionRate();          // float, e.g. 12.34
+```
+
+### Analytics payload shape
+
+Both `fetchForMemberEvent()` and `fetchForAdminEvent()` return:
+
+```php
+[
+    'event'       => EventEntity,   // the event itself
+    'views'       => int,           // total views
+    'clicks'      => int,           // total clicks
+    'conversion'  => float,         // clicks / views * 100
+    'dailyStats'  => [              // 14 rows, zero-filled
+        ['date' => '2026-11-09', 'views' => 12, 'clicks' => 3],
+        ...
+    ],
+    'sourceStats' => [              // one row per source
+        ['source' => 'card',  'views' => 100, 'clicks' => 10],
+        ['source' => 'direct', 'views' => 20, 'clicks' => 5],
+        ...
+    ],
+]
+```
+
+### Admin dashboard payload shape
+
+`fetchAdminDashboard()` returns:
+
+```php
+[
+    'totalEvents'       => int,
+    'totalViews'        => int,
+    'totalClicks'       => int,
+    'uniqueMembers'     => int,
+    'conversion'        => float,
+    'statusBreakdown'   => ['pending' => int, 'approved' => int, 'rejected' => int],
+    'topEventsByViews'  => array,   // top 10
+    'topEventsByClicks' => array,   // top 5
+    'topAuthors'        => array,   // top 5
+    'dailyStats'        => array,   // 14 rows, zero-filled
+]
+```
 
 ## Chat JavaScript
 
 The module ships `Assets/chat.jquery.js`, which:
 
- - Auto-initializes on any `#chat-form` element
- - Sends with `POST` and polls with `GET` (`conversation_id`, `since`) against
-   the form's `data-send-url` / `data-poll-url`
- - Sends the CSRF token from `<meta name="csrf-token">` as `csrf-token`
- - Pauses polling when the tab is hidden and catches up when it returns
- - Polls adaptively: 2 s for three polls after a send, 10 s while active,
-   30 s after 60 s of silence, 60 s after a failed request
- - Uses a `crypto.randomUUID()` client id (with a fallback) for idempotent
-   sends
- - Sends on Enter, inserts a new line on Shift+Enter
+- Auto-initializes on any `#chat-form` element
+- Sends with `POST` and polls with `GET` (`conversation_id`, `since`) against
+  the form's `data-send-url` / `data-poll-url`
+- Sends the CSRF token from `<meta name="csrf-token">` as `csrf-token`
+- Pauses polling when the tab is hidden and catches up when it returns
+- Polls adaptively: 2 s for three polls after a send, 10 s while active,
+  30 s after 60 s of silence, 60 s after a failed request
+- Uses a `crypto.randomUUID()` client id (with a fallback) for idempotent
+  sends
+- Sends on Enter, inserts a new line on Shift+Enter
 
 Include it after jQuery 3.x. In a module template use the asset helper:
 
-    <?php $this->getPluginBag()->appendScript($this->moduleAsset('chat.jquery.js', 'Members')); ?>
+```php
+<?php $this->getPluginBag()->appendScript($this->moduleAsset('chat.jquery.js', 'Members')); ?>
+```
 
 To disable auto-init and construct instances manually, set
 `window.Chat.autoInit = false` before loading the script. Selectors, styles,
@@ -546,57 +859,64 @@ status icons), which the bundled layout appends automatically.
 Registered by the module and fetched in controllers with
 `$this->getModuleService('<name>')`:
 
-| Name                   | Class                                    |
-|------------------------|------------------------------------------|
-| `memberManager`        | `Members\Service\MemberManager`          |
-| `siteService`          | `Members\Service\SiteService`            |
-| `profileChangeService` | `Members\Service\ProfileChangeService`   |
-| `chatService`          | `Members\Service\ChatService`            |
-| `tagGroupService`      | `Members\Service\TagGroupService`        |
-| `tagService`           | `Members\Service\TagService`             |
-| `memberTagService`     | `Members\Service\MemberTagService`       |
-| `inputNormalizer`      | `Members\Service\InputNormalizer`        |
+| Name                    | Class                                     |
+|-------------------------|-------------------------------------------|
+| `memberManager`         | `Members\Service\MemberManager`           |
+| `siteService`           | `Members\Service\SiteService`             |
+| `profileChangeService`  | `Members\Service\ProfileChangeService`    |
+| `chatService`           | `Members\Service\ChatService`             |
+| `tagGroupService`       | `Members\Service\TagGroupService`         |
+| `tagService`            | `Members\Service\TagService`              |
+| `memberTagService`      | `Members\Service\MemberTagService`        |
+| `inputNormalizer`       | `Members\Service\InputNormalizer`         |
+| `locationParser`        | `Members\Service\LocationParser`          |
+| `eventService`          | `Members\Service\EventService`            |
+| `eventAnalyticsService` | `Members\Service\EventAnalyticsService`   |
 
 ## Site service (global `$member` in templates)
 
 `siteService` is exposed to every site template as the global `$member`
 (unless a page overrides it with an entity, see above):
 
-    // TRUE when a member is logged in.
-    $member->isLoggedIn();
+```php
+// TRUE when a member is logged in.
+$member->isLoggedIn();
 
-    // TRUE when the logged-in member has confirmed their email.
-    $member->isConfirmed();
+// TRUE when the logged-in member has confirmed their email.
+$member->isConfirmed();
 
-    // Returns the session member data as an array, or a single key
-    // when one is passed: $member->getMember('id'), etc.
-    // Session keys: id, name, email, confirmed.
-    $member->getMember();
+// Returns the session member data as an array, or a single key
+// when one is passed: $member->getMember('id'), etc.
+// Session keys: id, name, email, confirmed.
+$member->getMember();
 
-    // Fetches any member by id (as a MemberEntity) in the current language.
-    // Falls back to the base row when no translation exists.
-    $member->fetchMemberById($id);
+// Fetches any member by id (as a MemberEntity) in the current language.
+// Falls back to the base row when no translation exists.
+$member->fetchMemberById($id);
+```
 
 ## Member manager
 
 Used by controllers for registration, login, recovery, profile reads and the
 directory:
 
-    $memberManager->login($email, $password);          // writes the session
-    $memberManager->logout();
-    $memberManager->isLoggedIn();
-    $memberManager->isConfirmed();
-    $memberManager->getMember($key = null);
-    $memberManager->fetchById($id, $withTranslations = false);
-    $memberManager->fetchByIdForCurrentLang($id);
-    $memberManager->fetchPublicProfile($id);           // confirmed members only
-    $memberManager->fetchFiltered($page, $perPage, $filters, $random = true);
-    $memberManager->fetchAvailableCountries();
-    $memberManager->fetchDistinctCompanies();
-    $memberManager->updatePassword($id, $plain);       // bypasses moderation
-    $memberManager->initiateRecovery($email);          // key or false
-    $memberManager->resetPassword($key);               // new password or false
-    $memberManager->confirm($key);
+```php
+$memberManager->login($email, $password);          // writes the session
+$memberManager->logout();
+$memberManager->isLoggedIn();
+$memberManager->isConfirmed();
+$memberManager->getMember($key = null);
+$memberManager->fetchById($id, $withTranslations = false);
+$memberManager->fetchByIdForCurrentLang($id);
+$memberManager->fetchPublicProfile($id);           // confirmed members only
+$memberManager->fetchFiltered($page, $perPage, $filters, $random = true);
+$memberManager->fetchAvailableCountries();
+$memberManager->fetchDistinctCompanies();
+$memberManager->updatePassword($id, $plain);       // bypasses moderation
+$memberManager->initiateRecovery($email);          // key or false
+$memberManager->resetPassword($key);               // new password or false
+$memberManager->confirm($key);
+```
 
 `fetchFiltered()` accepts the filters `country`, `company`, `tagIds` and
 `memberIds`, all optional and AND-combined.
@@ -606,61 +926,65 @@ directory:
 The chat service owns every rule of the chat pipeline. Controllers and API
 endpoints talk only to it:
 
-    // The member's inbox.
-    $chatService->fetchInbox($memberId);
+```php
+// The member's inbox.
+$chatService->fetchInbox($memberId);
 
-    // Total unread count across all conversations.
-    $chatService->countUnreadForMember($memberId);
+// Total unread count across all conversations.
+$chatService->countUnreadForMember($memberId);
 
-    // Resolve or create a direct conversation with another member.
-    // Throws InvalidArgumentException when the two ids are the same.
-    $chatService->findOrCreateDirect($memberId, $otherId);
+// Resolve or create a direct conversation with another member.
+// Throws InvalidArgumentException when the two ids are the same.
+$chatService->findOrCreateDirect($memberId, $otherId);
 
-    // Participant checks.
-    $chatService->isParticipant($conversationId, $memberId);
-    $chatService->findConversationForMember($conversationId, $memberId); // row or false
-    $chatService->findOtherMember($conversationId, $memberId);
+// Participant checks.
+$chatService->isParticipant($conversationId, $memberId);
+$chatService->findConversationForMember($conversationId, $memberId); // row or false
+$chatService->findOtherMember($conversationId, $memberId);
 
-    // Fetch a thread (ascending by id).
-    $chatService->fetchThread($conversationId, $memberId, $sinceId = 0, $limit = 50);
+// Fetch a thread (ascending by id).
+$chatService->fetchThread($conversationId, $memberId, $sinceId = 0, $limit = 50);
 
-    // Fetch a thread and advance the read cursor.
-    $chatService->fetchThreadAndMarkRead($conversationId, $memberId, $sinceId = 0, $limit = 50);
+// Fetch a thread and advance the read cursor.
+$chatService->fetchThreadAndMarkRead($conversationId, $memberId, $sinceId = 0, $limit = 50);
 
-    // Older messages for "load earlier" (descending by id).
-    $chatService->fetchBefore($conversationId, $memberId, $beforeId, $limit = 50);
+// Older messages for "load earlier" (descending by id).
+$chatService->fetchBefore($conversationId, $memberId, $beforeId, $limit = 50);
 
-    // Send a message. Pass a client_id for idempotent retries.
-    // Throws InvalidArgumentException (not a participant) or
-    // RuntimeException (empty / too long).
-    $chatService->sendMessage($conversationId, $senderId, $body, $clientId = null);
+// Send a message. Pass a client_id for idempotent retries.
+// Throws InvalidArgumentException (not a participant) or
+// RuntimeException (empty / too long).
+$chatService->sendMessage($conversationId, $senderId, $body, $clientId = null);
 
-    // Resolve sender rows for a batch of messages: [memberId => row].
-    $chatService->resolveSenders($messages);
+// Resolve sender rows for a batch of messages: [memberId => row].
+$chatService->resolveSenders($messages);
 
-    // Not routed yet.
-    $chatService->softDeleteMessage($messageId, $memberId);
-    $chatService->markReadUpTo($conversationId, $memberId, $messageId);
+// Not routed yet.
+$chatService->softDeleteMessage($messageId, $memberId);
+$chatService->markReadUpTo($conversationId, $memberId, $messageId);
+```
 
 ## Tag services
 
 `memberTagService` is used by the profile edit template and the directory to
 populate the tag picker:
 
-    // The picker payload: [ ['group' => row, 'tags' => [row, ...]], ... ]
-    // Active tags only; empty groups are skipped.
-    $memberTagService->fetchPickerPayload();
+```php
+// The picker payload: [ ['group' => row, 'tags' => [row, ...]], ... ]
+// Active tags only; empty groups are skipped.
+$memberTagService->fetchPickerPayload();
 
-    // The ids of the tags a member has selected.
-    $memberTagService->fetchSelectedIds($memberId);
+// The ids of the tags a member has selected.
+$memberTagService->fetchSelectedIds($memberId);
 
-    // The tags a member has selected (active only), grouped by tag group,
-    // ready for a public profile page.
-    $memberTagService->fetchGroupedByMember($memberId);
+// The tags a member has selected (active only), grouped by tag group,
+// ready for a public profile page.
+$memberTagService->fetchGroupedByMember($memberId);
 
-    // Drops every id that is not an active tag, then replaces the member's selection.
-    $memberTagService->sanitizeSelection($tagIds);
-    $memberTagService->saveSelection($memberId, $safeTagIds);
+// Drops every id that is not an active tag, then replaces the member's selection.
+$memberTagService->sanitizeSelection($tagIds);
+$memberTagService->saveSelection($memberId, $safeTagIds);
+```
 
 `tagGroupService` and `tagService` provide the admin read/write layer
 (`fetchAll`, `fetchById`, `save`, `deleteById`, ...).
@@ -671,24 +995,83 @@ Owns the moderation pipeline: `updateProfile()`, `submit()`, `approve()`,
 `reject()`, `fetchPending()`, `fetchPendingForMember()`,
 `fetchHistoryForMember()`, `countPending()`, `isModerationEnabled()`.
 
+## Location parser
+
+`locationParser` parses map URLs into coordinates. It has no external
+dependencies and makes no network requests.
+
+```php
+$coords = $locationParser->parse($url);
+// ['lat' => 41.2995, 'lng' => 69.2401] or null
+```
+
+## Event service
+
+Owns every business rule of the events pipeline. Controllers talk only to
+this service.
+
+```php
+// Member path — always pending
+$eventId = $eventService->createForUser($memberId, $data);
+
+// Admin path — approved immediately; official events have no author
+$eventId = $eventService->createByAdmin($data, $isOfficial = false, $adminId = null);
+
+// Ownership-aware reads
+$event = $eventService->findById($id);                      // any event
+$event = $eventService->findByIdForOwner($id, $memberId);   // only if creator matches
+
+// Moderation
+$eventService->approve($id);
+$eventService->reject($id, $reason);
+
+// Paginated lists
+$events = $eventService->fetchApproved($page, $perPage);                        // public catalog
+$events = $eventService->fetchByCreatorId($memberId, $page, $perPage);          // member's events
+$events = $eventService->fetchAllForAdmin($page, $perPage, $filters);           // admin grid
+
+// Map URL parsing (delegates to LocationParser)
+$coords = $eventService->parseLocation($url);
+```
+
+## Event analytics service
+
+Owns the analytics recording and aggregation rules.
+
+```php
+// Recording — returns true when the hit was actually persisted
+$analyticsService->recordView($eventId, $memberId, $source, $ip, $userAgent);
+$analyticsService->recordClick($eventId, $memberId, $source, $ip, $userAgent);
+
+// Reading — ownership-aware
+$analytics = $analyticsService->fetchForMemberEvent($eventId, $memberId); // null if not owner
+$analytics = $analyticsService->fetchForAdminEvent($eventId);             // no ownership check
+
+// Dashboards
+$dashboard = $analyticsService->fetchForMemberDashboard($memberId); // totals across all member's events
+$dashboard = $analyticsService->fetchAdminDashboard();              // global KPI + rankings
+```
+
 # URL generation
 
 Always generate links from the action names:
 
-    <a href="<?= $this->url('Members:Directory@indexAction'); ?>">Member directory</a>
-    <a href="<?= $this->url('Members:Directory@profileAction', [$memberId]); ?>">Public profile</a>
+```php
+<a href="<?= $this->url('Members:Directory@indexAction'); ?>">Member directory</a>
+<a href="<?= $this->url('Members:Directory@profileAction', [$memberId]); ?>">Public profile</a>
+```
 
 ## Chat pages
 
-    <a href="<?= $this->url('Members:Chat@inboxAction'); ?>">My messages</a>
-
-    <a href="<?= $this->url('Members:Chat@conversationAction', [$conversationId]); ?>">
-        Open conversation
-    </a>
-
-    <a href="<?= $this->url('Members:Chat@withAction', [$otherMemberId]); ?>">
-        Message this member
-    </a>
+```php
+<a href="<?= $this->url('Members:Chat@inboxAction'); ?>">My messages</a>
+<a href="<?= $this->url('Members:Chat@conversationAction', [$conversationId]); ?>">
+    Open conversation
+</a>
+<a href="<?= $this->url('Members:Chat@withAction', [$otherMemberId]); ?>">
+    Message this member
+</a>
+```
 
 The `with` action resolves or creates the conversation and redirects to the
 thread, so it is safe to link to from a profile page without knowing the
@@ -696,11 +1079,28 @@ conversation id. Messaging yourself is rejected with a flash message.
 
 ## Profile and account pages
 
-    <a href="<?= $this->url('Members:Profile@indexAction'); ?>">My account</a>
-    <a href="<?= $this->url('Members:Profile@editAction'); ?>">Edit my profile</a>
-    <a href="<?= $this->url('Members:Auth@indexAction'); ?>">Log in</a>
-    <a href="<?= $this->url('Members:Register@indexAction'); ?>">Register</a>
-    <a href="<?= $this->url('Members:Auth@logoutAction'); ?>">Log out</a>
+```php
+<a href="<?= $this->url('Members:Profile@indexAction'); ?>">My account</a>
+<a href="<?= $this->url('Members:Profile@editAction'); ?>">Edit my profile</a>
+<a href="<?= $this->url('Members:Auth@indexAction'); ?>">Log in</a>
+<a href="<?= $this->url('Members:Register@indexAction'); ?>">Register</a>
+<a href="<?= $this->url('Members:Auth@logoutAction'); ?>">Log out</a>
+```
+
+## Events pages
+
+```php
+<a href="<?= $this->url('Members:Event@catalogAction'); ?>">Events catalog</a>
+<a href="<?= $this->url('Members:Event@viewAction', [$eventId]); ?>">Event details</a>
+<a href="<?= $this->url('Members:Event@clickAction', [$eventId]); ?>">Sign up</a>
+<a href="<?= $this->url('Members:Event@indexAction'); ?>">My events</a>
+<a href="<?= $this->url('Members:Event@createAction'); ?>">Create event</a>
+<a href="<?= $this->url('Members:Event@editAction', [$eventId]); ?>">Edit event</a>
+<a href="<?= $this->url('Members:Event@analyticsAction', [$eventId]); ?>">Event analytics</a>
+```
+
+The click action records a click and redirects to the event's registration
+link. If the event has no link, it returns 404.
 
 # API
 
@@ -717,10 +1117,13 @@ as the shipped placeholder, every token is forgeable.
 
 Protected endpoints expect a standard bearer token:
 
-    Authorization: Bearer <token>
+```
+Authorization: Bearer <token>
+```
 
 Tokens are issued by the login endpoint and are valid for `api.jwt_ttl`
 seconds (7 days by default). The token carries the member id (`sub`) and name.
+
 There is no refresh flow; the client logs in again when a token expires.
 
 On every protected request the middleware checks the signature, the expiry
@@ -760,18 +1163,17 @@ Authenticate and receive a JWT. Public.
 
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": 42,
-    "name": "Jane Doe",
-    "email": "jane@example.com",
-    "confirmed": true
-  }
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "user": {
+        "id": 42,
+        "name": "Jane Doe",
+        "email": "jane@example.com",
+        "confirmed": true
+    }
 }
 ```
 
 **Errors:** `400` missing credentials, `401` wrong identifier or password.
-
 Unconfirmed members receive a token; `confirmed` is `false`. Clients should
 show a "please confirm your email" banner and offer the
 [resend confirmation](#resend-confirmation-email) endpoint.
@@ -809,11 +1211,11 @@ Validate the current token and return fresh user data. Protected.
 
 ```json
 {
-  "id": 42,
-  "name": "Jane Doe",
-  "email": "jane@example.com",
-  "confirmed": true,
-  "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
+    "id": 42,
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "confirmed": true,
+    "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
 }
 ```
 
@@ -877,56 +1279,56 @@ any pending moderation changes. Protected.
 
 ```json
 {
-  "user": {
-    "id": 42,
-    "name": "Jane Doe",
-    "login": null,
-    "email": "jane@example.com",
-    "confirmed": true,
-    "company": "Acme",
-    "phone": "+1 555 0100",
-    "country": "us",
-    "address": "123 Main St",
-    "title": "Engineer",
-    "bio": "I build things.",
-    "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
-  },
-  "tags": {
-    "selected": [1, 5, 9],
-    "available": [
-      {
-        "group": { "id": 1, "code": "interests", "name": "Interests", "description": null },
-        "tags": [
-          { "id": 1, "label": "Hiking" },
-          { "id": 2, "label": "Reading" }
+    "user": {
+        "id": 42,
+        "name": "Jane Doe",
+        "login": null,
+        "email": "jane@example.com",
+        "confirmed": true,
+        "company": "Acme",
+        "phone": "+1 555 0100",
+        "country": "us",
+        "address": "123 Main St",
+        "title": "Engineer",
+        "bio": "I build things.",
+        "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
+    },
+    "tags": {
+        "selected": [1, 5, 9],
+        "available": [
+            {
+                "group": { "id": 1, "code": "interests", "name": "Interests", "description": null },
+                "tags": [
+                    { "id": 1, "label": "Hiking" },
+                    { "id": 2, "label": "Reading" }
+                ]
+            }
         ]
-      }
+    },
+    "pendingChanges": [
+        {
+            "id": 17,
+            "member_id": 42,
+            "status": "pending",
+            "payload": "{\"base\":{\"company\":{\"old\":\"\",\"new\":\"Acme\"}},\"translations\":{}}",
+            "reviewed_at": null,
+            "rejection_reason": null,
+            "created_at": "2026-01-14 09:00:00"
+        }
     ]
-  },
-  "pendingChanges": [
-    {
-      "id": 17,
-      "member_id": 42,
-      "status": "pending",
-      "payload": "{\"base\":{\"company\":{\"old\":\"\",\"new\":\"Acme\"}},\"translations\":{}}",
-      "reviewed_at": null,
-      "rejection_reason": null,
-      "created_at": "2026-01-14 09:00:00"
-    }
-  ]
 }
 ```
 
- - `login` is a legacy field and is always `null`; the schema has no login
-   column. Log in with the email address.
- - `country` is the two-letter code as stored (the framework's country list
-   uses lowercase codes).
- - Group and tag objects contain further columns (`sort_order`, `code`,
-   `is_active`, `lang_id`, ...); clients should only rely on the fields
-   shown.
- - `pendingChanges` holds the raw submission rows. `payload` is a JSON
-   **string** containing the old and new value of every staged field. The
-   list is empty when moderation is disabled.
+- `login` is a legacy field and is always `null`; the schema has no login
+  column. Log in with the email address.
+- `country` is the two-letter code as stored (the framework's country list
+  uses lowercase codes).
+- Group and tag objects contain further columns (`sort_order`, `code`,
+  `is_active`, `lang_id`, ...); clients should only rely on the fields
+  shown.
+- `pendingChanges` holds the raw submission rows. `payload` is a JSON
+  **string** containing the old and new value of every staged field. The
+  list is empty when moderation is disabled.
 
 **Errors:** `401` no token, `404` member not found.
 
@@ -962,9 +1364,9 @@ is ignored.
 
 ```json
 {
-  "message": "Your changes were submitted for review.",
-  "user": { "...same shape as GET /me..." },
-  "pendingChanges": [ { "id": 18, "status": "pending", "created_at": "..." } ]
+    "message": "Your changes were submitted for review.",
+    "user": { "...same shape as GET /me..." },
+    "pendingChanges": [ { "id": 18, "status": "pending", "created_at": "..." } ]
 }
 ```
 
@@ -994,8 +1396,8 @@ Upload a new avatar. Multipart form data. Protected.
 
 ```json
 {
-  "message": "Your changes were submitted for review.",
-  "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
+    "message": "Your changes were submitted for review.",
+    "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
 }
 ```
 
@@ -1044,33 +1446,33 @@ guaranteed to be disjoint.
 
 ```json
 {
-  "data": [
-    {
-      "id": 42,
-      "name": "Jane Doe",
-      "title": "Engineer",
-      "company": "Acme",
-      "country": "us",
-      "bio": "I build things.",
-      "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
+    "data": [
+        {
+            "id": 42,
+            "name": "Jane Doe",
+            "title": "Engineer",
+            "company": "Acme",
+            "country": "us",
+            "bio": "I build things.",
+            "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
+        }
+    ],
+    "meta": {
+        "page": 1,
+        "perPage": 20,
+        "total": 137,
+        "totalPages": 7
+    },
+    "filters": {
+        "applied": { "country": "us", "company": null, "tags": [] },
+        "available": {
+            "countries": ["United States", "United Kingdom"],
+            "companies": ["Acme", "Globex"],
+            "tags": [
+                { "group": { "id": 1, "name": "Interests" }, "tags": [{ "id": 1, "label": "Hiking" }] }
+            ]
+        }
     }
-  ],
-  "meta": {
-    "page": 1,
-    "perPage": 20,
-    "total": 137,
-    "totalPages": 7
-  },
-  "filters": {
-    "applied": { "country": "us", "company": null, "tags": [] },
-    "available": {
-      "countries": ["United States", "United Kingdom"],
-      "companies": ["Acme", "Globex"],
-      "tags": [
-        { "group": { "id": 1, "name": "Interests" }, "tags": [{ "id": 1, "label": "Hiking" }] }
-      ]
-    }
-  }
 }
 ```
 
@@ -1096,21 +1498,21 @@ grouped by tag group. Public.
 
 ```json
 {
-  "user": {
-    "id": 42,
-    "name": "Jane Doe",
-    "title": "Engineer",
-    "company": "Acme",
-    "country": "us",
-    "bio": "I build things.",
-    "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
-  },
-  "tags": [
-    {
-      "group": { "id": 1, "name": "Interests" },
-      "tags": [{ "id": 1, "label": "Hiking" }]
-    }
-  ]
+    "user": {
+        "id": 42,
+        "name": "Jane Doe",
+        "title": "Engineer",
+        "company": "Acme",
+        "country": "us",
+        "bio": "I build things.",
+        "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
+    },
+    "tags": [
+        {
+            "group": { "id": 1, "name": "Interests" },
+            "tags": [{ "id": 1, "label": "Hiking" }]
+        }
+    ]
 }
 ```
 
@@ -1127,23 +1529,23 @@ The authenticated member's inbox, newest activity first. Protected.
 
 ```json
 {
-  "data": [
-    {
-      "id": 7,
-      "type": "direct",
-      "displayName": "John Smith",
-      "other": { "id": 43, "name": "John Smith", "avatar": "https://example.com/..." },
-      "lastMessage": {
-        "text": "See you tomorrow",
-        "createdAt": "2026-01-14T09:12:00Z",
-        "senderId": 43
-      },
-      "lastMessageAt": "2026-01-14T09:12:00Z",
-      "messageCount": 42,
-      "unreadCount": 2,
-      "mutedUntil": null
-    }
-  ]
+    "data": [
+        {
+            "id": 7,
+            "type": "direct",
+            "displayName": "John Smith",
+            "other": { "id": 43, "name": "John Smith", "avatar": "https://example.com/..." },
+            "lastMessage": {
+                "text": "See you tomorrow",
+                "createdAt": "2026-01-14T09:12:00Z",
+                "senderId": 43
+            },
+            "lastMessageAt": "2026-01-14T09:12:00Z",
+            "messageCount": 42,
+            "unreadCount": 2,
+            "mutedUntil": null
+        }
+    ]
 }
 ```
 
@@ -1171,23 +1573,23 @@ advance the read cursor.
 
 ```json
 {
-  "data": [
-    {
-      "_id": 100,
-      "text": "Hello",
-      "createdAt": "2026-01-14T09:00:00Z",
-      "type": "text",
-      "deleted": false,
-      "editedAt": null,
-      "replyToId": null,
-      "clientId": null,
-      "user": {
-        "_id": 42,
-        "name": "Jane Doe",
-        "avatar": "https://example.com/..."
-      }
-    }
-  ]
+    "data": [
+        {
+            "_id": 100,
+            "text": "Hello",
+            "createdAt": "2026-01-14T09:00:00Z",
+            "type": "text",
+            "deleted": false,
+            "editedAt": null,
+            "replyToId": null,
+            "clientId": null,
+            "user": {
+                "_id": 42,
+                "name": "Jane Doe",
+                "avatar": "https://example.com/..."
+            }
+        }
+    ]
 }
 ```
 
@@ -1268,9 +1670,9 @@ to the newest returned message. Protected.
 
 ```json
 {
-  "data": [
-    { "_id": 101, "text": "Hi", "createdAt": "2026-01-14T09:15:00Z", "type": "text", "deleted": false, "editedAt": null, "replyToId": null, "clientId": null, "user": { "_id": 43, "name": "John Smith", "avatar": "..." } }
-  ]
+    "data": [
+        { "_id": 101, "text": "Hi", "createdAt": "2026-01-14T09:15:00Z", "type": "text", "deleted": false, "editedAt": null, "replyToId": null, "clientId": null, "user": { "_id": 43, "name": "John Smith", "avatar": "..." } }
+    ]
 }
 ```
 
@@ -1302,6 +1704,148 @@ Protected.
 
 **Endpoint:** `GET /api/v1/members/chat/unread`
 
+## Events API
+
+The Events extension exposes seven endpoints under `/api/v1/members/events`.
+Two are public (catalog, detail), one is a public click-tracker, and four
+require JWT.
+
+### List approved events
+
+Public. Paginated, 20 per page.
+
+**Parameters**
+
+| Name   | Type | Required | Notes     |
+|--------|------|----------|-----------|
+| `page` | int  | no       | Default 1 |
+
+**Response 200**
+
+```json
+{
+    "data": [
+        {
+            "id": 42,
+            "title": "IT Alliance Breakfast",
+            "description": "Monthly meetup",
+            "link": "https://example.com/register",
+            "locationName": "Business Center",
+            "latitude": 41.2995,
+            "longitude": 69.2401,
+            "startsAt": "2026-11-22 18:55:00",
+            "endsAt": "2026-11-22 22:00:00",
+            "status": "approved",
+            "creatorName": "Jane Doe",
+            "viewsCount": 120,
+            "clicksCount": 15
+        }
+    ],
+    "meta": { "page": 1, "perPage": 20, "total": 42, "totalPages": 3 }
+}
+```
+
+`creatorName` is `null` for official events.
+
+**Endpoint:** `GET /api/v1/members/events`
+
+### Get a single event
+
+Public. Records a view with `source = 'api'`.
+
+**Response 200**
+
+```json
+{ "data": { "...same shape as above..." } }
+```
+
+**Errors:** `404` event not found or not approved.
+
+**Endpoint:** `GET /api/v1/members/events/:id`
+
+### Record a click and return the link
+
+Public. Returns the registration link and records a click. The mobile app
+opens the link in an external browser.
+
+**Response 200**
+
+```json
+{ "link": "https://example.com/register" }
+```
+
+**Errors:** `404` event not found, not approved, or has no link.
+
+**Endpoint:** `GET /api/v1/members/events/:id/click`
+
+### Create an event
+
+Protected. The event is created with `status = 'pending'`.
+
+**Parameters**
+
+| Name                       | Type    | Required | Notes                            |
+|----------------------------|---------|----------|----------------------------------|
+| `event[title]`             | string  | yes      | Max 200 characters               |
+| `event[description]`       | string  | no       |                                  |
+| `event[link]`              | string  | no       | Max 500 characters               |
+| `event[location_name]`     | string  | yes      | Max 255 characters               |
+| `event[latitude]`          | float   | no       | -90..90                          |
+| `event[longitude]`         | float   | no       | -180..180                        |
+| `event[location_source]`   | string  | no       | `none` \| `manual` \| `url`      |
+| `event[starts_at]`         | string  | yes      | `Y-m-d H:i:s`                    |
+| `event[ends_at]`           | string  | no       | `Y-m-d H:i:s`                    |
+
+**Response 201**
+
+```json
+{ "id": 42, "message": "The event has been created and is pending review" }
+```
+
+**Errors:** `401` no token, `422` validation errors.
+
+**Endpoint:** `POST /api/v1/members/events`
+
+### List my events with summary
+
+Protected. Returns the member's own events and a summary across all of them.
+
+**Response 200**
+
+```json
+{
+    "data": [ "...events..." ],
+    "summary": { "eventCount": 5, "totalViews": 420, "totalClicks": 63, "conversion": 15.0 },
+    "meta": { "page": 1, "perPage": 20, "total": 5, "totalPages": 1 }
+}
+```
+
+**Endpoint:** `GET /api/v1/members/me/events`
+
+### Get analytics for my event
+
+Protected. Returns the detailed analytics payload for an event owned by the
+authenticated member.
+
+**Response 200**
+
+```json
+{
+    "data": {
+        "event": { "...event shape..." },
+        "views": 120,
+        "clicks": 15,
+        "conversion": 12.5,
+        "dailyStats": [ { "date": "2026-11-09", "views": 12, "clicks": 3 }, "..." ],
+        "sourceStats": [ { "source": "card", "views": 100, "clicks": 10 }, "..." ]
+    }
+}
+```
+
+**Errors:** `401` no token, `404` event not found or not owned by the member.
+
+**Endpoint:** `GET /api/v1/members/me/events/:id/analytics`
+
 ## Error shape
 
 Non-validation errors use a single shape:
@@ -1314,10 +1858,10 @@ Validation errors (HTTP 422) use the framework's standard shape:
 
 ```json
 {
-  "errors": {
-    "member[email]": ["This email is already taken"],
-    "member[password]": ["..."]
-  }
+    "errors": {
+        "member[email]": ["This email is already taken"],
+        "member[password]": ["..."]
+    }
 }
 ```
 
@@ -1329,7 +1873,7 @@ English and are not translated.
 | Code | Meaning                                                |
 |------|--------------------------------------------------------|
 | 200  | OK                                                     |
-| 201  | Created (registration, message send)                   |
+| 201  | Created (registration, message send, event create)     |
 | 202  | Accepted (password recovery request)                   |
 | 204  | No content (password change)                           |
 | 400  | Malformed request (missing required query/body param)  |
@@ -1342,11 +1886,7 @@ English and are not translated.
 
 # Localization
 
-All user-facing strings are translation keys written in English. The module
-ships `Translations/ru/messages.php` and `Translations/uz/messages.php`; add
-another language by creating `Translations/<code>/messages.php` returning a
-`key => translation` array. Validation attribute labels are translated too
-(for example `Conversation_id`).
+All user-facing strings are translation keys written in English. Add another language by creating `Translations/<code>/messages.php` returning a `key => translation` array. Validation attribute labels are translated too (for example `Conversation_id`).
 
 # Data and storage
 
@@ -1363,55 +1903,176 @@ Tables (all prefixed through the framework's table prefix):
 | `bono_module_members_tag_groups` / `_translations` | Tag groups                                      |
 | `bono_module_members_tags` / `_translations`       | Tags                                            |
 | `bono_module_members_member_tags`                  | Member ↔ tag selections                         |
+| `bono_module_members_events`                       | Events (`creator_id` NULL = official)           |
+| `bono_module_members_event_analytics`              | Event views and clicks (ip_hash, source)        |
 
 Files:
 
- - `/data/uploads/module/members/avatars/<memberId>/<WxH>/<file>` — live avatars
- - `/data/uploads/module/members/pending/` — avatars awaiting moderation
+- `/data/uploads/module/members/avatars/<memberId>/<WxH>/<file>` — live avatars
+- `/data/uploads/module/members/pending/` — avatars awaiting moderation
 
 `jwt_version`, `last_seen_at` and `is_banned` exist on the members table for
 future use; nothing reads them yet.
 
+# Events JavaScript
+
+The module ships two JS assets for the Events extension, both following the
+same pattern as `chat.jquery.js`: IIFE wrapper, auto-initialization on DOM
+ready, data-attribute configuration, overridable selectors.
+
+## `event-form.js` — map URL parser
+
+Auto-initializes on any `<form data-event-form>` element. The form must
+carry:
+
+- `data-parse-url` — endpoint that accepts a map URL and returns
+  `{lat, lng, source}`
+
+Inside the form, the following elements are discovered by `data-role` /
+`data-action`:
+
+- `data-role="map-url"` — text input with the pasted URL
+- `data-role="latitude"` — latitude input (filled on success)
+- `data-role="longitude"` — longitude input (filled on success)
+- `data-role="location-source"` — source select (set to `"url"` on success)
+- `data-action="parse-location"` — the "Extract" button
+
+The script:
+
+- Sends a POST with `{url, csrf-token}` to the parse endpoint
+- Shows a spinner on the button while the request is in flight
+- Prevents double-clicks via an internal `isParsing` flag
+- Alerts the translated error message when parsing fails
+- Reads translations from `data-translations` (JSON) on the form
+
+Include it after jQuery 3.x:
+
+```php
+<?php $this->getPluginBag()->appendScript($this->moduleAsset('event-form.js', 'Members')); ?>
+```
+
+## `event-analytics.js` — Chart.js renderer
+
+Requires Chart.js 4.x. Auto-initializes on any element carrying
+`data-event-analytics`. The container must carry:
+
+- `data-daily-stats` — JSON array of `{date, views, clicks}`
+
+Optional:
+
+- `data-source-stats` — JSON array of `{source, views, clicks}`
+- `data-role="daily-chart"` — canvas for the line chart
+- `data-role="source-chart"` — canvas for the pie chart
+- `data-translations` — JSON object with `views` and `clicks` keys
+
+The script:
+
+- Renders a line chart (views + clicks over 14 days) when `data-daily-stats`
+  is non-empty
+- Renders a pie chart (traffic sources) when `data-source-stats` is
+  non-empty
+- Skips rendering silently when Chart.js is not loaded
+- Exposes a `destroy()` method for dynamic teardown
+
+Include Chart.js first, then the asset:
+
+```php
+<?php
+$this->getPluginBag()->appendScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js');
+$this->getPluginBag()->appendScript($this->moduleAsset('event-analytics.js', 'Members'));
+?>
+```
+
+## Disabling auto-init
+
+Both scripts expose a global flag. Set it **before** loading the script to
+construct instances manually:
+
+```html
+<script>
+window.EventForm.autoInit = false;
+window.EventAnalytics.autoInit = false;
+</script>
+<script src=".../event-form.js"></script>
+<script src=".../event-analytics.js"></script>
+<script>
+new EventForm({ form: '#my-form', translations: { extracting: 'Извлечение…' } });
+new EventAnalytics({ container: '#my-dashboard' });
+</script>
+```
+
 # Notes
 
- - Unconfirmed members can log in, edit their profile, and use chat, but
-   are not listed in the public directory and do not have a public profile
-   page. They cannot use password recovery. (The hint in the admin form that
-   they "cannot log in" is inaccurate.)
- - Deleting a member permanently removes their profile, translations, avatar
-   files, profile changes, tag selections and conversation memberships.
-   Messages they sent are **kept**, with the sender cleared (they render with
-   `user: null` in the API). Back up first.
- - The tag picker only shows active tags. Deactivating a tag hides it from
-   the form and from public profiles, but keeps the association, so
-   reactivating it restores previous selections.
- - Profile moderation is optional. When it is off, edits are applied
-   immediately and the pending-changes section of the admin area is empty.
- - Registration and recovery links use a random key stored on the member row
-   (`activation_key`) that is not cleared after use and has no expiry. Treat
-   old emails accordingly.
- - The bundled `chat.jquery.js` requires jQuery 3.x. It is optional — you
-   can build your own client against the API or the controller actions.
+- Unconfirmed members can log in, edit their profile, and use chat, but
+  are not listed in the public directory and do not have a public profile
+  page. They cannot use password recovery. (The hint in the admin form that
+  they "cannot log in" is inaccurate.)
+- Deleting a member permanently removes their profile, translations, avatar
+  files, profile changes, tag selections and conversation memberships.
+  Messages they sent are **kept**, with the sender cleared (they render with
+  `user: null` in the API). Back up first.
+- The tag picker only shows active tags. Deactivating a tag hides it from
+  the form and from public profiles, but keeps the association, so
+  reactivating it restores previous selections.
+- Profile moderation is optional. When it is off, edits are applied
+  immediately and the pending-changes section of the admin area is empty.
+- Registration and recovery links use a random key stored on the member row
+  (`activation_key`) that is not cleared after use and has no expiry. Treat
+  old emails accordingly.
+- The bundled `chat.jquery.js` requires jQuery 3.x. It is optional — you
+  can build your own client against the API or the controller actions.
+- Events created by members go through moderation (`status = 'pending'`)
+  before appearing in the public catalog. Admin-created events are published
+  immediately with `status = 'approved'`.
+- "Official" events (created by an admin with the "Official event"
+  checkbox) have `creator_id = NULL` and appear in the catalog without an
+  author. They do not show up in any member's "My events" list.
+- The `EventEntity` class wraps every event row. Templates must use its
+  getter methods (`$event->getTitle()`) and predicates (`$event->isPast()`,
+  `$event->hasLink()`) — raw array access is not supported.
+- The click-tracking endpoint `/events/:id/go` returns 404 when the event
+  has no registration link. The "Sign up" button is not rendered in that
+  case.
+- Analytics deduplication uses `SHA1(ip + salt)`. The raw IP is never
+  stored. When no IP is available, the anti-spam check is skipped and the
+  hit is always recorded.
+- Deleting an event cascades to its analytics rows (`ON DELETE CASCADE`).
+  Deleting a member sets `creator_id = NULL` on their events
+  (`ON DELETE SET NULL`), so official-style events survive member removal.
+- The `LocationParser` does not resolve short links
+  (`maps.app.goo.gl`, `yandex.com/s/...`, `2gis.com/...`). Users must paste
+  the full URL or enter coordinates manually.
 
 # Known limitations
 
 Behaviors of this version that integrators should be aware of:
 
- - **Avatar changes are handled only by the moderation pipeline.** With
-   `moderation.enabled` set to `false`, an uploaded avatar is currently not
-   processed (neither on the web nor via the API).
- - **Thread endpoints return the oldest 50 messages** when no `before` /
-   `since` is given, so a conversation longer than 50 messages needs polling
-   with `since` or a different loading strategy on the client.
- - The country lists returned by `fetchAvailableCountries()` and
-   `filters.available.countries` are plain name lists rather than
-   `code => name` maps, so a country filter built from them cannot map back
-   to codes.
- - Message editing, deleting, replies, muting and archiving are not exposed
-   through any route.
- - Members without a translation in the requested language are hidden from
-   directory listings, public profiles and the admin grid for that language.
- - Tokens cannot be revoked before they expire.
- - The web chat route is spelled `/member/messages/converstation/(:var)`
-   (sic). Generate it through `Members:Chat@conversationAction` and it
-   keeps working if the spelling is fixed.
+- **Avatar changes are handled only by the moderation pipeline.** With
+  `moderation.enabled` set to `false`, an uploaded avatar is currently not
+  processed (neither on the web nor via the API).
+- **Thread endpoints return the oldest 50 messages** when no `before` /
+  `since` is given, so a conversation longer than 50 messages needs polling
+  with `since` or a different loading strategy on the client.
+- The country lists returned by `fetchAvailableCountries()` and
+  `filters.available.countries` are plain name lists rather than
+  `code => name` maps, so a country filter built from them cannot map back
+  to codes.
+- Message editing, deleting, replies, muting and archiving are not exposed
+  through any route.
+- Members without a translation in the requested language are hidden from
+  directory listings, public profiles and the admin grid for that language.
+- Tokens cannot be revoked before they expire.
+- The `LocationParser` does not resolve short links (Google's
+  `maps.app.goo.gl`, Yandex's `yandex.com/s/...`, 2GIS's short URLs). Users
+  must paste the full URL or enter coordinates manually.
+- The admin analytics dashboard and the member analytics page share the
+  same payload shape, but the admin version is served by
+  `fetchForAdminEvent()` (no ownership check) while the member version is
+  served by `fetchForMemberEvent()` (ownership enforced).
+- The "Official event" checkbox is only rendered in the admin form. Members
+  cannot create official events — this is enforced at the controller level,
+  not just the UI.
+- Analytics counters (`views_count`, `clicks_count`) are denormalized on
+  the events table for fast list rendering. They are kept in sync with the
+  `event_analytics` log via a transaction, but a crash between the two
+  writes can leave them briefly inconsistent.
