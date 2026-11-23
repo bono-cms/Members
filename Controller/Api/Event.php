@@ -45,6 +45,88 @@ final class Event extends AbstractApiController
     }
 
     /**
+     * GET /api/v1/members/events/render/map
+     *
+     * Returns approved events with valid coordinates for map rendering.
+     *
+     * @return string JSON
+     */
+    public function mapAction()
+    {
+        $eventService = $this->getModuleService('eventService');
+        $filters = [];
+
+        // Date filters
+        $from = $this->request->getQuery('from');
+        $to = $this->request->getQuery('to');
+
+        if ($from) {
+            $filters['from'] = $from;
+        }
+
+        if ($to) {
+            $filters['to'] = $to;
+        }
+
+        // Bounding box: minLat,minLng,maxLat,maxLng
+        $bboxRaw = $this->request->getQuery('bbox');
+
+        if ($bboxRaw) {
+            $bbox = explode(',', $bboxRaw);
+
+            if (count($bbox) === 4) {
+                $bbox = array_map('floatval', $bbox);
+
+                $minLat = min($bbox[0], $bbox[2]);
+                $maxLat = max($bbox[0], $bbox[2]);
+                $minLng = min($bbox[1], $bbox[3]);
+                $maxLng = max($bbox[1], $bbox[3]);
+
+                if (
+                    $minLat >= -90 && $maxLat <= 90 &&
+                    $minLng >= -180 && $maxLng <= 180
+                ) {
+                    $filters['bbox'] = [
+                        $minLat,
+                        $minLng,
+                        $maxLat,
+                        $maxLng,
+                    ];
+                }
+            }
+        }
+
+        // Limit: 1-1000
+        $limit = (int) $this->request->getQuery('limit', 500);
+        $limit = max(1, min($limit, 1000));
+
+        $events = $eventService->fetchMapPoints($filters, $limit);
+
+        foreach ($events as &$event) {
+            $event['id'] = (int) $event['id'];
+            $event['latitude'] = (float) $event['latitude'];
+            $event['longitude'] = (float) $event['longitude'];
+
+            // Link to the public event page
+            $event['url'] = $this->createUrl(
+                'Members:Event@viewAction',
+                [$event['id']]
+            );
+        }
+
+        unset($event);
+
+        return $this->json([
+            'data' => $events,
+            'meta' => [
+                'total' => count($events),
+                'limit' => $limit,
+                'clipped' => count($events) >= $limit,
+            ],
+        ]);
+    }
+
+    /**
      * GET /api/v1/members/events/:id
      *
      * Returns a single event and records a view.

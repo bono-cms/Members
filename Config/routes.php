@@ -335,4 +335,7 @@ return [
     '/api/v1/members/events/(:var)/click' => [
         'controller' => 'Api:Event@clickAction'
     ],
+    '/api/v1/members/events/render/map' => [
+        'controller' => 'Api:Event@mapAction'
+    ],
 ];
