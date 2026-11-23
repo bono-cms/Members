@@ -110,6 +110,18 @@ final class EventService
     }
 
     /**
+     * Fetches events with coordinates for map rendering
+     *
+     * @param array $filters
+     * @param int $limit
+     * @return array
+     */
+    public function fetchMapPoints(array $filters = [], $limit = 500)
+    {
+        return $this->mapper->fetchMapPoints($filters, $limit);
+    }
+
+    /**
      * Creates an event on behalf of a regular member.
      *
      * @param int $userId Acting member id

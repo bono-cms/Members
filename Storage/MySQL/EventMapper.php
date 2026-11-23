@@ -8,7 +8,9 @@
  */
 namespace Members\Storage\MySQL;
 
+use Krystal\Db\Sql\RawSqlFragment;
 use Cms\Storage\MySQL\AbstractMapper;
+use Members\Service\EventEntity;
 
 /**
  * Persists event rows and provides the read-side queries used by
@@ -29,11 +31,72 @@ final class EventMapper extends AbstractMapper
     }
 
     /**
-     * {@inheritDoc}
+     * Fetches approved events with valid coordinates for map rendering.
+     *
+     * @param array $filters Optional filters: from, to, bbox
+     * @param int $limit Maximum number of points (max 1000)
+     * @return array
      */
-    protected function getPk()
+    public function fetchMapPoints(array $filters = [], $limit = 500)
     {
-        return 'id';
+        $limit = max(1, min((int) $limit, 1000));
+
+        $columns = [
+            self::column('id'),
+            self::column('title'),
+            self::column('latitude'),
+            self::column('longitude'),
+            self::column('location_name'),
+            self::column('starts_at'),
+        ];
+
+        $db = $this->db->select($columns)
+                       ->from(self::getTableName())
+                       ->whereEquals(self::column('status'), EventEntity::STATUS_APPROVED)
+                       ->andWhere(self::column('latitude'), 'IS NOT', new RawSqlFragment('NULL'))
+                       ->andWhere(self::column('longitude'), 'IS NOT', new RawSqlFragment('NULL'))
+                       ->andWhere(self::column('latitude'), '>=', -90)
+                       ->andWhere(self::column('latitude'), '<=', 90)
+                       ->andWhere(self::column('longitude'), '>=', -180)
+                       ->andWhere(self::column('longitude'), '<=', 180);
+
+        // Date filters
+        if (!empty($filters['from'])) {
+            $db->andWhere(self::column('starts_at'), '>=', $filters['from']);
+        }
+
+        if (!empty($filters['to'])) {
+            $db->andWhere(self::column('starts_at'), '<=', $filters['to']);
+        }
+
+        // Bounding box filters
+        if (!empty($filters['bbox']) && count($filters['bbox']) === 4) {
+            $lat1 = (float) $filters['bbox'][0];
+            $lng1 = (float) $filters['bbox'][1];
+            $lat2 = (float) $filters['bbox'][2];
+            $lng2 = (float) $filters['bbox'][3];
+
+            $minLat = min($lat1, $lat2);
+            $maxLat = max($lat1, $lat2);
+            $minLng = min($lng1, $lng2);
+            $maxLng = max($lng1, $lng2);
+
+            if (
+                $minLat >= -90 && $maxLat <= 90 &&
+                $minLng >= -180 && $maxLng <= 180
+            ) {
+                $db->andWhere(self::column('latitude'), '>=', $minLat)
+                   ->andWhere(self::column('latitude'), '<=', $maxLat)
+                   ->andWhere(self::column('longitude'), '>=', $minLng)
+                   ->andWhere(self::column('longitude'), '<=', $maxLng);
+            }
+        }
+
+        $db->orderBy(self::column('starts_at'))
+           ->asc()
+           ->limit($limit);
+
+        return $db->queryAll();
     }
 
     /**
