@@ -197,8 +197,8 @@ variable support.
 - Admin grid with status filters (pending / approved / rejected) and
   status breakdown badges
 - Approve or reject pending events with an optional rejection reason
-- Create "official" events on behalf of the association — these skip
-  moderation and appear without an author
+- Create events on behalf of the association — every admin-created event
+  skips moderation and is published without an author
 - Edit and delete any event regardless of author
 - Global analytics dashboard: KPI cards, status breakdown, top-10 events
   by views, top-5 events by clicks, top-5 authors, 14-day trend chart
@@ -345,10 +345,14 @@ A member submits an event via `Members:Event@storeAction` (web) or
 An administrator creates an event via `Members:Admin:Event@storeAction`:
 
 1. Same validation and coordinate resolution.
-2. If the "Official event" checkbox is set, `creator_id` is stored as
-   `NULL` — the event is published on behalf of the association.
-3. The event is inserted with `status = 'approved'` and appears in the
-   catalog immediately.
+2. The event is inserted with `status = 'approved'` and `creator_id = NULL`.
+   It is published on behalf of the association, has no author, and appears
+   in the catalog immediately. There is no flag to toggle this — the admin
+   creation path is always authorless.
+
+Editing works differently from creation: `EventService::update()` never
+rewrites `creator_id`, so a member's event keeps its author even when an
+administrator edits it.
 
 ### Map URL parsing
 
@@ -433,7 +437,7 @@ rendered in the template.
 | `/member/profile/(:var)`               | `Directory@profileAction`    |              |
 | `/member/messages`                     | `Chat@inboxAction`           | login        |
 | `/member/messages/with/(:var)`         | `Chat@withAction`            | login        |
-| `/member/messages/converstation/(:var)`| `Chat@conversationAction`    | login        |
+| `/member/messages/conversation/(:var)` | `Chat@conversationAction`    | login        |
 | `/member/messages/send`                | `Chat@sendAction`            | login        |
 | `/member/messages/poll`                | `Chat@pollAction`            | login        |
 | `/events`                              | `Event@catalogAction`        |              |
@@ -600,7 +604,7 @@ tags in one pass:
             <label>
                 <input type="checkbox" name="tags[]"
                        value="<?= $tag['id']; ?>"
-                       <?= in_array((int) $tag['id'], array_map('intval', $selected)) ? 'checked' : ''; ?>>
+                    <?= in_array((int) $tag['id'], array_map('intval', $selected)) ? 'checked' : ''; ?>>
                 <?= $tag['label']; ?>
             </label>
         <?php endforeach; ?>
@@ -733,17 +737,19 @@ event data.
 
 ### Form tabs
 
-The create/edit forms use Bootstrap tabs to group related fields:
+The create/edit forms use Bootstrap tabs to group related fields. The admin
+and member forms have the same three tabs:
 
-| Tab        | Icon              | Fields (admin)                                      | Fields (member)                                   |
-|------------|-------------------|-----------------------------------------------------|---------------------------------------------------|
-| Main       | `bi-info-circle`  | Title, Description, Registration link               | Title, Description, Registration link             |
-| Location   | `bi-geo-alt`      | Location name, Map URL, Coordinates                 | Location name, Map URL, Coordinates               |
-| Schedule   | `bi-calendar-event` | Starts at, Ends at                                | Starts at, Ends at                                |
-| Settings   | `bi-gear`         | Official event checkbox                             | *not shown*                                       |
+| Tab        | Icon                | Fields                                    |
+|------------|---------------------|-------------------------------------------|
+| Main       | `bi-info-circle`    | Title, Description, Registration link     |
+| Location   | `bi-geo-alt`        | Location name, Map URL, Coordinates       |
+| Schedule   | `bi-calendar-event` | Starts at, Ends at                        |
 
-The "Settings" tab is only rendered for administrators — members cannot
-create official events.
+There is no author or event-type field. The admin form is always the
+"on behalf of the association" path, so on a new event it shows a
+*Published on behalf of the association* hint in the footer instead of a
+settings tab.
 
 ### EventEntity helpers
 
@@ -760,13 +766,13 @@ $event->getLongitude();       // float or null
 $event->getStartsAt();        // "Y-m-d H:i:s"
 $event->getEndsAt();          // "Y-m-d H:i:s" or null
 $event->getStatus();          // "pending" | "approved" | "rejected"
-$event->getCreatorName();     // string or null (null = official event)
+$event->getCreatorName();     // string or null (null = association event)
 $event->getViewsCount();      // int
 $event->getClicksCount();     // int
 
 // Predicates
 $event->isPast();             // true when ends_at (or starts_at) < now
-$event->isOfficial();         // true when creator_id is null
+$event->isOfficial();         // true when creator_id is null (admin-created)
 $event->hasLink();
 $event->hasLocation();
 $event->hasCoordinates();
@@ -1011,15 +1017,19 @@ Owns every business rule of the events pipeline. Controllers talk only to
 this service.
 
 ```php
-// Member path — always pending
+// Member path — always pending, always attributed to the member
 $eventId = $eventService->createForUser($memberId, $data);
 
-// Admin path — approved immediately; official events have no author
-$eventId = $eventService->createByAdmin($data, $isOfficial = false, $adminId = null);
+// Admin path — approved immediately, always authorless (creator_id = NULL)
+$eventId = $eventService->createByAdmin($data);
 
 // Ownership-aware reads
 $event = $eventService->findById($id);                      // any event
 $event = $eventService->findByIdForOwner($id, $memberId);   // only if creator matches
+
+// Updates never rewrite creator_id — an admin editing a member's
+// event leaves the author intact.
+$eventService->update($id, $data, $actorId, $isAdmin);
 
 // Moderation
 $eventService->approve($id);
@@ -1123,7 +1133,6 @@ Authorization: Bearer <token>
 
 Tokens are issued by the login endpoint and are valid for `api.jwt_ttl`
 seconds (7 days by default). The token carries the member id (`sub`) and name.
-
 There is no refresh flow; the client logs in again when a token expires.
 
 On every protected request the middleware checks the signature, the expiry
@@ -1163,17 +1172,18 @@ Authenticate and receive a JWT. Public.
 
 ```json
 {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "user": {
-        "id": 42,
-        "name": "Jane Doe",
-        "email": "jane@example.com",
-        "confirmed": true
-    }
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": 42,
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "confirmed": true
+  }
 }
 ```
 
 **Errors:** `400` missing credentials, `401` wrong identifier or password.
+
 Unconfirmed members receive a token; `confirmed` is `false`. Clients should
 show a "please confirm your email" banner and offer the
 [resend confirmation](#resend-confirmation-email) endpoint.
@@ -1211,11 +1221,11 @@ Validate the current token and return fresh user data. Protected.
 
 ```json
 {
-    "id": 42,
-    "name": "Jane Doe",
-    "email": "jane@example.com",
-    "confirmed": true,
-    "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
+  "id": 42,
+  "name": "Jane Doe",
+  "email": "jane@example.com",
+  "confirmed": true,
+  "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
 }
 ```
 
@@ -1279,43 +1289,43 @@ any pending moderation changes. Protected.
 
 ```json
 {
-    "user": {
-        "id": 42,
-        "name": "Jane Doe",
-        "login": null,
-        "email": "jane@example.com",
-        "confirmed": true,
-        "company": "Acme",
-        "phone": "+1 555 0100",
-        "country": "us",
-        "address": "123 Main St",
-        "title": "Engineer",
-        "bio": "I build things.",
-        "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
-    },
-    "tags": {
-        "selected": [1, 5, 9],
-        "available": [
-            {
-                "group": { "id": 1, "code": "interests", "name": "Interests", "description": null },
-                "tags": [
-                    { "id": 1, "label": "Hiking" },
-                    { "id": 2, "label": "Reading" }
-                ]
-            }
+  "user": {
+    "id": 42,
+    "name": "Jane Doe",
+    "login": null,
+    "email": "jane@example.com",
+    "confirmed": true,
+    "company": "Acme",
+    "phone": "+1 555 0100",
+    "country": "us",
+    "address": "123 Main St",
+    "title": "Engineer",
+    "bio": "I build things.",
+    "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
+  },
+  "tags": {
+    "selected": [1, 5, 9],
+    "available": [
+      {
+        "group": { "id": 1, "code": "interests", "name": "Interests", "description": null },
+        "tags": [
+          { "id": 1, "label": "Hiking" },
+          { "id": 2, "label": "Reading" }
         ]
-    },
-    "pendingChanges": [
-        {
-            "id": 17,
-            "member_id": 42,
-            "status": "pending",
-            "payload": "{\"base\":{\"company\":{\"old\":\"\",\"new\":\"Acme\"}},\"translations\":{}}",
-            "reviewed_at": null,
-            "rejection_reason": null,
-            "created_at": "2026-01-14 09:00:00"
-        }
+      }
     ]
+  },
+  "pendingChanges": [
+    {
+      "id": 17,
+      "member_id": 42,
+      "status": "pending",
+      "payload": "{\"base\":{\"company\":{\"old\":\"\",\"new\":\"Acme\"}},\"translations\":{}}",
+      "reviewed_at": null,
+      "rejection_reason": null,
+      "created_at": "2026-01-14 09:00:00"
+    }
+  ]
 }
 ```
 
@@ -1364,9 +1374,9 @@ is ignored.
 
 ```json
 {
-    "message": "Your changes were submitted for review.",
-    "user": { "...same shape as GET /me..." },
-    "pendingChanges": [ { "id": 18, "status": "pending", "created_at": "..." } ]
+  "message": "Your changes were submitted for review.",
+  "user": { "...same shape as GET /me..." },
+  "pendingChanges": [ { "id": 18, "status": "pending", "created_at": "..." } ]
 }
 ```
 
@@ -1396,8 +1406,8 @@ Upload a new avatar. Multipart form data. Protected.
 
 ```json
 {
-    "message": "Your changes were submitted for review.",
-    "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
+  "message": "Your changes were submitted for review.",
+  "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
 }
 ```
 
@@ -1446,33 +1456,33 @@ guaranteed to be disjoint.
 
 ```json
 {
-    "data": [
-        {
-            "id": 42,
-            "name": "Jane Doe",
-            "title": "Engineer",
-            "company": "Acme",
-            "country": "us",
-            "bio": "I build things.",
-            "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
-        }
-    ],
-    "meta": {
-        "page": 1,
-        "perPage": 20,
-        "total": 137,
-        "totalPages": 7
-    },
-    "filters": {
-        "applied": { "country": "us", "company": null, "tags": [] },
-        "available": {
-            "countries": ["United States", "United Kingdom"],
-            "companies": ["Acme", "Globex"],
-            "tags": [
-                { "group": { "id": 1, "name": "Interests" }, "tags": [{ "id": 1, "label": "Hiking" }] }
-            ]
-        }
+  "data": [
+    {
+      "id": 42,
+      "name": "Jane Doe",
+      "title": "Engineer",
+      "company": "Acme",
+      "country": "us",
+      "bio": "I build things.",
+      "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
     }
+  ],
+  "meta": {
+    "page": 1,
+    "perPage": 20,
+    "total": 137,
+    "totalPages": 7
+  },
+  "filters": {
+    "applied": { "country": "us", "company": null, "tags": [] },
+    "available": {
+      "countries": ["United States", "United Kingdom"],
+      "companies": ["Acme", "Globex"],
+      "tags": [
+        { "group": { "id": 1, "name": "Interests" }, "tags": [{ "id": 1, "label": "Hiking" }] }
+      ]
+    }
+  }
 }
 ```
 
@@ -1498,21 +1508,21 @@ grouped by tag group. Public.
 
 ```json
 {
-    "user": {
-        "id": 42,
-        "name": "Jane Doe",
-        "title": "Engineer",
-        "company": "Acme",
-        "country": "us",
-        "bio": "I build things.",
-        "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
-    },
-    "tags": [
-        {
-            "group": { "id": 1, "name": "Interests" },
-            "tags": [{ "id": 1, "label": "Hiking" }]
-        }
-    ]
+  "user": {
+    "id": 42,
+    "name": "Jane Doe",
+    "title": "Engineer",
+    "company": "Acme",
+    "country": "us",
+    "bio": "I build things.",
+    "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
+  },
+  "tags": [
+    {
+      "group": { "id": 1, "name": "Interests" },
+      "tags": [{ "id": 1, "label": "Hiking" }]
+    }
+  ]
 }
 ```
 
@@ -1529,23 +1539,23 @@ The authenticated member's inbox, newest activity first. Protected.
 
 ```json
 {
-    "data": [
-        {
-            "id": 7,
-            "type": "direct",
-            "displayName": "John Smith",
-            "other": { "id": 43, "name": "John Smith", "avatar": "https://example.com/..." },
-            "lastMessage": {
-                "text": "See you tomorrow",
-                "createdAt": "2026-01-14T09:12:00Z",
-                "senderId": 43
-            },
-            "lastMessageAt": "2026-01-14T09:12:00Z",
-            "messageCount": 42,
-            "unreadCount": 2,
-            "mutedUntil": null
-        }
-    ]
+  "data": [
+    {
+      "id": 7,
+      "type": "direct",
+      "displayName": "John Smith",
+      "other": { "id": 43, "name": "John Smith", "avatar": "https://example.com/..." },
+      "lastMessage": {
+        "text": "See you tomorrow",
+        "createdAt": "2026-01-14T09:12:00Z",
+        "senderId": 43
+      },
+      "lastMessageAt": "2026-01-14T09:12:00Z",
+      "messageCount": 42,
+      "unreadCount": 2,
+      "mutedUntil": null
+    }
+  ]
 }
 ```
 
@@ -1573,23 +1583,23 @@ advance the read cursor.
 
 ```json
 {
-    "data": [
-        {
-            "_id": 100,
-            "text": "Hello",
-            "createdAt": "2026-01-14T09:00:00Z",
-            "type": "text",
-            "deleted": false,
-            "editedAt": null,
-            "replyToId": null,
-            "clientId": null,
-            "user": {
-                "_id": 42,
-                "name": "Jane Doe",
-                "avatar": "https://example.com/..."
-            }
-        }
-    ]
+  "data": [
+    {
+      "_id": 100,
+      "text": "Hello",
+      "createdAt": "2026-01-14T09:00:00Z",
+      "type": "text",
+      "deleted": false,
+      "editedAt": null,
+      "replyToId": null,
+      "clientId": null,
+      "user": {
+        "_id": 42,
+        "name": "Jane Doe",
+        "avatar": "https://example.com/..."
+      }
+    }
+  ]
 }
 ```
 
@@ -1670,9 +1680,9 @@ to the newest returned message. Protected.
 
 ```json
 {
-    "data": [
-        { "_id": 101, "text": "Hi", "createdAt": "2026-01-14T09:15:00Z", "type": "text", "deleted": false, "editedAt": null, "replyToId": null, "clientId": null, "user": { "_id": 43, "name": "John Smith", "avatar": "..." } }
-    ]
+  "data": [
+    { "_id": 101, "text": "Hi", "createdAt": "2026-01-14T09:15:00Z", "type": "text", "deleted": false, "editedAt": null, "replyToId": null, "clientId": null, "user": { "_id": 43, "name": "John Smith", "avatar": "..." } }
+  ]
 }
 ```
 
@@ -1706,9 +1716,14 @@ Protected.
 
 ## Events API
 
-The Events extension exposes seven endpoints under `/api/v1/members/events`.
-Two are public (catalog, detail), one is a public click-tracker, and four
-require JWT.
+The Events extension exposes six endpoints under `/api/v1/members/events`
+and `/api/v1/members/me/events`. Three are public (catalog, detail,
+click-tracker) and three require JWT.
+
+Note that the detail path carries a literal `view` segment
+(`/events/view/:id`) and creation posts to `/events/store`. Both are
+deliberate: a bare `/events/(:var)` wildcard would swallow the literal
+`store` segment depending on route declaration order.
 
 ### List approved events
 
@@ -1724,28 +1739,29 @@ Public. Paginated, 20 per page.
 
 ```json
 {
-    "data": [
-        {
-            "id": 42,
-            "title": "IT Alliance Breakfast",
-            "description": "Monthly meetup",
-            "link": "https://example.com/register",
-            "locationName": "Business Center",
-            "latitude": 41.2995,
-            "longitude": 69.2401,
-            "startsAt": "2026-11-22 18:55:00",
-            "endsAt": "2026-11-22 22:00:00",
-            "status": "approved",
-            "creatorName": "Jane Doe",
-            "viewsCount": 120,
-            "clicksCount": 15
-        }
-    ],
-    "meta": { "page": 1, "perPage": 20, "total": 42, "totalPages": 3 }
+  "data": [
+    {
+      "id": 42,
+      "title": "IT Alliance Breakfast",
+      "description": "Monthly meetup",
+      "link": "https://example.com/register",
+      "locationName": "Business Center",
+      "latitude": 41.2995,
+      "longitude": 69.2401,
+      "startsAt": "2026-11-22 18:55:00",
+      "endsAt": "2026-11-22 22:00:00",
+      "status": "approved",
+      "creatorName": "Jane Doe",
+      "viewsCount": 120,
+      "clicksCount": 15
+    }
+  ],
+  "meta": { "page": 1, "perPage": 20, "total": 42, "totalPages": 3 }
 }
 ```
 
-`creatorName` is `null` for official events.
+`creatorName` is `null` for association events (those created in the admin
+panel).
 
 **Endpoint:** `GET /api/v1/members/events`
 
@@ -1778,9 +1794,94 @@ opens the link in an external browser.
 
 **Endpoint:** `GET /api/v1/members/events/:id/click`
 
+### Render events on a map
+
+Public. Returns approved events that have usable coordinates, as a flat
+list of map points intended for a single "load all markers" request. There
+is no pagination.
+
+Only events with `status = 'approved'` and both `latitude` and `longitude`
+non-null and within `-90..90` / `-180..180` are returned. Events without
+coordinates are omitted silently — they are not an error and are not
+counted anywhere in the response.
+
+**Parameters**
+
+| Name    | Type   | Required | Notes                                                                        |
+|---------|--------|----------|------------------------------------------------------------------------------|
+| `from`  | string | no       | Keeps events with `starts_at >= from`. MySQL datetime string, not validated   |
+| `to`    | string | no       | Keeps events with `starts_at <= to`. Same format caveat                       |
+| `bbox`  | string | no       | `minLat,minLng,maxLat,maxLng` — four comma-separated numbers. Corners are normalized, so reversed order is accepted |
+| `limit` | int    | no       | Default 500, clamped to 1–1000                                               |
+| `lang`  | string | no       | Accepted but has no effect: no field in this payload is translated            |
+
+Pass full `Y-m-d H:i:s` values for `from` / `to`. A bare date is coerced to
+midnight, so `to=2026-11-30` excludes everything happening later that day.
+
+**Response 200**
+
+```json
+{
+  "data": [
+    {
+      "id": 42,
+      "title": "Our Breakfasts",
+      "latitude": 40.7128,
+      "longitude": -74.0060,
+      "location_name": "New York",
+      "starts_at": "2026-11-22 18:55:00",
+      "url": "/events/42"
+    }
+  ],
+  "meta": {
+      "total": 1,
+      "limit": 500,
+      "clipped": false
+  }
+}
+```
+
+Rows are ordered by `starts_at` **ascending** (soonest first) and cut at
+`limit`, so clipping drops the *latest* events rather than arbitrary ones.
+
+`meta` is **not** the pagination envelope used by the other list endpoints:
+
+| Key       | Meaning                                                                                                    |
+|-----------|------------------------------------------------------------------------------------------------------------|
+| `total`   | Number of rows in `data` — **not** the number of matching events                                            |
+| `limit`   | The effective limit after clamping                                                                          |
+| `clipped` | `true` when `total >= limit`, i.e. there are probably more matches. Also `true` when exactly `limit` events match, so treat it as a hint, not a guarantee |
+
+**The payload differs from the rest of the Events API.** Keys are
+`snake_case` (`location_name`, `starts_at`), not `camelCase`, and the row is
+a subset: no `description`, `link`, `endsAt`, `status`, `creatorName`,
+`viewsCount` or `clicksCount`. A client cannot reuse its event decoder here.
+
+`url` is a **relative path to the web detail page** (`/events/42`) — not an
+API path and not an absolute URL. Prefix it with the site origin before
+opening it. Following it records a web view (`source = 'card'`); calling
+`GET /api/v1/members/events/view/:id` instead records `source = 'api'`.
+
+This endpoint does **not** record views or clicks, so rendering hundreds of
+markers does not inflate the counters.
+
+**Errors:** none specific. Malformed input never produces a `4xx`:
+
+- A `bbox` that is not four numbers, or that falls outside the valid ranges,
+  is **silently dropped** and the request returns worldwide results.
+- `from` / `to` are used in the comparison as given; a non-datetime string
+  simply matches nothing useful.
+- A non-numeric `limit` casts to `0` and is then clamped to **1**, not to the
+  500 default.
+
+Always `200` on success, `500` on an unhandled server error.
+
+**Endpoint:** `GET /api/v1/members/events/render/map`
+
 ### Create an event
 
-Protected. The event is created with `status = 'pending'`.
+Protected. The event is created with `status = 'pending'` and
+`creator_id` set to the authenticated member.
 
 **Parameters**
 
@@ -1804,19 +1905,21 @@ Protected. The event is created with `status = 'pending'`.
 
 **Errors:** `401` no token, `422` validation errors.
 
-**Endpoint:** `POST /api/v1/members/events`
+**Endpoint:** `POST /api/v1/members/events/store`
 
 ### List my events with summary
 
 Protected. Returns the member's own events and a summary across all of them.
+Association events created in the admin panel never appear here — they have
+no owner.
 
 **Response 200**
 
 ```json
 {
-    "data": [ "...events..." ],
-    "summary": { "eventCount": 5, "totalViews": 420, "totalClicks": 63, "conversion": 15.0 },
-    "meta": { "page": 1, "perPage": 20, "total": 5, "totalPages": 1 }
+  "data": [ "...events..." ],
+  "summary": { "eventCount": 5, "totalViews": 420, "totalClicks": 63, "conversion": 15.0 },
+  "meta": { "page": 1, "perPage": 20, "total": 5, "totalPages": 1 }
 }
 ```
 
@@ -1831,14 +1934,14 @@ authenticated member.
 
 ```json
 {
-    "data": {
-        "event": { "...event shape..." },
-        "views": 120,
-        "clicks": 15,
-        "conversion": 12.5,
-        "dailyStats": [ { "date": "2026-11-09", "views": 12, "clicks": 3 }, "..." ],
-        "sourceStats": [ { "source": "card", "views": 100, "clicks": 10 }, "..." ]
-    }
+  "data": {
+    "event": { "...event shape..." },
+    "views": 120,
+    "clicks": 15,
+    "conversion": 12.5,
+    "dailyStats": [ { "date": "2026-11-09", "views": 12, "clicks": 3 }, "..." ],
+    "sourceStats": [ { "source": "card", "views": 100, "clicks": 10 }, "..." ]
+  }
 }
 ```
 
@@ -1858,10 +1961,10 @@ Validation errors (HTTP 422) use the framework's standard shape:
 
 ```json
 {
-    "errors": {
-        "member[email]": ["This email is already taken"],
-        "member[password]": ["..."]
-    }
+  "errors": {
+    "member[email]": ["This email is already taken"],
+    "member[password]": ["..."]
+  }
 }
 ```
 
@@ -1903,7 +2006,7 @@ Tables (all prefixed through the framework's table prefix):
 | `bono_module_members_tag_groups` / `_translations` | Tag groups                                      |
 | `bono_module_members_tags` / `_translations`       | Tags                                            |
 | `bono_module_members_member_tags`                  | Member ↔ tag selections                         |
-| `bono_module_members_events`                       | Events (`creator_id` NULL = official)           |
+| `bono_module_members_events`                       | Events (`creator_id` NULL = association event)  |
 | `bono_module_members_event_analytics`              | Event views and clicks (ip_hash, source)        |
 
 Files:
@@ -1990,14 +2093,14 @@ construct instances manually:
 
 ```html
 <script>
-window.EventForm.autoInit = false;
-window.EventAnalytics.autoInit = false;
+    window.EventForm.autoInit = false;
+    window.EventAnalytics.autoInit = false;
 </script>
 <script src=".../event-form.js"></script>
 <script src=".../event-analytics.js"></script>
 <script>
-new EventForm({ form: '#my-form', translations: { extracting: 'Извлечение…' } });
-new EventAnalytics({ container: '#my-dashboard' });
+    new EventForm({ form: '#my-form', translations: { extracting: 'Extracting…' } });
+    new EventAnalytics({ container: '#my-dashboard' });
 </script>
 ```
 
@@ -2024,9 +2127,14 @@ new EventAnalytics({ container: '#my-dashboard' });
 - Events created by members go through moderation (`status = 'pending'`)
   before appearing in the public catalog. Admin-created events are published
   immediately with `status = 'approved'`.
-- "Official" events (created by an admin with the "Official event"
-  checkbox) have `creator_id = NULL` and appear in the catalog without an
-  author. They do not show up in any member's "My events" list.
+- Every admin-created event has `creator_id = NULL` and appears in the
+  catalog without an author (the grid shows an "Official" badge). There is
+  no flag to turn this off. Such events do not show up in any member's
+  "My events" list.
+- Editing an event never changes its author. `EventService::update()` does
+  not write `creator_id`, so a member's event stays attributed to that
+  member even when an administrator edits it. Only the creation path
+  decides authorship.
 - The `EventEntity` class wraps every event row. Templates must use its
   getter methods (`$event->getTitle()`) and predicates (`$event->isPast()`,
   `$event->hasLink()`) — raw array access is not supported.
@@ -2038,7 +2146,9 @@ new EventAnalytics({ container: '#my-dashboard' });
   hit is always recorded.
 - Deleting an event cascades to its analytics rows (`ON DELETE CASCADE`).
   Deleting a member sets `creator_id = NULL` on their events
-  (`ON DELETE SET NULL`), so official-style events survive member removal.
+  (`ON DELETE SET NULL`), so the events survive member removal — but they
+  then become indistinguishable from association events created in the
+  admin panel.
 - The `LocationParser` does not resolve short links
   (`maps.app.goo.gl`, `yandex.com/s/...`, `2gis.com/...`). Users must paste
   the full URL or enter coordinates manually.
@@ -2069,9 +2179,10 @@ Behaviors of this version that integrators should be aware of:
   same payload shape, but the admin version is served by
   `fetchForAdminEvent()` (no ownership check) while the member version is
   served by `fetchForMemberEvent()` (ownership enforced).
-- The "Official event" checkbox is only rendered in the admin form. Members
-  cannot create official events — this is enforced at the controller level,
-  not just the UI.
+- Every admin-created event is authorless (`creator_id = NULL`). There is
+  no way to attribute an admin-created event to a member, and no record of
+  which administrator created it. If an event needs an author, create it
+  from the member cabinet instead.
 - Analytics counters (`views_count`, `clicks_count`) are denormalized on
   the events table for fast list rendering. They are kept in sync with the
   `event_analytics` log via a transaction, but a crash between the two
