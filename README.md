@@ -33,6 +33,8 @@ that need "a logged-in user" build on top of it.
 - For the bundled templates: Bootstrap 5 and Bootstrap Icons on the page.
   For the bundled chat script: jQuery 3.x
 - For the events analytics charts: Chart.js 4.x (loaded from CDN)
+- For the events maps: Leaflet 1.9.4, plus Leaflet.markercluster 1.5.3 for
+  the catalog map
 
 # Configuration
 
@@ -73,6 +75,9 @@ Important details:
   `name`, `title` and `bio` are staged.
 - The email address and the password cannot be changed through the profile
   form. The password has its own path and never goes through moderation.
+- This pipeline covers **member profiles only**. Event content is never
+  staged field-by-field; the whole event goes through moderation as a unit
+  (see [Events](#events)).
 
 ## API
 
@@ -117,7 +122,8 @@ variable support.
 - Optional profile moderation (approve / reject edits before they go live)
 - 1-to-1 private chat with unread counts and an inbox
 - Full administration panel: members, tags, pending changes, change history
-- Translatable member data (name, title, bio) and tags, via the `Cms`
+- Translatable member data (`name`, `title`, `bio`), tags, tag groups and
+  event content (`title`, `description`, `organizer`), via the `Cms`
   language manager
 - Events system with creation, moderation, analytics and a public catalog
 
@@ -165,14 +171,16 @@ variable support.
 - Manage tag groups and tags, with translations and an active/inactive flag
 - Deleting a member also removes their avatar files, translations, profile
   change submissions, tag selections and conversation participations
-  (see [Notes](#notes) for what happens to their messages)
+  (see [Notes](#notes) for what happens to their messages and events)
 
 ## Events features
 
 ### General
 
-- Create, edit and delete events with title, description, registration
-  link, location and schedule
+- Create, edit and delete events with a translatable title, description and
+  organizer, plus a shared registration link, location and schedule
+- Per-language content: fill one language or all of them. A language left
+  blank is skipped, not rejected
 - Parse map URLs from Google Maps, Yandex Maps, OpenStreetMap and 2GIS to
   extract coordinates
 - Manual coordinate entry as a fallback when URL parsing fails
@@ -184,9 +192,11 @@ variable support.
 ### Member-facing
 
 - Paginated public catalog of approved events with date badges and location
-- Detail page with full event information and a "Sign up" button
+- Detail page with full event information, organizer and a "Sign up" button
 - "My events" dashboard in the member cabinet with KPI summary (total
   views, clicks, conversion)
+- Untranslated events stay listed in "My events" with a *Not translated*
+  badge, so the author can open and complete them
 - Detailed per-event analytics: 14-day trend chart, traffic sources pie
   chart
 - Member-created events go through moderation before appearing in the
@@ -196,12 +206,14 @@ variable support.
 
 - Admin grid with status filters (pending / approved / rejected) and
   status breakdown badges
+- Untranslated events remain in the grid with a *Not translated* badge
+  rather than disappearing, so they can always be fixed
 - Approve or reject pending events with an optional rejection reason
 - Create events on behalf of the association — every admin-created event
   skips moderation and is published without an author
 - Edit and delete any event regardless of author
 - Global analytics dashboard: KPI cards, status breakdown, top-10 events
-  by views, top-5 events by clicks, top-5 authors, 14-day trend chart
+  by views, top-5 authors, 14-day trend chart
 - Per-event analytics with the same shape as the member view
 
 ### Analytics
@@ -214,6 +226,7 @@ variable support.
   table for fast list rendering
 - Daily and per-source breakdowns aggregated on demand
 - Conversion rate computed as `clicks / views * 100`
+- Counters are language-independent: switching language never changes them
 
 ## Coming soon
 
@@ -299,6 +312,33 @@ Web translation forms post `translation[<langId>][...]`. The API additionally
 accepts `translation[<languageCode>][...]` and, on profile update, keeps only
 the language selected by `?lang=`.
 
+### Event content
+
+Event `title`, `description` and `organizer` live in
+`bono_module_members_events_translations`. Everything else on an event —
+schedule, place, coordinates, link, status, counters — is shared across
+languages.
+
+The join type is chosen per listing, deliberately:
+
+| Read path                          | Join    | Untranslated event                        |
+|------------------------------------|---------|-------------------------------------------|
+| Public catalog (`fetchApproved`)   | `INNER` | hidden                                    |
+| Public map (`fetchMapPoints`)      | `INNER` | hidden                                    |
+| Public detail / click (web + API)  | `LEFT` + explicit guard | `404`                     |
+| Admin grid (`fetchAllForAdmin`)    | `LEFT`  | listed, flagged *Not translated*          |
+| My events (`fetchByCreatorId`)     | `LEFT`  | listed, flagged *Not translated*          |
+| Top events ranking                 | `INNER` | excluded                                  |
+
+The `LEFT JOIN` on the two management listings is a deliberate departure
+from `MemberMapper`, which inner-joins everywhere: an event hidden from the
+admin grid would be impossible to repair. In those listings the title is
+`NULL`, and `EventEntity::getDisplayTitle()` renders `#<id>` instead.
+
+Because content is per language, an event created only in Russian is
+invisible to a visitor browsing in Uzbek — but it is still fully editable,
+and adding the Uzbek row publishes it there immediately.
+
 ## Tags
 
 Tags are organised in groups (`Members:Admin:TagGroup`, `Members:Admin:Tag`).
@@ -327,17 +367,54 @@ member selection of them.
 
 ## Events
 
+### Payload shape
+
+Every write path takes the payload split in two:
+
+```php
+$data = [                       // shared, language-independent
+    'link'            => 'https://...',
+    'location_name'   => 'Business Center',
+    'latitude'        => 41.2995,
+    'longitude'       => 69.2401,
+    'location_source' => 'url',
+    'starts_at'       => '2026-11-22 18:55',
+    'ends_at'         => '2026-11-22 22:00',
+];
+
+$translations = [               // per language, keyed by language id
+    1 => ['title' => 'IT Alliance Breakfast', 'description' => '...', 'organizer' => 'IT Alliance'],
+    2 => ['title' => 'Завтрак IT-альянса',    'description' => '...', 'organizer' => null],
+];
+```
+
+`EventService::preparePayload()` validates the shared half;
+`prepareTranslations()` validates the content half:
+
+- A language row whose title is blank is **skipped**, not rejected. Filling
+  only some of the language tabs is legitimate.
+- At least one row must survive, so an event can never exist without a title
+  in some language. Otherwise `The event title is required` is thrown.
+- `title` is limited to 200 characters, `organizer` to 200. `description` is
+  free text.
+- Keys that cannot be resolved to a language id are dropped. Controllers run
+  the payload through `InputNormalizer::normalizeTranslations()` first, so
+  `translation[en][title]` works as well as `translation[1][title]`.
+- On update, only the languages present in the payload are written. Rows for
+  other languages are left untouched, so a partial edit never wipes content
+  the actor did not see.
+
 ### Creation flow
 
 A member submits an event via `Members:Event@storeAction` (web) or
 `POST /api/v1/members/events/store` (API):
 
-1. The payload is validated (title, location name and start time are
-   required; link, description, coordinates are optional).
+1. Both halves of the payload are validated as described above.
 2. Coordinates are resolved from the submitted `latitude` / `longitude`
    pair. If either is missing or out of range, the event is saved without
    coordinates.
-3. The event is inserted with `status = 'pending'` and
+3. The base row and its translation rows are written in one
+   `EventMapper::saveEvent()` call, with `status = 'pending'` and
    `creator_id = <member id>`.
 4. The member is redirected to "My events" with a flash message: *"The
    event has been created and is pending review."*
@@ -347,8 +424,8 @@ An administrator creates an event via `Members:Admin:Event@storeAction`:
 1. Same validation and coordinate resolution.
 2. The event is inserted with `status = 'approved'` and `creator_id = NULL`.
    It is published on behalf of the association, has no author, and appears
-   in the catalog immediately. There is no flag to toggle this — the admin
-   creation path is always authorless.
+   in the catalog immediately — in every language it was filled in. There is
+   no flag to toggle this; the admin creation path is always authorless.
 
 Editing works differently from creation: `EventService::update()` never
 rewrites `creator_id`, so a member's event keeps its author even when an
@@ -380,6 +457,10 @@ a count in the top bar. An administrator can:
 - **Reject** — sets `status = 'rejected'` and stores an optional reason
   (up to 500 characters). The reason is shown to the author in "My events".
 
+Moderation acts on the base row only. Approving or rejecting never touches
+translation rows, and there is no per-language approval: an event is
+approved as a whole, in every language it has.
+
 An administrator editing a rejected event automatically resets it to
 `approved` and clears the rejection reason.
 
@@ -388,7 +469,7 @@ An administrator editing a rejected event automatically resets it to
 Views and clicks are recorded through `EventAnalyticsService::recordView()`
 and `recordClick()`. Each call:
 
-1. Verifies the event exists.
+1. Verifies the event exists (base row only — no content is needed).
 2. Computes `ip_hash = SHA1(ip + salt)` — the raw IP is never stored.
 3. Checks `hasRecentEvent()` — if the same `ip_hash` recorded the same
    `type` for the same `event_id` within the last 10 minutes, the call
@@ -405,7 +486,8 @@ inflated, but legitimate hits are never lost.
 The "Sign up" button on both the catalog card and the detail page points at
 `/events/:id/go`. This endpoint:
 
-1. Verifies the event exists, is approved and has a non-empty `link`.
+1. Verifies the event exists, is approved, has a translation for the active
+   language, and has a non-empty `link`.
 2. Records a click via `EventAnalyticsService::recordClick()`.
 3. Issues a 302 redirect to the event's `link`.
 
@@ -441,8 +523,8 @@ rendered in the template.
 | `/member/messages/send`                | `Chat@sendAction`            | login        |
 | `/member/messages/poll`                | `Chat@pollAction`            | login        |
 | `/events`                              | `Event@catalogAction`        |              |
-| `/events/(:var)`                       | `Event@viewAction`           |              |
 | `/events/(:var)/go`                    | `Event@clickAction`          |              |
+| `/events/(:var)`                       | `Event@viewAction`           |              |
 | `/member/events`                       | `Event@indexAction`          | login        |
 | `/member/events/create`                | `Event@createAction`         | login        |
 | `/member/events/store`                 | `Event@storeAction`          | login        |
@@ -508,6 +590,9 @@ Each page also receives a `$page` entity (title and SEO metadata). The layout
 reads `$page->getTitle()`, `getMetaDescription()`, `getMetaKeywords()` and
 `getSeo()`, and expects a `$csrfToken` (emitted as a `csrf-token` meta tag,
 which the chat script reads).
+
+`$languages` is also available in every admin template, which is what the
+multilingual event and tag forms iterate over.
 
 Note on the name `$member`: the `SiteBootstrapper` registers a **global**
 `$member` (a `SiteService`, see [Services](#services)). The module's own
@@ -721,7 +806,7 @@ event data.
 | Template                              | Variables                                                                 |
 |---------------------------------------|---------------------------------------------------------------------------|
 | `events.phtml`                        | `$events` (array of `EventEntity`), `$paginator`, `$statusFilter`, `$statusBreakdown` |
-| `event-form.phtml`                    | `$event` (`EventEntity` or empty `VirtualEntity` for new), `$isNew` (bool) |
+| `event-form.phtml`                    | `$event` (`EventEntity` or empty `VirtualEntity` for new), `$translations` (`[langId => row]`, `[]` when new), `$isNew` (bool) |
 | `event-analytics-dashboard.phtml`     | `$dashboard` (payload from `EventAnalyticsService::fetchAdminDashboard()`) |
 | `event-analytics.phtml`               | `$event` (`EventEntity`), `$analytics` (payload from `fetchForAdminEvent()`) |
 
@@ -732,24 +817,47 @@ event data.
 | `events-catalog.phtml`                | `$page`, `$events` (array of `EventEntity`), `$paginator`                 |
 | `event.phtml`                         | `$page`, `$event` (`EventEntity`)                                         |
 | `member-events.phtml`                 | `$page`, `$events`, `$paginator`, `$dashboard` (summary from `fetchForMemberDashboard()`) |
-| `member-event-form.phtml`             | `$page`, `$event` (`EventEntity`), `$isNew`                               |
+| `member-event-form.phtml`             | `$page`, `$event`, `$translations`, `$isNew`                              |
 | `member-event-analytics.phtml`        | `$page`, `$event` (`EventEntity`), `$analytics`                           |
+
+`$translations` holds **every** language row, not just the active one, so
+the form can render a tab per language. Each row carries `id`, `lang_id`,
+`title`, `description`, `organizer`.
 
 ### Form tabs
 
-The create/edit forms use Bootstrap tabs to group related fields. The admin
-and member forms have the same three tabs:
+Both forms have the same three top-level tabs:
 
-| Tab        | Icon                | Fields                                    |
-|------------|---------------------|-------------------------------------------|
-| Main       | `bi-info-circle`    | Title, Description, Registration link     |
-| Location   | `bi-geo-alt`        | Location name, Map URL, Coordinates       |
-| Schedule   | `bi-calendar-event` | Starts at, Ends at                        |
+| Tab        | Icon                | Fields                                                     |
+|------------|---------------------|------------------------------------------------------------|
+| Main       | `bi-info-circle`    | One pill per language (Title, Description, Organizer), then Registration link |
+| Location   | `bi-geo-alt`        | Location name, Map URL, Coordinates                        |
+| Schedule   | `bi-calendar-event` | Starts at, Ends at                                         |
+
+The language pills are nested inside **Main** and use
+`data-bs-toggle="pill"` with pane ids `#event-language-<langId>`. A pill
+whose language already has a title carries a green check icon. The content
+fields post as `translation[<langId>][title|description|organizer]`.
+
+Only the shared fields (`location_name`, `starts_at`) are marked `required`.
+Per-language titles are deliberately **not** required — a blank language is
+skipped by the service, and marking them required would block a
+Russian-only event when English happens to be the first tab. The
+"at least one title" rule is enforced server-side.
+
+Both forms carry `novalidate`. This is required, not cosmetic: with native
+validation enabled, a required field inside an inactive Bootstrap tab is
+unfocusable, so the browser aborts submission silently and the Save button
+appears dead. `event-form.js` gates validation instead and reveals the
+offending tab — see [Events JavaScript](#events-javascript).
 
 There is no author or event-type field. The admin form is always the
 "on behalf of the association" path, so on a new event it shows a
-*Published on behalf of the association* hint in the footer instead of a
-settings tab.
+*Published on behalf of the association* hint in the footer.
+
+The schedule inputs are `datetime-local`, which accepts `Y-m-d\TH:i` only.
+Both templates normalize the entity's `Y-m-d H:i:s` values before rendering;
+without that the edit form shows empty dates.
 
 ### EventEntity helpers
 
@@ -757,10 +865,12 @@ Templates use `EventEntity` methods. The most common ones:
 
 ```php
 $event->getId();
-$event->getTitle();
-$event->getDescription();
+$event->getLangId();          // int, or null when untranslated in this language
+$event->getTitle();           // string or null
+$event->getDescription();     // string or null
+$event->getOrganizer();       // string or null — explicit, translatable
 $event->getLink();
-$event->getLocationName();
+$event->getLocationName();    // shared across languages
 $event->getLatitude();        // float or null
 $event->getLongitude();       // float or null
 $event->getStartsAt();        // "Y-m-d H:i:s"
@@ -770,6 +880,10 @@ $event->getCreatorName();     // string or null (null = association event)
 $event->getViewsCount();      // int
 $event->getClicksCount();     // int
 
+// Never-blank display helpers
+$event->getDisplayTitle();    // title, else "#<id>"
+$event->getOrganizerName();   // organizer, else creator name, else ""
+
 // Predicates
 $event->isPast();             // true when ends_at (or starts_at) < now
 $event->isOfficial();         // true when creator_id is null (admin-created)
@@ -777,9 +891,11 @@ $event->hasLink();
 $event->hasLocation();
 $event->hasCoordinates();
 $event->hasDescription();
+$event->hasOrganizer();       // an explicit organizer is set
 $event->hasCreator();
 
 // Formatted output
+$event->getShortDescription(150);     // plain-text excerpt
 $event->getFormattedDate();           // "Nov 22, 2026"
 $event->getFormattedTime();           // "18:55"
 $event->getFormattedStartDateTime();  // "Saturday, November 22, 2026"
@@ -789,7 +905,16 @@ $event->getStartDay();                // 22
 $event->getStatusBadgeClass();        // "warning" | "success" | "danger"
 $event->getStatusTranslationKey();    // "Pending approval" | "Approved" | "Rejected"
 $event->getConversionRate();          // float, e.g. 12.34
+$event->getDirectionsUrl();           // Google Maps directions link
 ```
+
+Use `getDisplayTitle()` in any listing that can contain untranslated events
+(admin grid, "My events", analytics headings). The public catalog and detail
+page inner-join or guard, so `getTitle()` is safe there.
+
+`getOrganizerName()` encapsulates the fallback rule: the explicit organizer
+wins, then the creator's display name, then an empty string. Guard on the
+result before rendering the "Organized by" line.
 
 ### Analytics payload shape
 
@@ -825,7 +950,7 @@ Both `fetchForMemberEvent()` and `fetchForAdminEvent()` return:
     'uniqueMembers'     => int,
     'conversion'        => float,
     'statusBreakdown'   => ['pending' => int, 'approved' => int, 'rejected' => int],
-    'topEventsByViews'  => array,   // top 10
+    'topEventsByViews'  => array,   // top 10, title in the active language
     'topEventsByClicks' => array,   // top 5
     'topAuthors'        => array,   // top 5
     'dailyStats'        => array,   // 14 rows, zero-filled
@@ -1001,6 +1126,23 @@ Owns the moderation pipeline: `updateProfile()`, `submit()`, `approve()`,
 `reject()`, `fetchPending()`, `fetchPendingForMember()`,
 `fetchHistoryForMember()`, `countPending()`, `isModerationEnabled()`.
 
+## Input normalizer
+
+Shared by every controller that accepts a translation block:
+
+```php
+// Resolves language ids or codes to ids, injects lang_id, drops
+// unresolvable rows. Pass a second argument to keep one language only.
+$normalizer->normalizeTranslations($translations, $onlyLangId = null);
+
+// Picks a display name out of a registration payload.
+$normalizer->resolveRegistrationName($input);
+```
+
+The profile update endpoint passes `?lang=` as `$onlyLangId`. The event
+endpoints pass nothing, so an event may be written in several languages at
+once.
+
 ## Location parser
 
 `locationParser` parses map URLs into coordinates. It has no external
@@ -1014,31 +1156,39 @@ $coords = $locationParser->parse($url);
 ## Event service
 
 Owns every business rule of the events pipeline. Controllers talk only to
-this service.
+this service. Every write takes the payload split into a shared half and a
+per-language half (see [Payload shape](#payload-shape)).
 
 ```php
 // Member path — always pending, always attributed to the member
-$eventId = $eventService->createForUser($memberId, $data);
+$eventId = $eventService->createForUser($memberId, $data, $translations);
 
 // Admin path — approved immediately, always authorless (creator_id = NULL)
-$eventId = $eventService->createByAdmin($data);
+$eventId = $eventService->createByAdmin($data, $translations);
 
-// Ownership-aware reads
+// Updates never rewrite creator_id — an admin editing a member's
+// event leaves the author intact. Only the submitted languages are written.
+$eventService->update($id, $data, $translations, $actorId, $isAdmin);
+
+// Single-event reads, resolved for the active language
 $event = $eventService->findById($id);                      // any event
 $event = $eventService->findByIdForOwner($id, $memberId);   // only if creator matches
 
-// Updates never rewrite creator_id — an admin editing a member's
-// event leaves the author intact.
-$eventService->update($id, $data, $actorId, $isAdmin);
+// Edit-form reads: every language row, not just the active one
+$data = $eventService->fetchByIdWithTranslations($id);
+$data = $eventService->fetchByIdWithTranslationsForOwner($id, $memberId);
+// Both return ['event' => EventEntity, 'translations' => [langId => row]] or false
 
-// Moderation
+// Moderation — base row only, never touches content
 $eventService->approve($id);
 $eventService->reject($id, $reason);
+$eventService->delete($id, $actorId, $isAdmin);
 
 // Paginated lists
-$events = $eventService->fetchApproved($page, $perPage);                        // public catalog
-$events = $eventService->fetchByCreatorId($memberId, $page, $perPage);          // member's events
-$events = $eventService->fetchAllForAdmin($page, $perPage, $filters);           // admin grid
+$events = $eventService->fetchApproved($page, $perPage);                // public catalog, INNER JOIN
+$events = $eventService->fetchByCreatorId($memberId, $page, $perPage);  // member's events, LEFT JOIN
+$events = $eventService->fetchAllForAdmin($page, $perPage, $filters);   // admin grid, LEFT JOIN
+$points = $eventService->fetchMapPoints($filters, $limit);              // public map, INNER JOIN
 
 // Map URL parsing (delegates to LocationParser)
 $coords = $eventService->parseLocation($url);
@@ -1058,7 +1208,7 @@ $analytics = $analyticsService->fetchForMemberEvent($eventId, $memberId); // nul
 $analytics = $analyticsService->fetchForAdminEvent($eventId);             // no ownership check
 
 // Dashboards
-$dashboard = $analyticsService->fetchForMemberDashboard($memberId); // totals across all member's events
+$dashboard = $analyticsService->fetchForMemberDashboard($memberId); // totals, aggregated in SQL
 $dashboard = $analyticsService->fetchAdminDashboard();              // global KPI + rankings
 ```
 
@@ -1110,7 +1260,8 @@ conversation id. Messaging yourself is rejected with a flash message.
 ```
 
 The click action records a click and redirects to the event's registration
-link. If the event has no link, it returns 404.
+link. If the event has no link, or no translation for the active language,
+it returns 404.
 
 # API
 
@@ -1147,8 +1298,9 @@ The API never sets cookies and never redirects. Clients must treat any
 ## Language
 
 Every endpoint accepts an optional `?lang=xx` query parameter (a language
-code). Translated fields (member names, titles, bios, tag labels) are
-returned in that language. Omitting it uses the site's active language. See
+code). Translated fields (member names, titles, bios, tag labels, event
+titles, descriptions and organizers) are returned in that language.
+Omitting it uses the site's active language. See
 [Languages and translations](#languages-and-translations) for the effect on
 listings.
 
@@ -1716,24 +1868,54 @@ Protected.
 
 ## Events API
 
-The Events extension exposes six endpoints under `/api/v1/members/events`
-and `/api/v1/members/me/events`. Three are public (catalog, detail,
-click-tracker) and three require JWT.
+The Events extension exposes seven endpoints under `/api/v1/members/events`
+and `/api/v1/members/me/events`. Four are public (catalog, detail,
+click-tracker, map) and three require JWT.
 
 Note that the detail path carries a literal `view` segment
 (`/events/view/:id`) and creation posts to `/events/store`. Both are
 deliberate: a bare `/events/(:var)` wildcard would swallow the literal
-`store` segment depending on route declaration order.
+`store` segment depending on route declaration order. The same reasoning
+applies to `/events/render/map`, which is registered as two literal
+segments.
+
+### Event payload
+
+Every endpoint that returns an event uses this shape. `title`,
+`description` and `organizer` are translated and **nullable**;
+`displayTitle` and `organizerName` are always safe to render.
+
+| Field           | Type         | Notes                                                        |
+|-----------------|--------------|--------------------------------------------------------------|
+| `id`            | int          |                                                              |
+| `langId`        | int \| null  | `null` when the event has no row for the requested language   |
+| `title`         | string\|null | raw translated title                                          |
+| `displayTitle`  | string       | title, else `#<id>` — use this in lists                       |
+| `description`   | string\|null | raw translated description                                    |
+| `organizer`     | string\|null | explicit translated organizer                                 |
+| `organizerName` | string       | organizer, else creator name, else `""`                       |
+| `link`          | string\|null | shared across languages                                       |
+| `locationName`  | string       | shared across languages                                       |
+| `latitude`      | float\|null  |                                                              |
+| `longitude`     | float\|null  |                                                              |
+| `startsAt`      | string       | `Y-m-d H:i:s`                                                 |
+| `endsAt`        | string\|null |                                                              |
+| `status`        | string       | `pending` \| `approved` \| `rejected`                         |
+| `creatorName`   | string\|null | `null` for association events                                 |
+| `viewsCount`    | int          | language-independent                                          |
+| `clicksCount`   | int          | language-independent                                          |
 
 ### List approved events
 
-Public. Paginated, 20 per page.
+Public. Paginated, 20 per page. Only events translated into the requested
+language are returned.
 
 **Parameters**
 
-| Name   | Type | Required | Notes     |
-|--------|------|----------|-----------|
-| `page` | int  | no       | Default 1 |
+| Name   | Type   | Required | Notes         |
+|--------|--------|----------|---------------|
+| `page` | int    | no       | Default 1     |
+| `lang` | string | no       | Language code |
 
 **Response 200**
 
@@ -1742,8 +1924,12 @@ Public. Paginated, 20 per page.
   "data": [
     {
       "id": 42,
+      "langId": 1,
       "title": "IT Alliance Breakfast",
+      "displayTitle": "IT Alliance Breakfast",
       "description": "Monthly meetup",
+      "organizer": "IT Alliance",
+      "organizerName": "IT Alliance",
       "link": "https://example.com/register",
       "locationName": "Business Center",
       "latitude": 41.2995,
@@ -1775,7 +1961,8 @@ Public. Records a view with `source = 'api'`.
 { "data": { "...same shape as above..." } }
 ```
 
-**Errors:** `404` event not found or not approved.
+**Errors:** `404` event not found, not approved, or not translated into the
+requested language.
 
 **Endpoint:** `GET /api/v1/members/events/view/:id`
 
@@ -1790,7 +1977,8 @@ opens the link in an external browser.
 { "link": "https://example.com/register" }
 ```
 
-**Errors:** `404` event not found, not approved, or has no link.
+**Errors:** `404` event not found, not approved, not translated into the
+requested language, or has no link.
 
 **Endpoint:** `GET /api/v1/members/events/:id/click`
 
@@ -1800,10 +1988,11 @@ Public. Returns approved events that have usable coordinates, as a flat
 list of map points intended for a single "load all markers" request. There
 is no pagination.
 
-Only events with `status = 'approved'` and both `latitude` and `longitude`
-non-null and within `-90..90` / `-180..180` are returned. Events without
-coordinates are omitted silently — they are not an error and are not
-counted anywhere in the response.
+Only events with `status = 'approved'`, a translation in the requested
+language, and both `latitude` and `longitude` non-null and within
+`-90..90` / `-180..180` are returned. Events without coordinates are omitted
+silently — they are not an error and are not counted anywhere in the
+response.
 
 **Parameters**
 
@@ -1813,7 +2002,7 @@ counted anywhere in the response.
 | `to`    | string | no       | Keeps events with `starts_at <= to`. Same format caveat                       |
 | `bbox`  | string | no       | `minLat,minLng,maxLat,maxLng` — four comma-separated numbers. Corners are normalized, so reversed order is accepted |
 | `limit` | int    | no       | Default 500, clamped to 1–1000                                               |
-| `lang`  | string | no       | Accepted but has no effect: no field in this payload is translated            |
+| `lang`  | string | no       | Selects the language of the returned titles                                  |
 
 Pass full `Y-m-d H:i:s` values for `from` / `to`. A bare date is coerced to
 midnight, so `to=2026-11-30` excludes everything happening later that day.
@@ -1825,19 +2014,15 @@ midnight, so `to=2026-11-30` excludes everything happening later that day.
   "data": [
     {
       "id": 42,
-      "title": "Our Breakfasts",
-      "latitude": 40.7128,
-      "longitude": -74.0060,
-      "location_name": "New York",
+      "title": "IT Alliance Breakfast",
+      "latitude": 41.2995,
+      "longitude": 69.2401,
+      "location_name": "Business Center",
       "starts_at": "2026-11-22 18:55:00",
       "url": "/events/42"
     }
   ],
-  "meta": {
-      "total": 1,
-      "limit": 500,
-      "clipped": false
-  }
+  "meta": { "total": 1, "limit": 500, "clipped": false }
 }
 ```
 
@@ -1854,8 +2039,7 @@ Rows are ordered by `starts_at` **ascending** (soonest first) and cut at
 
 **The payload differs from the rest of the Events API.** Keys are
 `snake_case` (`location_name`, `starts_at`), not `camelCase`, and the row is
-a subset: no `description`, `link`, `endsAt`, `status`, `creatorName`,
-`viewsCount` or `clicksCount`. A client cannot reuse its event decoder here.
+a reduced subset. A client cannot reuse its event decoder here.
 
 `url` is a **relative path to the web detail page** (`/events/42`) — not an
 API path and not an absolute URL. Prefix it with the site origin before
@@ -1883,19 +2067,28 @@ Always `200` on success, `500` on an unhandled server error.
 Protected. The event is created with `status = 'pending'` and
 `creator_id` set to the authenticated member.
 
+Content is posted per language. Several languages may be sent in one call;
+a single row is also accepted and the rest can be filled in later. A row
+whose title is blank is skipped. At least one non-blank title is required.
+
 **Parameters**
 
-| Name                       | Type    | Required | Notes                            |
-|----------------------------|---------|----------|----------------------------------|
-| `event[title]`             | string  | yes      | Max 200 characters               |
-| `event[description]`       | string  | no       |                                  |
-| `event[link]`              | string  | no       | Max 500 characters               |
-| `event[location_name]`     | string  | yes      | Max 255 characters               |
-| `event[latitude]`          | float   | no       | -90..90                          |
-| `event[longitude]`         | float   | no       | -180..180                        |
-| `event[location_source]`   | string  | no       | `none` \| `manual` \| `url`      |
-| `event[starts_at]`         | string  | yes      | `Y-m-d H:i:s`                    |
-| `event[ends_at]`           | string  | no       | `Y-m-d H:i:s`                    |
+| Name                                       | Type   | Required | Notes                                    |
+|--------------------------------------------|--------|----------|------------------------------------------|
+| `translation[<langId>][title]`             | string | yes*     | Max 200. At least one language must have it |
+| `translation[<langId>][description]`       | string | no       |                                          |
+| `translation[<langId>][organizer]`         | string | no       | Max 200                                  |
+| `event[location_name]`                     | string | yes      | Max 255. Shared across languages         |
+| `event[starts_at]`                         | string | yes      | `Y-m-d H:i:s`                            |
+| `event[link]`                              | string | no       | Max 500                                  |
+| `event[latitude]`                          | float  | no       | -90..90                                  |
+| `event[longitude]`                         | float  | no       | -180..180                                |
+| `event[location_source]`                   | string | no       | `none` \| `manual` \| `url`              |
+| `event[ends_at]`                           | string | no       | `Y-m-d H:i:s`                            |
+
+`<langId>` may be a language id or a language code
+(`translation[en][title]`). Unlike the profile update endpoint, this does
+**not** narrow the payload to `?lang=`.
 
 **Response 201**
 
@@ -1903,7 +2096,8 @@ Protected. The event is created with `status = 'pending'` and
 { "id": 42, "message": "The event has been created and is pending review" }
 ```
 
-**Errors:** `401` no token, `422` validation errors.
+**Errors:** `401` no token, `422` validation errors or no usable
+translation row.
 
 **Endpoint:** `POST /api/v1/members/events/store`
 
@@ -1912,6 +2106,10 @@ Protected. The event is created with `status = 'pending'` and
 Protected. Returns the member's own events and a summary across all of them.
 Association events created in the admin panel never appear here — they have
 no owner.
+
+Untranslated events **are** included, with `title: null` and a non-null
+`displayTitle`. Clients should render `displayTitle` and may use
+`langId === null` to show a "needs translation" hint.
 
 **Response 200**
 
@@ -1968,8 +2166,8 @@ Validation errors (HTTP 422) use the framework's standard shape:
 }
 ```
 
-Error strings returned by chat sending and a few other endpoints are
-English and are not translated.
+Error strings returned by chat sending, event service exceptions and a few
+other endpoints are English and are not translated.
 
 ## Status codes
 
@@ -1982,14 +2180,23 @@ English and are not translated.
 | 400  | Malformed request (missing required query/body param)  |
 | 401  | Missing, expired, forged JWT; or member deleted        |
 | 403  | Authenticated but not allowed (not a participant)      |
-| 404  | Resource not found, or hidden by confirmation state    |
+| 404  | Resource not found, or hidden by confirmation/language |
 | 409  | Conflict (resend when already confirmed)               |
 | 422  | Validation failure                                     |
 | 500  | Unhandled server error                                 |
 
 # Localization
 
-All user-facing strings are translation keys written in English. Add another language by creating `Translations/<code>/messages.php` returning a `key => translation` array. Validation attribute labels are translated too (for example `Conversation_id`).
+All user-facing strings are translation keys written in English. Add another
+language by creating `Translations/<code>/messages.php` returning a
+`key => translation` array. Validation attribute labels are translated too
+(for example `Conversation_id`).
+
+Content translations (member names, tag labels, event titles) are a separate
+mechanism: they live in the `_translations` tables and are managed through
+the forms, not through message files. Adding a language in the `Cms` module
+adds a tab to every multilingual form automatically; existing events simply
+have no row for it until someone fills it in.
 
 # Data and storage
 
@@ -2006,7 +2213,8 @@ Tables (all prefixed through the framework's table prefix):
 | `bono_module_members_tag_groups` / `_translations` | Tag groups                                      |
 | `bono_module_members_tags` / `_translations`       | Tags                                            |
 | `bono_module_members_member_tags`                  | Member ↔ tag selections                         |
-| `bono_module_members_events`                       | Events (`creator_id` NULL = association event)  |
+| `bono_module_members_events`                       | Events — shared fields (`creator_id` NULL = association event) |
+| `bono_module_members_events_translations`          | `title`, `description`, `organizer` per language |
 | `bono_module_members_event_analytics`              | Event views and clicks (ip_hash, source)        |
 
 Files:
@@ -2017,19 +2225,52 @@ Files:
 `jwt_version`, `last_seen_at` and `is_banned` exist on the members table for
 future use; nothing reads them yet.
 
+## Upgrading an installation that predates event translations
+
+`schema.sql` drops tables, so running it as-is destroys your events. Move the
+content across first, **replacing `1` with your default language id**:
+
+```sql
+CREATE TABLE `bono_module_members_events_translations` (
+    `id`          INT NOT NULL,
+    `lang_id`     INT NOT NULL,
+    `title`       VARCHAR(200) NOT NULL,
+    `description` TEXT NULL,
+    `organizer`   VARCHAR(200) NULL,
+    PRIMARY KEY (`id`, `lang_id`),
+    KEY `idx_lang_id` (`lang_id`),
+    CONSTRAINT `fk_event_tr_event`
+        FOREIGN KEY (`id`) REFERENCES `bono_module_members_events` (`id`)
+        ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `bono_module_members_events_translations`
+    (`id`, `lang_id`, `title`, `description`, `organizer`)
+SELECT `id`, 1, `title`, `description`, NULL
+FROM `bono_module_members_events`;
+
+ALTER TABLE `bono_module_members_events`
+    DROP COLUMN `title`,
+    DROP COLUMN `description`;
+```
+
+After this, every existing event exists in one language only and is hidden
+from the public catalog in the others until translated.
+
 # Events JavaScript
 
-The module ships two JS assets for the Events extension, both following the
+The module ships three JS assets for the Events extension, all following the
 same pattern as `chat.jquery.js`: IIFE wrapper, auto-initialization on DOM
 ready, data-attribute configuration, overridable selectors.
 
-## `event-form.js` — map URL parser
+## `event-form.js` — map URL parser and validation gate
 
 Auto-initializes on any `<form data-event-form>` element. The form must
 carry:
 
 - `data-parse-url` — endpoint that accepts a map URL and returns
   `{lat, lng, source}`
+- `novalidate` — **required**, see below
 
 Inside the form, the following elements are discovered by `data-role` /
 `data-action`:
@@ -2047,6 +2288,27 @@ The script:
 - Prevents double-clicks via an internal `isParsing` flag
 - Alerts the translated error message when parsing fails
 - Reads translations from `data-translations` (JSON) on the form
+- Gates form submission: on `submit` it runs `checkValidity()`, and if the
+  form is invalid it activates the tab holding the first offending field,
+  focuses it and shows the native bubble
+
+**Why `novalidate` is required.** The shared required fields
+(`location_name`, `starts_at`) live in Bootstrap tabs that are hidden with
+`display: none`. Native constraint validation runs *before* the `submit`
+event is dispatched, tries to focus the invalid control, finds it
+unfocusable, and aborts submission silently — Chrome logs
+`An invalid form control with name='...' is not focusable` and the Save
+button appears dead. Turning native validation off and gating it in JS is
+the only way to intercept that case. `checkValidity()`, `reportValidity()`
+and the `:invalid` selector all keep working under `novalidate`.
+
+The gate binds to `document` in the **capture** phase so it runs before the
+theme's own submit handler on the form. Focus is deferred to `shown.bs.tab`,
+which fires on the tab *trigger*, not the pane, because Bootstrap adds
+`.active` only after the fade transition.
+
+Per-language titles are not `required`, so no nested pane ever needs
+revealing — `closest('.tab-pane')` is sufficient.
 
 Include it after jQuery 3.x:
 
@@ -2086,20 +2348,47 @@ $this->getPluginBag()->appendScript($this->moduleAsset('event-analytics.js', 'Me
 ?>
 ```
 
+## `event-map.js` — Leaflet maps
+
+Requires Leaflet 1.9.4, plus Leaflet.markercluster 1.5.3 for the catalog map.
+Exposes two constructors, each with its own auto-init flag:
+
+| Constructor      | Auto-init selector             | Purpose                        |
+|------------------|--------------------------------|--------------------------------|
+| `EventMap`       | `[data-event-map]`             | Catalog map, clustered markers |
+| `SingleEventMap` | `[data-event-location-map]`    | One event's location           |
+
+`EventMap` fetches `/api/v1/members/events/render/map` with **no query
+parameters**, so it loads up to 500 soonest approved events worldwide and
+does radius filtering client-side. It adds a geolocation control; once the
+visitor grants access, an optional
+`[data-event-map-radius-filter]` select is enabled and distances appear in
+the popups.
+
+`SingleEventMap` reads `data-latitude`, `data-longitude` and
+`data-location-name` from its container and appends its own "Get directions"
+link.
+
+Both expect the map endpoint's `snake_case` payload
+(`title`, `location_name`, `starts_at`, `url`). Changing that contract
+requires updating this asset in the same change.
+
 ## Disabling auto-init
 
-Both scripts expose a global flag. Set it **before** loading the script to
-construct instances manually:
+All three scripts expose a global flag. Set it **before** loading the script
+to construct instances manually:
 
 ```html
 <script>
     window.EventForm.autoInit = false;
     window.EventAnalytics.autoInit = false;
+    window.EventMap.autoInit = false;
+    window.SingleEventMap.autoInit = false;
 </script>
 <script src=".../event-form.js"></script>
 <script src=".../event-analytics.js"></script>
 <script>
-    new EventForm({ form: '#my-form', translations: { extracting: 'Extracting…' } });
+    new EventForm({ form: '#my-form', translations: { extracting: 'Извлечение…' } });
     new EventAnalytics({ container: '#my-dashboard' });
 </script>
 ```
@@ -2135,6 +2424,23 @@ construct instances manually:
   not write `creator_id`, so a member's event stays attributed to that
   member even when an administrator edits it. Only the creation path
   decides authorship.
+- Event `title`, `description` and `organizer` are per language.
+  `location_name`, `link`, coordinates, schedule, status and counters are
+  shared. Changing the place or the time changes it for every language at
+  once.
+- The `organizer` field is a free-text label, independent of the author.
+  `getOrganizerName()` prefers it and falls back to the creator's display
+  name, so events without an explicit organizer keep showing their author.
+  An association event with no organizer shows no "Organized by" line.
+- An event with no translation for the active language is hidden from the
+  public catalog and map, and its detail and click endpoints return 404.
+  It remains visible and editable in the admin grid and in "My events",
+  flagged *Not translated*, with `getDisplayTitle()` rendering `#<id>`.
+- Saving an event writes only the languages present in the payload. Leaving
+  a language tab blank does not delete its existing content — it is simply
+  skipped. There is no way to remove a translation through the form.
+- Moderation acts on the event as a whole. Approving publishes every
+  language it has; there is no per-language approval.
 - The `EventEntity` class wraps every event row. Templates must use its
   getter methods (`$event->getTitle()`) and predicates (`$event->isPast()`,
   `$event->hasLink()`) — raw array access is not supported.
@@ -2144,10 +2450,10 @@ construct instances manually:
 - Analytics deduplication uses `SHA1(ip + salt)`. The raw IP is never
   stored. When no IP is available, the anti-spam check is skipped and the
   hit is always recorded.
-- Deleting an event cascades to its analytics rows (`ON DELETE CASCADE`).
-  Deleting a member sets `creator_id = NULL` on their events
-  (`ON DELETE SET NULL`), so the events survive member removal — but they
-  then become indistinguishable from association events created in the
+- Deleting an event cascades to its translation and analytics rows
+  (`ON DELETE CASCADE`). Deleting a member sets `creator_id = NULL` on their
+  events (`ON DELETE SET NULL`), so the events survive member removal — but
+  they then become indistinguishable from association events created in the
   admin panel.
 - The `LocationParser` does not resolve short links
   (`maps.app.goo.gl`, `yandex.com/s/...`, `2gis.com/...`). Users must paste
@@ -2187,3 +2493,24 @@ Behaviors of this version that integrators should be aware of:
   the events table for fast list rendering. They are kept in sync with the
   `event_analytics` log via a transaction, but a crash between the two
   writes can leave them briefly inconsistent.
+- **Untranslated events are invisible publicly.** An event created in one
+  language does not appear in the catalog, the map, or search results for
+  any other language, and there is no fallback to a default language.
+  Publishing broadly means filling every language tab.
+- **A translation cannot be deleted through the UI.** Clearing a title and
+  saving leaves the stored row untouched, because blank rows are skipped.
+  Removing a language requires a direct database delete.
+- Event moderation is all-or-nothing per event, not per language. A member
+  cannot submit a new translation for review while another language is
+  already approved — editing an approved event keeps it approved.
+- The map endpoint drops a malformed or out-of-range `bbox` silently instead
+  of returning `400`, so a client with a bug receives worldwide markers
+  rather than an error. A `bbox` crossing the antimeridian is normalized with
+  `min`/`max` and therefore selects the complement of the intended region.
+- The map endpoint returns `snake_case` keys while every other Events
+  endpoint returns `camelCase`, and returns a reduced row. The bundled
+  `event-map.js` depends on the `snake_case` shape, so normalizing the
+  controller requires updating that asset in the same change.
+- `EventService` exception messages are English. Message files ship
+  translations for them, but they only take effect if the controller passes
+  the message through `$this->translator->translate()`.
