@@ -1,11 +1,11 @@
 <?php
-
 /**
  * This file is part of the Bono CMS
  *
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code
  */
+
 namespace Members\Service;
 
 use InvalidArgumentException;
@@ -70,24 +70,25 @@ final class EventService
     private function toEntity(array $row)
     {
         $entity = new EventEntity();
+
         $entity->setId(isset($row['id']) ? (int) $row['id'] : null)
-            ->setCreatorId(isset($row['creator_id']) && $row['creator_id'] !== null ? (int) $row['creator_id'] : null)
-            ->setTitle(isset($row['title']) ? $row['title'] : '')
-            ->setDescription(isset($row['description']) ? $row['description'] : '')
-            ->setLink(isset($row['link']) ? $row['link'] : '')
-            ->setLocationName(isset($row['location_name']) ? $row['location_name'] : '')
-            ->setLatitude(isset($row['latitude']) && $row['latitude'] !== null ? (float) $row['latitude'] : null)
-            ->setLongitude(isset($row['longitude']) && $row['longitude'] !== null ? (float) $row['longitude'] : null)
-            ->setLocationSource(isset($row['location_source']) ? $row['location_source'] : EventEntity::LOCATION_SOURCE_NONE)
-            ->setStartsAt(isset($row['starts_at']) ? $row['starts_at'] : '')
-            ->setEndsAt(isset($row['ends_at']) ? $row['ends_at'] : '')
-            ->setStatus(isset($row['status']) ? $row['status'] : EventEntity::STATUS_PENDING)
-            ->setRejectionReason(isset($row['rejection_reason']) ? $row['rejection_reason'] : '')
-            ->setViewsCount(isset($row['views_count']) ? (int) $row['views_count'] : 0)
-            ->setClicksCount(isset($row['clicks_count']) ? (int) $row['clicks_count'] : 0)
-            ->setCreatedAt(isset($row['created_at']) ? $row['created_at'] : '')
-            ->setCreatorName(isset($row['creator_name']) ? $row['creator_name'] : null)
-            ->setCreatorAvatar(isset($row['creator_avatar']) ? $row['creator_avatar'] : null);
+               ->setCreatorId(isset($row['creator_id']) && $row['creator_id'] !== null ? (int) $row['creator_id'] : null)
+               ->setTitle(isset($row['title']) ? $row['title'] : '')
+               ->setDescription(isset($row['description']) ? $row['description'] : '')
+               ->setLink(isset($row['link']) ? $row['link'] : '')
+               ->setLocationName(isset($row['location_name']) ? $row['location_name'] : '')
+               ->setLatitude(isset($row['latitude']) && $row['latitude'] !== null ? (float) $row['latitude'] : null)
+               ->setLongitude(isset($row['longitude']) && $row['longitude'] !== null ? (float) $row['longitude'] : null)
+               ->setLocationSource(isset($row['location_source']) ? $row['location_source'] : EventEntity::LOCATION_SOURCE_NONE)
+               ->setStartsAt(isset($row['starts_at']) ? $row['starts_at'] : '')
+               ->setEndsAt(isset($row['ends_at']) ? $row['ends_at'] : '')
+               ->setStatus(isset($row['status']) ? $row['status'] : EventEntity::STATUS_PENDING)
+               ->setRejectionReason(isset($row['rejection_reason']) ? $row['rejection_reason'] : '')
+               ->setViewsCount(isset($row['views_count']) ? (int) $row['views_count'] : 0)
+               ->setClicksCount(isset($row['clicks_count']) ? (int) $row['clicks_count'] : 0)
+               ->setCreatedAt(isset($row['created_at']) ? $row['created_at'] : '')
+               ->setCreatorName(isset($row['creator_name']) ? $row['creator_name'] : null)
+               ->setCreatorAvatar(isset($row['creator_avatar']) ? $row['creator_avatar'] : null);
 
         return $entity;
     }
@@ -139,6 +140,7 @@ final class EventService
         }
 
         $prepared = $this->preparePayload($data);
+
         $prepared['creator_id'] = $userId;
         $prepared['status'] = self::STATUS_PENDING;
         $prepared['rejection_reason'] = null;
@@ -154,19 +156,25 @@ final class EventService
     }
 
     /**
-     * Creates an event on behalf of an administrator.
+     * Creates an event on behalf of the association (admin path).
+     *
+     * Admin-created events are always authorless: creator_id is NULL,
+     * which EventEntity::isOfficial() reports as an official event.
+     * They are published immediately, without moderation, and never
+     * appear in any member's "My events" list.
+     *
+     * Editing an existing event does not change its author — see update().
      *
      * @param array $data Form payload
-     * @param bool $isOfficial Whether the event is official (no author)
-     * @param int|null $adminId Admin id when not official, or null
      * @throws InvalidArgumentException If required fields are missing or invalid
      * @throws RuntimeException If the insert fails
      * @return int New event id
      */
-    public function createByAdmin(array $data, $isOfficial = false, $adminId = null)
+    public function createByAdmin(array $data)
     {
         $prepared = $this->preparePayload($data);
-        $prepared['creator_id'] = $isOfficial ? null : ($adminId === null ? null : (int) $adminId);
+
+        $prepared['creator_id'] = null;
         $prepared['status'] = self::STATUS_APPROVED;
         $prepared['rejection_reason'] = null;
         $prepared['created_at'] = date('Y-m-d H:i:s');
@@ -182,6 +190,9 @@ final class EventService
 
     /**
      * Updates an existing event.
+     *
+     * The author is never rewritten here: an event created by a member
+     * keeps its creator_id even when an administrator edits it.
      *
      * @param int $id Event id
      * @param array $data Form payload

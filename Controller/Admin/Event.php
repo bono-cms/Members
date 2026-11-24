@@ -1,21 +1,18 @@
 <?php
-
 /**
  * This file is part of the Bono CMS
  *
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code
  */
+
 namespace Members\Controller\Admin;
 
 use Cms\Controller\Admin\AbstractController;
 use Krystal\Stdlib\VirtualEntity;
 
 /**
- * Admin controller for the Events extension.
- *
- * All actions check the extension flag in bootstrap() and return
- * false (404) when the extension is disabled.
+ * Events created here are always published: they have no author and skip moderation.
  */
 final class Event extends AbstractController
 {
@@ -89,10 +86,10 @@ final class Event extends AbstractController
 
         $eventService = $this->getModuleService('eventService');
         $data = $this->prepareEventData($this->request->getPost('event'));
-        $isOfficial = !empty($this->request->getPost('event.is_official'));
 
         try {
-            $eventId = $eventService->createByAdmin($data, $isOfficial);
+            $eventId = $eventService->createByAdmin($data);
+
             $this->flashBag->set('success', $this->translator->translate('The event has been created successfully'));
 
             return $this->json([
@@ -152,6 +149,7 @@ final class Event extends AbstractController
 
         try {
             $eventService->update((int) $id, $data, 0, true);
+
             $this->flashBag->set('success', $this->translator->translate('The event has been updated successfully'));
 
             return $this->json([
@@ -223,6 +221,7 @@ final class Event extends AbstractController
 
         try {
             $eventService->delete((int) $id, 0, true);
+
             $this->flashBag->set('success', $this->translator->translate('The event has been removed successfully'));
 
             return $this->json([
@@ -243,9 +242,9 @@ final class Event extends AbstractController
     public function dashboardAction()
     {
         $this->view->getBreadcrumbBag()
-            ->addOne('Members', 'Members:Admin:Members@indexAction')
-            ->addOne('Events', 'Members:Admin:Event@indexAction')
-            ->addOne('Analytics');
+                   ->addOne('Members', 'Members:Admin:Members@indexAction')
+                   ->addOne('Events', 'Members:Admin:Event@indexAction')
+                   ->addOne('Analytics');
 
         $analyticsService = $this->getModuleService('eventAnalyticsService');
         $dashboard = $analyticsService->fetchAdminDashboard();
@@ -324,18 +323,18 @@ final class Event extends AbstractController
         $validator = $this->createValidation();
 
         $validator->field('event.title')
-            ->required()
-            ->addRule('maxlength', null, ['max' => 200]);
+                  ->required()
+                  ->addRule('maxlength', null, ['max' => 200]);
 
         $validator->field('event.location_name')
-            ->required()
-            ->addRule('maxlength', null, ['max' => 255]);
+                  ->required()
+                  ->addRule('maxlength', null, ['max' => 255]);
 
         $validator->field('event.starts_at')
-            ->required();
+                  ->required();
 
         $validator->field('event.link')
-            ->addRule('maxlength', null, ['max' => 500]);
+                  ->addRule('maxlength', null, ['max' => 500]);
 
         return $validator;
     }
