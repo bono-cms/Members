@@ -5,39 +5,14 @@
  *
  * @var \Krystal\Stdlib\VirtualEntity $page
  * @var \Members\Service\EventEntity $event
+ * @var mixed $map Map renderer service
  */
 
-$this->getPluginBag()->load('leaflet');
+use Members\View\Widget\EventLocationMapWidget;
+
+$mapConfig = $this->widget(new EventLocationMapWidget($event));
 
 ?>
-
-<style>
-    .event-date-box {
-        width: 96px;
-        height: 96px;
-    }
-
-    .event-date-month {
-        font-size: 2rem;
-        line-height: 1;
-    }
-
-    .event-date-day {
-        font-size: 1.75rem;
-        line-height: 1;
-    }
-
-    .event-description {
-        white-space: pre-wrap;
-    }
-
-    #event-location-map {
-        width: 100%;
-        height: 350px;
-        border-radius: 12px;
-        overflow: hidden;
-    }
-</style>
 
 <section class="flex-grow-1 d-flex justify-content-center align-items-start py-5 bg-light">
     <div class="container">
@@ -45,14 +20,12 @@ $this->getPluginBag()->load('leaflet');
             <div class="col-lg-9">
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <a href="<?= $this->url('Members:Event@catalogAction'); ?>" class="btn btn-outline-secondary">
-                        <i class="bi bi-arrow-left"></i>
-                        <?= $this->translate('Back to events'); ?>
+                        <i class="bi bi-arrow-left" aria-hidden="true"></i> <?= $this->translate('Back to events'); ?>
                     </a>
 
                     <?php if ($event->isPast()): ?>
                     <span class="badge bg-secondary">
-                        <i class="bi bi-clock-history"></i>
-                        <?= $this->translate('Past event'); ?>
+                        <i class="bi bi-clock-history" aria-hidden="true"></i> <?= $this->translate('Past event'); ?>
                     </span>
                     <?php endif; ?>
                 </div>
@@ -60,48 +33,36 @@ $this->getPluginBag()->load('leaflet');
                 <div class="card border-0 shadow-sm">
                     <div class="card-body p-4 p-md-5">
                         <div class="d-flex flex-column flex-md-row align-items-md-start gap-4 mb-4">
-
-                            <div class="bg-primary bg-opacity-10 text-primary rounded-3 d-flex flex-column align-items-center justify-content-center flex-shrink-0 event-date-box">
-                                <div class="fw-bold event-date-month">
-                                    <?= $event->getStartMonth(); ?>
-                                </div>
-                                <div class="fw-bold event-date-day">
-                                    <?= $event->getStartDay(); ?>
-                                </div>
+                            <div class="bg-primary bg-opacity-10 text-primary rounded-3 d-flex flex-column align-items-center justify-content-center flex-shrink-0 px-4 py-3 lh-1">
+                                <span class="fw-bold fs-2 lh-1"><?= $event->getStartMonth(); ?></span>
+                                <span class="fw-bold fs-4 lh-1 mt-1"><?= $event->getStartDay(); ?></span>
                             </div>
 
-                            <div class="flex-grow-1">
-                                <h1 class="h2 mb-2">
-                                    <?= htmlspecialchars($event->getTitle()); ?>
-                                </h1>
+                            <div class="flex-grow-1 min-w-0">
+                                <h1 class="h2 mb-2"><?= $event->getTitle(); ?></h1>
 
                                 <p class="text-muted mb-2">
-                                    <i class="bi bi-calendar-event"></i>
-                                    <?= htmlspecialchars($event->getFormattedStartDateTime()); ?>
+                                    <i class="bi bi-calendar-event" aria-hidden="true"></i> <?= $event->getFormattedStartDateTime(); ?>
 
                                     &middot;
 
-                                    <i class="bi bi-clock"></i>
-                                    <?= htmlspecialchars($event->getFormattedTime()); ?>
+                                    <i class="bi bi-clock" aria-hidden="true"></i> <?= $event->getFormattedTime(); ?>
 
                                     <?php if ($event->getEndsAt()): ?>
-                                        — <?= htmlspecialchars($event->getFormattedEndTime()); ?>
+                                    &mdash; <?= $event->getFormattedEndTime(); ?>
                                     <?php endif; ?>
                                 </p>
 
                                 <?php if ($event->hasLocation()): ?>
                                 <p class="text-muted mb-0">
-                                    <i class="bi bi-geo-alt"></i>
-                                    <?= htmlspecialchars($event->getLocationName()); ?>
+                                    <i class="bi bi-geo-alt" aria-hidden="true"></i> <?= $event->getLocationName(); ?>
                                 </p>
                                 <?php endif; ?>
 
                                 <?php if ($event->hasCreator()): ?>
-                                    <p class="text-muted small mt-2 mb-0">
-                                        <i class="bi bi-person"></i>
-                                        <?= $this->translate('Organized by'); ?>
-                                        <strong><?= htmlspecialchars($event->getCreatorName()); ?></strong>
-                                    </p>
+                                <p class="text-muted small mt-2 mb-0">
+                                    <i class="bi bi-person" aria-hidden="true"></i> <?= $this->translate('Organized by'); ?> <strong><?= $event->getCreatorName(); ?></strong>
+                                </p>
                                 <?php endif; ?>
                             </div>
                         </div>
@@ -109,35 +70,35 @@ $this->getPluginBag()->load('leaflet');
                         <?php if ($event->hasDescription()): ?>
                         <hr class="my-4">
 
-                        <div class="mb-4 event-description">
-                            <?= nl2br(htmlspecialchars($event->getDescription())); ?>
+                        <div class="mb-4">
+                            <?= nl2br($event->getDescription()); ?>
                         </div>
                         <?php endif; ?>
 
-                        <?php if ($event->hasCoordinates()): ?>
+                        <?php if (!empty($mapConfig)): ?>
                         <hr class="my-4">
-
                         <div class="mb-4">
                             <h2 class="h5 mb-3">
-                                <i class="bi bi-geo-alt"></i>
-                                <?= $this->translate('Event location'); ?>
+                                <i class="bi bi-geo-alt" aria-hidden="true"></i> <?= $this->translate('Event location'); ?>
                             </h2>
-
-                            <div id="event-location-map" data-event-location-map data-latitude="<?= htmlspecialchars((string)$event->getLatitude()); ?>" data-longitude="<?= htmlspecialchars((string)$event->getLongitude()); ?>" data-location-name="<?= htmlspecialchars($event->getLocationName()); ?>"></div>
+                            <div class="rounded-3 overflow-hidden">
+                                <?= $map->render($mapConfig); ?>
+                            </div>
+                            <a href="<?= $event->getDirectionsUrl(); ?>" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm mt-3">
+                                <i class="bi bi-signpost-2" aria-hidden="true"></i> <?= $this->translate('Get directions'); ?>
+                            </a>
                         </div>
                         <?php endif; ?>
 
                         <?php if ($event->hasLink()): ?>
                         <div class="d-flex flex-wrap gap-2">
                             <a href="<?= $this->url('Members:Event@clickAction', [$event->getId()]); ?>" class="btn btn-primary btn-lg" target="_blank" rel="noopener">
-                                <i class="bi bi-box-arrow-up-right"></i>
-                                <?= $this->translate('Sign up'); ?>
+                                <i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> <?= $this->translate('Sign up'); ?>
                             </a>
                         </div>
                         <?php endif; ?>
                     </div>
                 </div>
-
             </div>
         </div>
     </div>
