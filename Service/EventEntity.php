@@ -149,6 +149,22 @@ final class EventEntity extends VirtualEntity
     }
 
     /**
+     * Returns the Google Maps directions URL for the event coordinates
+     *
+     * @return string
+     */
+    public function getDirectionsUrl()
+    {
+        if (!$this->hasCoordinates()) {
+            return '';
+        }
+
+        $destination = urlencode((string) $this->getLatitude() . ',' . (string) $this->getLongitude());
+
+        return 'https://www.google.com/maps/dir/?api=1&destination=' . $destination;
+    }
+
+    /**
      * Tells whether the event has a creator (user or admin)
      *
      * @return bool
