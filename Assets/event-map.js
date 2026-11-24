@@ -89,6 +89,9 @@
         this.markerCluster = null;
         this.markers = [];
 
+        this.events = [];
+        this.radiusFilter = 0;
+
         this.userMarker = null;
         this.accuracyCircle = null;
         this.userCoordinates = null;
@@ -134,8 +137,38 @@
         this.markerCluster.addTo(this.map);
 
         this.addGeolocationControl();
+        this.initRadiusFilter();
 
         this.loadEvents();
+    };
+
+    /**
+     * Initialize nearby radius filter
+     */
+    EventMap.prototype.initRadiusFilter = function () {
+        var self = this;
+
+        this.radiusSelect = document.querySelector('[data-event-map-radius-filter]');
+
+        if (!this.radiusSelect) {
+            return;
+        }
+
+        this.radiusSelect.disabled = true;
+
+        this.radiusSelect.addEventListener('change', function () {
+            self.radiusFilter = parseFloat(this.value) || 0;
+            self.applyRadiusFilter();
+        });
+    };
+
+    /**
+     * Enable radius filter after geolocation
+     */
+    EventMap.prototype.enableRadiusFilter = function () {
+        if (this.radiusSelect) {
+            this.radiusSelect.disabled = false;
+        }
     };
 
     /**
@@ -153,9 +186,8 @@
                 return response.json();
             })
             .then(function (response) {
-                var events = response.data || [];
-
-                self.renderMarkers(events);
+                self.events = response.data || [];
+                self.applyRadiusFilter(true);
             })
             .catch(function (error) {
                 console.error(
@@ -224,13 +256,16 @@
     /**
      * Render event markers
      */
-    EventMap.prototype.renderMarkers = function (events) {
+    EventMap.prototype.renderMarkers = function (events, fitBounds) {
         var self = this;
         var bounds = [];
 
         if (!Array.isArray(events)) {
             return;
         }
+
+        this.markerCluster.clearLayers();
+        this.markers = [];
 
         events.forEach(function (event) {
             var latitude = parseFloat(event.latitude);
@@ -264,12 +299,44 @@
             bounds.push([latitude, longitude]);
         });
 
-        if (bounds.length > 0) {
+        if (fitBounds && bounds.length > 0) {
             this.map.fitBounds(bounds, {
                 padding: [40, 40],
                 maxZoom: 12
             });
         }
+    };
+
+    /**
+     * Apply nearby radius filter
+     */
+    EventMap.prototype.applyRadiusFilter = function (fitBounds) {
+        var filteredEvents = this.events;
+
+        if (this.radiusFilter > 0 && this.userCoordinates) {
+            filteredEvents = this.events.filter(function (event) {
+                var latitude = parseFloat(event.latitude);
+                var longitude = parseFloat(event.longitude);
+
+                if (
+                    !Number.isFinite(latitude) ||
+                    !Number.isFinite(longitude)
+                ) {
+                    return false;
+                }
+
+                var distance = calculateDistance(
+                    this.userCoordinates.latitude,
+                    this.userCoordinates.longitude,
+                    latitude,
+                    longitude
+                );
+
+                return distance <= this.radiusFilter;
+            }.bind(this));
+        }
+
+        this.renderMarkers(filteredEvents, fitBounds === true);
     };
 
     /**
@@ -333,7 +400,7 @@
     /**
      * Find user location
      */
-    EventMap.prototype.locateUser = function () {
+       EventMap.prototype.locateUser = function () {
         var self = this;
 
         if (!navigator.geolocation) {
@@ -377,7 +444,9 @@
 
                 self.map.setView(userLocation, 15);
 
+                self.enableRadiusFilter();
                 self.updateDistances();
+                self.applyRadiusFilter();
             },
             function (error) {
                 var message = 'Unable to determine your location.';
@@ -417,9 +486,15 @@
 
         this.markerCluster = null;
         this.markers = [];
+        this.events = [];
+        this.radiusFilter = 0;
         this.userMarker = null;
         this.accuracyCircle = null;
         this.userCoordinates = null;
+
+        if (this.radiusSelect) {
+            this.radiusSelect.disabled = true;
+        }
 
         this.$container.removeData('event-map-initialized');
     };
