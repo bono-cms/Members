@@ -316,7 +316,7 @@ return [
     '/api/v1/members/events' => [
         'controller' => 'Api:Event@indexAction',
     ],
-    '/api/v1/members/events/(:var)' => [
+    '/api/v1/members/events/view/(:var)' => [
         'controller' => 'Api:Event@viewAction',
     ],
     '/api/v1/members/events/store' => [

@@ -20,8 +20,6 @@ use Members\Service\EventEntity;
 final class Event extends AbstractApiController
 {
     /**
-     * GET /api/v1/members/events
-     *
      * Returns a paginated list of approved events.
      *
      * @return string JSON
@@ -45,8 +43,6 @@ final class Event extends AbstractApiController
     }
 
     /**
-     * GET /api/v1/members/events/render/map
-     *
      * Returns approved events with valid coordinates for map rendering.
      *
      * @return string JSON
@@ -127,8 +123,6 @@ final class Event extends AbstractApiController
     }
 
     /**
-     * GET /api/v1/members/events/:id
-     *
      * Returns a single event and records a view.
      *
      * @return string JSON
@@ -160,8 +154,6 @@ final class Event extends AbstractApiController
     }
 
     /**
-     * POST /api/v1/members/events
-     *
      * Creates a new event on behalf of the authenticated member.
      *
      * @return string JSON
@@ -202,8 +194,6 @@ final class Event extends AbstractApiController
     }
 
     /**
-     * GET /api/v1/members/me/events
-     * 
      * Returns the authenticated member's own events with a summary.
      * 
      * @return string JSON
@@ -238,8 +228,6 @@ final class Event extends AbstractApiController
     }
 
     /**
-     * GET /api/v1/members/me/events/:id/analytics
-     *
      * Returns detailed analytics for the member's own event.
      *
      * @return string JSON
@@ -267,8 +255,6 @@ final class Event extends AbstractApiController
     }
 
     /**
-     * GET /api/v1/members/events/:id/click
-     *
      * Returns the registration link and records a click.
      * The mobile app opens this URL in an external browser.
      *
@@ -377,18 +363,18 @@ final class Event extends AbstractApiController
         $validator = $this->createValidation();
 
         $validator->field('event.title')
-            ->required()
-            ->addRule('maxlength', null, ['max' => 200]);
+                  ->required()
+                  ->addRule('maxlength', null, ['max' => 200]);
 
         $validator->field('event.location_name')
-            ->required()
-            ->addRule('maxlength', null, ['max' => 255]);
+                  ->required()
+                  ->addRule('maxlength', null, ['max' => 255]);
 
         $validator->field('event.starts_at')
-            ->required();
+                  ->required();
 
         $validator->field('event.link')
-            ->addRule('maxlength', null, ['max' => 500]);
+                  ->addRule('maxlength', null, ['max' => 500]);
 
         return $validator;
     }

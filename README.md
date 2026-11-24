@@ -1761,7 +1761,7 @@ Public. Records a view with `source = 'api'`.
 
 **Errors:** `404` event not found or not approved.
 
-**Endpoint:** `GET /api/v1/members/events/:id`
+**Endpoint:** `GET /api/v1/members/events/view/:id`
 
 ### Record a click and return the link
 
