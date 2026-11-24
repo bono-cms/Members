@@ -124,6 +124,31 @@ final class EventEntity extends VirtualEntity
     }
 
     /**
+     * Returns a trimmed plain-text summary of the event description
+     *
+     * @param int $length
+     * @return string
+     */
+    public function getShortDescription($length = 150)
+    {
+        if (!$this->hasDescription()) {
+            return '';
+        }
+
+        $plainText = trim(strip_tags((string) $this->getDescription()));
+
+        if ($plainText === '') {
+            return '';
+        }
+
+        if (function_exists('mb_substr')) {
+            return mb_substr($plainText, 0, $length, 'UTF-8');
+        }
+
+        return substr($plainText, 0, $length);
+    }
+
+    /**
      * Tells whether the event has a creator (user or admin)
      *
      * @return bool
