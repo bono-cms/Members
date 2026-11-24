@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of the Bono CMS
  *
@@ -12,7 +13,13 @@ use Cms\Controller\Admin\AbstractController;
 use Krystal\Stdlib\VirtualEntity;
 
 /**
- * Events created here are always published: they have no author and skip moderation.
+ * Admin controller for the Events extension.
+ *
+ * Events created here are always published on behalf of the
+ * association: they have no author and skip moderation.
+ *
+ * The whole form payload is handed to the service, which forwards
+ * the translation block to the mapper untouched.
  */
 final class Event extends AbstractController
 {
@@ -44,7 +51,7 @@ final class Event extends AbstractController
             'events'          => $events,
             'paginator'       => $eventService->getPaginator(),
             'statusFilter'    => $statusFilter,
-            'statusBreakdown' => $this->getModuleService('eventService')->fetchStatusBreakdown(),
+            'statusBreakdown' => $eventService->fetchStatusBreakdown(),
         ]);
     }
 
@@ -76,7 +83,7 @@ final class Event extends AbstractController
      */
     public function storeAction()
     {
-        $validator = $this->createEventValidator($this->request->getPost('event'));
+        $validator = $this->createEventValidator();
 
         if (!$validator->isPassed()) {
             return $this->json([
@@ -85,10 +92,9 @@ final class Event extends AbstractController
         }
 
         $eventService = $this->getModuleService('eventService');
-        $data = $this->prepareEventData($this->request->getPost('event'));
 
         try {
-            $eventId = $eventService->createByAdmin($data);
+            $eventId = $eventService->createByAdmin($this->request->getPost());
 
             $this->flashBag->set('success', $this->translator->translate('The event has been created successfully'));
 
@@ -105,13 +111,16 @@ final class Event extends AbstractController
     /**
      * Renders the form for editing an existing event
      *
+     * Loads every translation row so the form can render one tab
+     * per language.
+     *
      * @param  string $id Event id
      * @return string|bool
      */
     public function editAction($id)
     {
         $eventService = $this->getModuleService('eventService');
-        $event = $eventService->findById((int) $id);
+        $event = $eventService->fetchById((int) $id, true);
 
         if ($event === false) {
             return false;
@@ -136,7 +145,7 @@ final class Event extends AbstractController
      */
     public function updateAction($id)
     {
-        $validator = $this->createEventValidator($this->request->getPost('event'));
+        $validator = $this->createEventValidator();
 
         if (!$validator->isPassed()) {
             return $this->json([
@@ -145,10 +154,9 @@ final class Event extends AbstractController
         }
 
         $eventService = $this->getModuleService('eventService');
-        $data = $this->prepareEventData($this->request->getPost('event'));
 
         try {
-            $eventService->update((int) $id, $data, 0, true);
+            $eventService->update((int) $id, $this->request->getPost(), 0, true);
 
             $this->flashBag->set('success', $this->translator->translate('The event has been updated successfully'));
 
@@ -247,10 +255,9 @@ final class Event extends AbstractController
                    ->addOne('Analytics');
 
         $analyticsService = $this->getModuleService('eventAnalyticsService');
-        $dashboard = $analyticsService->fetchAdminDashboard();
 
         return $this->view->render('event-analytics-dashboard', [
-            'dashboard' => $dashboard,
+            'dashboard' => $analyticsService->fetchAdminDashboard(),
         ]);
     }
 
@@ -315,15 +322,19 @@ final class Event extends AbstractController
     /**
      * Creates a validator for the event form
      *
-     * @param  array $data Form data
+     * Translated titles are length-checked only. A language tab may
+     * be left blank; the row is then saved with an empty title.
+     *
      * @return \Krystal\Validation\Validator
      */
-    private function createEventValidator($data)
+    private function createEventValidator()
     {
         $validator = $this->createValidation();
 
-        $validator->field('event.title')
-                  ->required()
+        $validator->field('translation.*.title')
+                  ->addRule('maxlength', null, ['max' => 200]);
+
+        $validator->field('translation.*.organizer')
                   ->addRule('maxlength', null, ['max' => 200]);
 
         $validator->field('event.location_name')
@@ -334,29 +345,8 @@ final class Event extends AbstractController
                   ->required();
 
         $validator->field('event.link')
-                  ->addRule('maxlength', null, ['max' => 500]);
+                  ->addRule('urlpattern');
 
         return $validator;
-    }
-
-    /**
-     * Prepares event data from the form payload
-     *
-     * @param  array $data Form data
-     * @return array
-     */
-    private function prepareEventData($data)
-    {
-        return [
-            'title'           => isset($data['title']) ? $data['title'] : '',
-            'description'     => isset($data['description']) ? $data['description'] : null,
-            'link'            => isset($data['link']) ? $data['link'] : null,
-            'location_name'   => isset($data['location_name']) ? $data['location_name'] : '',
-            'latitude'        => isset($data['latitude']) && $data['latitude'] !== '' ? (float) $data['latitude'] : null,
-            'longitude'       => isset($data['longitude']) && $data['longitude'] !== '' ? (float) $data['longitude'] : null,
-            'location_source' => isset($data['location_source']) ? $data['location_source'] : 'none',
-            'starts_at'       => isset($data['starts_at']) ? $data['starts_at'] : '',
-            'ends_at'         => isset($data['ends_at']) && $data['ends_at'] !== '' ? $data['ends_at'] : null,
-        ];
     }
 }

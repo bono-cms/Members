@@ -219,36 +219,51 @@ CREATE TABLE `bono_module_members_member_tags` (
 -- ---------------------------------------------------------------------
 -- Events (created by members or admins)
 --
--- creator_id is NULL for "official" events created by admins on behalf
--- of the association. ON DELETE SET NULL keeps the event in the catalog
--- when its author is removed (it just becomes "authorless").
+-- Text content lives in bono_module_members_events_translations.
+-- creator_id is NULL for events created by admins on behalf of the
+-- association. ON DELETE SET NULL keeps the event in the catalog when
+-- its author is removed (it just becomes "authorless").
 -- ---------------------------------------------------------------------
 DROP TABLE IF EXISTS `bono_module_members_events`;
 CREATE TABLE `bono_module_members_events` (
-  `id`                INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
-  `creator_id`        INT NULL,
-  `title`             VARCHAR(200) NOT NULL,
-  `description`       TEXT NULL,
-  `link`              VARCHAR(500) NULL,
-  `location_name`     VARCHAR(255) NOT NULL,
-  `latitude`          DECIMAL(10,8) NULL,
-  `longitude`         DECIMAL(11,8) NULL,
-  `location_source`   ENUM('manual','url','none') NOT NULL DEFAULT 'none',
-  `starts_at`         DATETIME NOT NULL,
-  `ends_at`           DATETIME NULL,
-  `status`            ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
-  `rejection_reason`  VARCHAR(500) NULL,
-  `views_count`       INT NOT NULL DEFAULT 0,
-  `clicks_count`      INT NOT NULL DEFAULT 0,
-  `created_at`        DATETIME NOT NULL,
-  `updated_at`        DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+    `id`                INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
+    `creator_id`        INT NULL,
+    `link`              VARCHAR(500) NULL,
+    `location_name`     VARCHAR(255) NOT NULL,
+    `latitude`          DECIMAL(10,8) NULL,
+    `longitude`         DECIMAL(11,8) NULL,
+    `location_source`   ENUM('manual','url','none') NOT NULL DEFAULT 'none',
+    `starts_at`         DATETIME NOT NULL,
+    `ends_at`           DATETIME NULL,
+    `status`            ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
+    `rejection_reason`  VARCHAR(500) NULL,
+    `views_count`       INT NOT NULL DEFAULT 0,
+    `clicks_count`      INT NOT NULL DEFAULT 0,
+    `created_at`        DATETIME NOT NULL,
+    `updated_at`        DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+    KEY `idx_creator` (`creator_id`),
+    KEY `idx_status_starts` (`status`, `starts_at`),
+    KEY `idx_starts` (`starts_at`),
+    CONSTRAINT `fk_event_creator`
+        FOREIGN KEY (`creator_id`) REFERENCES `bono_module_members` (`id`)
+        ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-  KEY `idx_creator` (`creator_id`),
-  KEY `idx_status_starts` (`status`, `starts_at`),
-  KEY `idx_starts` (`starts_at`),
-  CONSTRAINT `fk_event_creator`
-    FOREIGN KEY (`creator_id`) REFERENCES `bono_module_members` (`id`)
-    ON DELETE SET NULL
+-- ---------------------------------------------------------------------
+-- Event translations (title, description, organizer)
+-- ---------------------------------------------------------------------
+DROP TABLE IF EXISTS `bono_module_members_events_translations`;
+CREATE TABLE `bono_module_members_events_translations` (
+    `id`          INT NOT NULL,
+    `lang_id`     INT NOT NULL,
+    `title`       VARCHAR(200) NOT NULL,
+    `description` TEXT NULL,
+    `organizer`   VARCHAR(200) NULL,
+    PRIMARY KEY (`id`, `lang_id`),
+    KEY `idx_lang_id` (`lang_id`),
+    CONSTRAINT `fk_event_tr_event`
+        FOREIGN KEY (`id`) REFERENCES `bono_module_members_events` (`id`)
+        ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ---------------------------------------------------------------------

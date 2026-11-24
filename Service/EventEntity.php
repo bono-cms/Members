@@ -6,6 +6,7 @@
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code
  */
+
 namespace Members\Service;
 
 use Krystal\Stdlib\VirtualEntity;
@@ -124,6 +125,70 @@ final class EventEntity extends VirtualEntity
     }
 
     /**
+     * Tells whether an explicit organizer name is set
+     *
+     * @return bool
+     */
+    public function hasOrganizer()
+    {
+        $organizer = $this->getOrganizer();
+
+        return $organizer !== null && $organizer !== '';
+    }
+
+    /**
+     * Tells whether the event has a creator (user or admin)
+     *
+     * @return bool
+     */
+    public function hasCreator()
+    {
+        return $this->getCreatorName() !== null;
+    }
+
+    /**
+     * Returns the organizer label to display
+     *
+     * Prefers the explicit, translatable organizer field and falls
+     * back to the creator's display name. Returns an empty string
+     * when neither is available, so callers can guard on the result.
+     *
+     * @return string
+     */
+    public function getOrganizerName()
+    {
+        if ($this->hasOrganizer()) {
+            return (string) $this->getOrganizer();
+        }
+
+        if ($this->hasCreator()) {
+            return (string) $this->getCreatorName();
+        }
+
+        return '';
+    }
+
+    /**
+     * Returns a title that is never blank
+     *
+     * An event with no translation for the active language has a
+     * NULL title; the admin grid and "My events" still list it, so
+     * this fallback keeps those rows identifiable.
+     *
+     * @return string
+     */
+    public function getDisplayTitle()
+    {
+        $title = $this->getTitle();
+
+        if ($title !== null && $title !== '') {
+            return (string) $title;
+        }
+
+        return '#' . (int) $this->getId();
+    }
+
+    /**
      * Returns a trimmed plain-text summary of the event description
      *
      * @param int $length
@@ -162,16 +227,6 @@ final class EventEntity extends VirtualEntity
         $destination = urlencode((string) $this->getLatitude() . ',' . (string) $this->getLongitude());
 
         return 'https://www.google.com/maps/dir/?api=1&destination=' . $destination;
-    }
-
-    /**
-     * Tells whether the event has a creator (user or admin)
-     *
-     * @return bool
-     */
-    public function hasCreator()
-    {
-        return $this->getCreatorName() !== null;
     }
 
     /**

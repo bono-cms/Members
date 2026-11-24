@@ -1,14 +1,34 @@
 <?php
 
 use Krystal\Form\Element;
+use Krystal\Stdlib\VirtualEntity;
+use Cms\Service\LanguageManager;
 
-$isNew = !$event->getId();
+$entity = isset($event[0]) ? $event[0] : $event;
+$isNew  = !$entity->getId();
+
+/**
+ * datetime-local inputs accept "Y-m-d\TH:i" only; the entity stores
+ * "Y-m-d H:i:s". Without this the edit form shows empty dates.
+ */
+$toLocalInput = function ($value) {
+    if (empty($value)) {
+        return '';
+    }
+
+    $timestamp = strtotime($value);
+
+    return $timestamp === false ? '' : date('Y-m-d\TH:i', $timestamp);
+};
+
+$startsAtValue = $toLocalInput($entity->getStartsAt());
+$endsAtValue   = $toLocalInput($entity->getEndsAt());
+
 $this->getPluginBag()->appendScript($this->moduleAsset('event-form.js', 'Members'));
-
 ?>
 
 <form class="card" autocomplete="off" novalidate data-event-form data-parse-url="<?= $this->url('Members:Admin:Event@parseLocationAction'); ?>">
-    <?= Element::hidden('event[id]', $event->getId()); ?>
+    <?= Element::hidden('event[id]', $entity->getId()); ?>
 
     <div class="card-header bg-white">
         <ul class="nav nav-tabs card-header-tabs" role="tablist">
@@ -21,31 +41,22 @@ $this->getPluginBag()->appendScript($this->moduleAsset('event-form.js', 'Members
             <li class="nav-item" role="presentation">
                 <a class="nav-link" href="#schedule" role="tab" data-bs-toggle="tab"><i class="bi bi-calendar-event"></i> <?= $this->translate('Schedule'); ?></a>
             </li>
+            <?php foreach ($languages as $language): ?>
+            <li class="nav-item" role="presentation">
+                <a class="nav-link" href="#language-<?= $language->getId(); ?>" role="tab" data-bs-toggle="tab"><i class="bi bi-translate"></i> <?= $language->getName(); ?></a>
+            </li>
+            <?php endforeach; ?>
         </ul>
     </div>
 
     <div class="card-body tab-content">
         <div class="tab-pane fade show active" id="main" role="tabpanel">
             <div class="row mb-3">
-                <label class="col-lg-2 col-form-label"><?= $this->translate('Title'); ?></label>
-                <div class="col-lg-10">
-                    <?= Element::text('event[title]', $event->getTitle(), ['class' => 'form-control', 'maxlength' => 200, 'required' => true]); ?>
-                </div>
-            </div>
-
-            <div class="row mb-3">
-                <label class="col-lg-2 col-form-label"><?= $this->translate('Description'); ?></label>
-                <div class="col-lg-10">
-                    <?= Element::textarea('event[description]', $event->getDescription(), ['class' => 'form-control', 'rows' => 4]); ?>
-                </div>
-            </div>
-
-            <div class="row mb-3">
                 <label class="col-lg-2 col-form-label"><?= $this->translate('Registration link'); ?></label>
                 <div class="col-lg-10">
                     <div class="input-group">
                         <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
-                        <?= Element::text('event[link]', $event->getLink(), ['class' => 'form-control', 'maxlength' => 500, 'placeholder' => 'https://...']); ?>
+                        <?= Element::text('event[link]', $entity->getLink(), ['class' => 'form-control', 'maxlength' => 500, 'placeholder' => 'https://...']); ?>
                     </div>
                     <small class="text-muted"><?= $this->translate('Leave blank if registration is not required'); ?></small>
                 </div>
@@ -56,7 +67,7 @@ $this->getPluginBag()->appendScript($this->moduleAsset('event-form.js', 'Members
             <div class="row mb-3">
                 <label class="col-lg-2 col-form-label"><?= $this->translate('Location name'); ?></label>
                 <div class="col-lg-10">
-                    <?= Element::text('event[location_name]', $event->getLocationName(), ['class' => 'form-control', 'maxlength' => 255, 'required' => true]); ?>
+                    <?= Element::text('event[location_name]', $entity->getLocationName(), ['class' => 'form-control', 'maxlength' => 255, 'required' => true]); ?>
                 </div>
             </div>
 
@@ -79,17 +90,17 @@ $this->getPluginBag()->appendScript($this->moduleAsset('event-form.js', 'Members
                         <div class="col-md-5">
                             <div class="input-group">
                                 <span class="input-group-text"><?= $this->translate('Latitude'); ?></span>
-                                <?= Element::text('event[latitude]', $event->getLatitude(), ['class' => 'form-control', 'data-role' => 'latitude', 'step' => '0.00000001', 'placeholder' => '41.2995']); ?>
+                                <?= Element::text('event[latitude]', $entity->getLatitude(), ['class' => 'form-control', 'data-role' => 'latitude', 'placeholder' => '41.2995']); ?>
                             </div>
                         </div>
                         <div class="col-md-5">
                             <div class="input-group">
                                 <span class="input-group-text"><?= $this->translate('Longitude'); ?></span>
-                                <?= Element::text('event[longitude]', $event->getLongitude(), ['class' => 'form-control', 'data-role' => 'longitude', 'step' => '0.00000001', 'placeholder' => '69.2401']); ?>
+                                <?= Element::text('event[longitude]', $entity->getLongitude(), ['class' => 'form-control', 'data-role' => 'longitude', 'placeholder' => '69.2401']); ?>
                             </div>
                         </div>
                         <div class="col-md-2">
-                            <?= Element::select('event[location_source]', ['none' => '—', 'manual' => $this->translate('Manual'), 'url' => $this->translate('From URL')], $event->getLocationSource(), ['class' => 'form-select', 'data-role' => 'location-source']); ?>
+                            <?= Element::select('event[location_source]', ['none' => '—', 'manual' => $this->translate('Manual'), 'url' => $this->translate('From URL')], $entity->getLocationSource(), ['class' => 'form-select', 'data-role' => 'location-source']); ?>
                         </div>
                     </div>
                 </div>
@@ -100,30 +111,59 @@ $this->getPluginBag()->appendScript($this->moduleAsset('event-form.js', 'Members
             <div class="row mb-3">
                 <label class="col-lg-2 col-form-label"><?= $this->translate('Starts at'); ?></label>
                 <div class="col-lg-10">
-                    <?= Element::datetime('event[starts_at]', $event->getStartsAt(), ['class' => 'form-control', 'required' => true]); ?>
+                    <?= Element::datetime('event[starts_at]', $startsAtValue, ['class' => 'form-control', 'required' => true]); ?>
                 </div>
             </div>
 
             <div class="row mb-3">
                 <label class="col-lg-2 col-form-label"><?= $this->translate('Ends at'); ?></label>
                 <div class="col-lg-10">
-                    <?= Element::datetime('event[ends_at]', $event->getEndsAt(), ['class' => 'form-control']); ?>
+                    <?= Element::datetime('event[ends_at]', $endsAtValue, ['class' => 'form-control']); ?>
                     <small class="text-muted"><?= $this->translate('Optional'); ?></small>
                 </div>
             </div>
         </div>
+
+        <?php foreach ($languages as $language): ?>
+        <?php
+        $translation = is_array($event) ? LanguageManager::findByLangId($language->getId(), $event) : $event;
+
+        if (!$translation instanceof VirtualEntity) {
+            $translation = new VirtualEntity();
+        }
+        ?>
+        <div class="tab-pane fade" id="language-<?= $language->getId(); ?>" role="tabpanel">
+            <?= Element::hidden(sprintf('translation[%s][id]', $language->getId()), $translation->getId()); ?>
+            <?= Element::hidden(sprintf('translation[%s][lang_id]', $language->getId()), $language->getId()); ?>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Title'); ?></label>
+                <div class="col-lg-10">
+                    <?= Element::text(sprintf('translation[%s][title]', $language->getId()), $translation->getTitle(), ['class' => 'form-control', 'maxlength' => 200]); ?>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Description'); ?></label>
+                <div class="col-lg-10">
+                    <?= Element::textarea(sprintf('translation[%s][description]', $language->getId()), $translation->getDescription(), ['class' => 'form-control', 'rows' => 4]); ?>
+                </div>
+            </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Organizer'); ?></label>
+                <div class="col-lg-10">
+                    <?= Element::text(sprintf('translation[%s][organizer]', $language->getId()), $translation->getOrganizer(), ['class' => 'form-control', 'maxlength' => 200]); ?>
+                    <small class="text-muted"><?= $this->translate('Leave blank to show the author name instead'); ?></small>
+                </div>
+            </div>
+        </div>
+        <?php endforeach; ?>
     </div>
 
-    <div class="card-footer bg-white d-flex justify-content-end align-items-center">
-        <?php if ($isNew): ?>
-        <small class="text-muted me-auto">
-            <i class="bi bi-building"></i> <?= $this->translate('Published on behalf of the association'); ?>
-        </small>
-        <?php endif; ?>
-
+    <div class="card-footer bg-white d-flex justify-content-end">
         <a href="<?= $this->url('Members:Admin:Event@indexAction'); ?>" class="btn btn-outline-secondary me-2"><i class="bi bi-x-lg"></i> <?= $this->translate('Cancel'); ?></a>
-
-        <button type="submit" class="btn btn-primary" data-button="submit" data-url="<?= $isNew ? $this->url('Members:Admin:Event@storeAction') : $this->url('Members:Admin:Event@updateAction', [$event->getId()]); ?>">
+        <button type="submit" class="btn btn-primary" data-button="submit" data-url="<?= $isNew ? $this->url('Members:Admin:Event@storeAction') : $this->url('Members:Admin:Event@updateAction', [$entity->getId()]); ?>">
             <i class="bi bi-save"></i> <?= $this->translate('Save'); ?>
         </button>
     </div>

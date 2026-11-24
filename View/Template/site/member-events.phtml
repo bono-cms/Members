@@ -34,7 +34,6 @@ use Members\Service\EventEntity;
                             </div>
                         </div>
                     </div>
-
                     <div class="col-6 col-md-3">
                         <div class="card border-0 shadow-sm h-100">
                             <div class="card-body text-center">
@@ -43,7 +42,6 @@ use Members\Service\EventEntity;
                             </div>
                         </div>
                     </div>
-
                     <div class="col-6 col-md-3">
                         <div class="card border-0 shadow-sm h-100">
                             <div class="card-body text-center">
@@ -52,7 +50,6 @@ use Members\Service\EventEntity;
                             </div>
                         </div>
                     </div>
-
                     <div class="col-6 col-md-3">
                         <div class="card border-0 shadow-sm h-100">
                             <div class="card-body text-center">
@@ -78,41 +75,43 @@ use Members\Service\EventEntity;
                 <div class="card border-0 shadow-sm">
                     <div class="list-group list-group-flush">
                         <?php foreach ($events as $event): ?>
-                            <div class="list-group-item">
-                                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
-                                    <div class="flex-grow-1 min-width-0">
-                                        <h5 class="mb-1">
-                                            <?= htmlspecialchars($event->getTitle()); ?>
-                                            <span class="badge bg-<?= $event->getStatusBadgeClass(); ?> ms-2"><?= $this->translate($event->getStatusTranslationKey()); ?></span>
-                                        </h5>
-
-                                        <p class="text-muted small mb-1">
-                                            <i class="bi bi-calendar-event"></i> <?= htmlspecialchars($event->getFormattedDate()); ?> <?= htmlspecialchars($event->getFormattedTime()); ?>
-                                            <?php if ($event->hasLocation()): ?>
-                                                &middot; <i class="bi bi-geo-alt"></i> <?= htmlspecialchars($event->getLocationName()); ?>
-                                            <?php endif; ?>
-                                        </p>
-
-                                        <p class="small mb-0">
-                                            <i class="bi bi-eye"></i> <?= $event->getViewsCount(); ?> <?= $this->translate('views'); ?>
-                                            &middot;
-                                            <i class="bi bi-cursor"></i> <?= $event->getClicksCount(); ?> <?= $this->translate('clicks'); ?>
-                                            <?php if ($event->getStatus() === EventEntity::STATUS_REJECTED && $event->getRejectionReason() !== ''): ?>
-                                                &middot; <span class="text-danger"><i class="bi bi-exclamation-triangle"></i> <?= htmlspecialchars($event->getRejectionReason()); ?></span>
-                                            <?php endif; ?>
-                                        </p>
-                                    </div>
-
-                                    <div class="d-flex flex-column gap-1">
-                                        <a href="<?= $this->url('Members:Event@analyticsAction', [$event->getId()]); ?>" class="btn btn-sm btn-outline-primary">
-                                            <i class="bi bi-graph-up"></i> <?= $this->translate('Analytics'); ?>
-                                        </a>
-                                        <a href="<?= $this->url('Members:Event@editAction', [$event->getId()]); ?>" class="btn btn-sm btn-outline-secondary">
-                                            <i class="bi bi-pencil"></i> <?= $this->translate('Edit'); ?>
-                                        </a>
-                                    </div>
+                        <div class="list-group-item">
+                            <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                                <div class="flex-grow-1 min-width-0">
+                                    <h5 class="mb-1">
+                                        <?= htmlspecialchars($event->getDisplayTitle()); ?>
+                                        <span class="badge bg-<?= $event->getStatusBadgeClass(); ?> ms-2"><?= $this->translate($event->getStatusTranslationKey()); ?></span>
+                                        <?php if ($event->getLangId() === null): ?>
+                                        <span class="badge bg-warning text-dark ms-1">
+                                            <i class="bi bi-exclamation-triangle"></i> <?= $this->translate('Not translated'); ?>
+                                        </span>
+                                        <?php endif; ?>
+                                    </h5>
+                                    <p class="text-muted small mb-1">
+                                        <i class="bi bi-calendar-event"></i> <?= htmlspecialchars($event->getFormattedDate()); ?> <?= htmlspecialchars($event->getFormattedTime()); ?>
+                                        <?php if ($event->hasLocation()): ?>
+                                        &middot; <i class="bi bi-geo-alt"></i> <?= htmlspecialchars($event->getLocationName()); ?>
+                                        <?php endif; ?>
+                                    </p>
+                                    <p class="small mb-0">
+                                        <i class="bi bi-eye"></i> <?= $event->getViewsCount(); ?> <?= $this->translate('views'); ?>
+                                        &middot;
+                                        <i class="bi bi-cursor"></i> <?= $event->getClicksCount(); ?> <?= $this->translate('clicks'); ?>
+                                        <?php if ($event->getStatus() === EventEntity::STATUS_REJECTED && $event->getRejectionReason() !== ''): ?>
+                                        &middot; <span class="text-danger"><i class="bi bi-exclamation-triangle"></i> <?= htmlspecialchars($event->getRejectionReason()); ?></span>
+                                        <?php endif; ?>
+                                    </p>
+                                </div>
+                                <div class="d-flex flex-column gap-1">
+                                    <a href="<?= $this->url('Members:Event@analyticsAction', [$event->getId()]); ?>" class="btn btn-sm btn-outline-primary">
+                                        <i class="bi bi-graph-up"></i> <?= $this->translate('Analytics'); ?>
+                                    </a>
+                                    <a href="<?= $this->url('Members:Event@editAction', [$event->getId()]); ?>" class="btn btn-sm btn-outline-secondary">
+                                        <i class="bi bi-pencil"></i> <?= $this->translate('Edit'); ?>
+                                    </a>
                                 </div>
                             </div>
+                        </div>
                         <?php endforeach; ?>
                     </div>
                 </div>

@@ -1,8 +1,8 @@
 <?php
+
 use Cms\View\Icon;
-use Krystal\Date\TimeHelper;
-use Krystal\Form\Element;
 use Krystal\Widget\GridView\GridViewWidget;
+
 ?>
 
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
@@ -53,7 +53,15 @@ use Krystal\Widget\GridView\GridViewWidget;
                     'column' => 'title',
                     'label'  => 'Title',
                     'value'  => function ($event) {
-                        return htmlspecialchars($event['title']);
+                        $title = htmlspecialchars($event->getDisplayTitle());
+
+                        // LEFT JOIN keeps untranslated events manageable;
+                        // flag them so they are not mistaken for empty rows.
+                        if ($event->getLangId() === null) {
+                            return $title . ' <span class="badge bg-warning text-dark ms-1"><i class="bi bi-exclamation-triangle"></i> ' . $this->translate('Not translated') . '</span>';
+                        }
+
+                        return $title;
                     },
                 ],
                 [
@@ -71,52 +79,44 @@ use Krystal\Widget\GridView\GridViewWidget;
                     'column' => 'starts_at',
                     'label'  => 'Date',
                     'value'  => function ($event) {
-                        return htmlspecialchars(date('M j, Y H:i', strtotime($event['starts_at'])));
+                        return htmlspecialchars($event->getFormattedDate() . ' ' . $event->getFormattedTime());
                     },
                 ],
                 [
                     'column' => 'status',
                     'label'  => 'Status',
                     'value'  => function ($event) {
-                        $map = [
-                            'pending'  => ['warning', 'Pending'],
-                            'approved' => ['success', 'Approved'],
-                            'rejected' => ['danger', 'Rejected'],
-                        ];
-
-                        $info = isset($map[$event['status']]) ? $map[$event['status']] : ['secondary', $event['status']];
-
-                        return '<span class="badge bg-' . $info[0] . '">' . $this->translate($info[1]) . '</span>';
+                        return '<span class="badge bg-' . $event->getStatusBadgeClass() . '">' . $this->translate($event->getStatusTranslationKey()) . '</span>';
                     },
                 ],
                 [
                     'column' => 'views_count',
                     'label'  => 'Views',
                     'value'  => function ($event) {
-                        return '<i class="bi bi-eye"></i> ' . (int) $event['views_count'] . ' / <i class="bi bi-cursor"></i> ' . (int) $event['clicks_count'];
+                        return '<i class="bi bi-eye"></i> ' . $event->getViewsCount() . ' / <i class="bi bi-cursor"></i> ' . $event->getClicksCount();
                     },
                 ],
             ],
             'actions' => [
                 function ($event) {
                     return Icon::edit(
-                        $this->url('Members:Admin:Event@editAction', [$event['id']]),
+                        $this->url('Members:Admin:Event@editAction', [$event->getId()]),
                         $this->translate('Edit event')
                     );
                 },
                 function ($event) {
-                    return Icon::button('bi bi-graph-up', $this->url('Members:Admin:Event@analyticsAction', [$event['id']]), $this->translate('Analytics'));
+                    return Icon::button('bi bi-graph-up', $this->url('Members:Admin:Event@analyticsAction', [$event->getId()]), $this->translate('Analytics'));
                 },
                 function ($event) {
-                    if ($event['status'] === 'pending') {
-                        return Icon::button('bi bi-check-lg', $this->url('Members:Admin:Event@approveAction', [$event['id']]), $this->translate('Approve'));
+                    if ($event->getStatus() === 'pending') {
+                        return Icon::button('bi bi-check-lg', $this->url('Members:Admin:Event@approveAction', [$event->getId()]), $this->translate('Approve'));
                     }
 
                     return '';
                 },
                 function ($event) {
                     return Icon::remove(
-                        $this->url('Members:Admin:Event@deleteAction', [$event['id']]),
+                        $this->url('Members:Admin:Event@deleteAction', [$event->getId()]),
                         $this->translate('Remove event')
                     );
                 },

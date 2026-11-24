@@ -11,6 +11,7 @@
 use Members\View\Widget\EventLocationMapWidget;
 
 $mapConfig = $this->widget(new EventLocationMapWidget($event));
+$organizerName = $event->getOrganizerName();
 
 ?>
 
@@ -39,29 +40,26 @@ $mapConfig = $this->widget(new EventLocationMapWidget($event));
                             </div>
 
                             <div class="flex-grow-1 min-w-0">
-                                <h1 class="h2 mb-2"><?= $event->getTitle(); ?></h1>
+                                <h1 class="h2 mb-2"><?= htmlspecialchars($event->getDisplayTitle()); ?></h1>
 
                                 <p class="text-muted mb-2">
-                                    <i class="bi bi-calendar-event" aria-hidden="true"></i> <?= $event->getFormattedStartDateTime(); ?>
-
+                                    <i class="bi bi-calendar-event" aria-hidden="true"></i> <?= htmlspecialchars($event->getFormattedStartDateTime()); ?>
                                     &middot;
-
-                                    <i class="bi bi-clock" aria-hidden="true"></i> <?= $event->getFormattedTime(); ?>
-
+                                    <i class="bi bi-clock" aria-hidden="true"></i> <?= htmlspecialchars($event->getFormattedTime()); ?>
                                     <?php if ($event->getEndsAt()): ?>
-                                    &mdash; <?= $event->getFormattedEndTime(); ?>
+                                    &mdash; <?= htmlspecialchars($event->getFormattedEndTime()); ?>
                                     <?php endif; ?>
                                 </p>
 
                                 <?php if ($event->hasLocation()): ?>
                                 <p class="text-muted mb-0">
-                                    <i class="bi bi-geo-alt" aria-hidden="true"></i> <?= $event->getLocationName(); ?>
+                                    <i class="bi bi-geo-alt" aria-hidden="true"></i> <?= htmlspecialchars($event->getLocationName()); ?>
                                 </p>
                                 <?php endif; ?>
 
-                                <?php if ($event->hasCreator()): ?>
+                                <?php if ($organizerName !== ''): ?>
                                 <p class="text-muted small mt-2 mb-0">
-                                    <i class="bi bi-person" aria-hidden="true"></i> <?= $this->translate('Organized by'); ?> <strong><?= $event->getCreatorName(); ?></strong>
+                                    <i class="bi bi-person" aria-hidden="true"></i> <?= $this->translate('Organized by'); ?> <strong><?= htmlspecialchars($organizerName); ?></strong>
                                 </p>
                                 <?php endif; ?>
                             </div>
@@ -69,9 +67,8 @@ $mapConfig = $this->widget(new EventLocationMapWidget($event));
 
                         <?php if ($event->hasDescription()): ?>
                         <hr class="my-4">
-
                         <div class="mb-4">
-                            <?= nl2br($event->getDescription()); ?>
+                            <?= nl2br(htmlspecialchars($event->getDescription())); ?>
                         </div>
                         <?php endif; ?>
 

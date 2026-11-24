@@ -6,6 +6,7 @@
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code
  */
+
 namespace Members\Controller\Api;
 
 use Members\Service\EventEntity;
@@ -14,12 +15,17 @@ use Members\Service\EventEntity;
  * API controller for the Events extension.
  *
  * Provides JSON endpoints for the mobile app. Public endpoints
- * (catalog, detail) require no auth. Protected endpoints (create,
- * my events, analytics) require JWT.
+ * (catalog, detail, click, map) require no auth. Protected endpoints
+ * (create, my events, analytics) require JWT.
+ *
+ * Content is resolved for the language selected by ?lang=. An event
+ * with no translation in that language is treated as not found.
  */
 final class Event extends AbstractApiController
 {
     /**
+     * GET /api/v1/members/events
+     *
      * Returns a paginated list of approved events.
      *
      * @return string JSON
@@ -28,6 +34,7 @@ final class Event extends AbstractApiController
     {
         $pageNumber = (int) $this->request->getQuery('page', 1);
         $eventService = $this->getModuleService('eventService');
+
         $events = $eventService->fetchApproved($pageNumber, 20);
         $paginator = $eventService->getPaginator();
 
@@ -43,6 +50,8 @@ final class Event extends AbstractApiController
     }
 
     /**
+     * GET /api/v1/members/events/render/map
+     *
      * Returns approved events with valid coordinates for map rendering.
      *
      * @return string JSON
@@ -123,8 +132,11 @@ final class Event extends AbstractApiController
     }
 
     /**
+     * GET /api/v1/members/events/view/:id
+     *
      * Returns a single event and records a view.
      *
+     * @param string $id Event id
      * @return string JSON
      */
     public function viewAction($id)
@@ -154,17 +166,22 @@ final class Event extends AbstractApiController
     }
 
     /**
+     * POST /api/v1/members/events/store
+     *
      * Creates a new event on behalf of the authenticated member.
+     *
+     * Content is posted as translation[<langId>][title|description|organizer],
+     * with translation[<langId>][lang_id] alongside it, exactly as the web
+     * form does. Every posted row is written.
      *
      * @return string JSON
      */
     public function storeAction()
     {
-        $validator = $this->createEventValidator($this->request->getPost('event'));
+        $validator = $this->createEventValidator();
 
         if (!$validator->isPassed()) {
             $this->response->setStatusCode(422);
-
             return $this->json(['errors' => $validator->getErrors()]);
         }
 
@@ -176,10 +193,10 @@ final class Event extends AbstractApiController
         }
 
         $eventService = $this->getModuleService('eventService');
-        $data = $this->prepareEventData($this->request->getPost('event'));
 
         try {
-            $eventId = $eventService->createForUser($memberId, $data);
+            $eventId = $eventService->createForUser($memberId, $this->request->getPost());
+
             $this->response->setStatusCode(201);
 
             return $this->json([
@@ -188,14 +205,15 @@ final class Event extends AbstractApiController
             ]);
         } catch (\InvalidArgumentException $exception) {
             $this->response->setStatusCode(422);
-
             return $this->json(['error' => $exception->getMessage()]);
         }
     }
 
     /**
+     * GET /api/v1/members/me/events
+     *
      * Returns the authenticated member's own events with a summary.
-     * 
+     *
      * @return string JSON
      */
     public function myAction()
@@ -204,13 +222,14 @@ final class Event extends AbstractApiController
 
         if ($memberId <= 0) {
             $this->response->setStatusCode(401);
-
             return $this->json(['error' => 'Unauthorized']);
         }
 
         $pageNumber = (int) $this->request->getQuery('page', 1);
+
         $eventService = $this->getModuleService('eventService');
         $analyticsService = $this->getModuleService('eventAnalyticsService');
+
         $events = $eventService->fetchByCreatorId($memberId, $pageNumber, 20);
         $dashboard = $analyticsService->fetchForMemberDashboard($memberId);
         $paginator = $eventService->getPaginator();
@@ -228,8 +247,11 @@ final class Event extends AbstractApiController
     }
 
     /**
+     * GET /api/v1/members/me/events/:id/analytics
+     *
      * Returns detailed analytics for the member's own event.
      *
+     * @param string $id Event id
      * @return string JSON
      */
     public function analyticsAction($id)
@@ -255,8 +277,9 @@ final class Event extends AbstractApiController
     }
 
     /**
+     * GET /api/v1/members/events/:id/click
+     *
      * Returns the registration link and records a click.
-     * The mobile app opens this URL in an external browser.
      *
      * @param string $id Event id
      * @return string JSON
@@ -295,7 +318,7 @@ final class Event extends AbstractApiController
     /**
      * Presents a collection of events for API output
      *
-     * @param  array $events Event rows
+     * @param  array $events Event entities
      * @return array
      */
     private function presentEvents(array $events)
@@ -312,7 +335,7 @@ final class Event extends AbstractApiController
     /**
      * Presents a single event for API output
      *
-     * @param  object $event Event row
+     * @param  \Members\Service\EventEntity $event
      * @return array
      */
     private function presentEvent($event)
@@ -321,6 +344,7 @@ final class Event extends AbstractApiController
             'id'           => $event->getId(),
             'title'        => $event->getTitle(),
             'description'  => $event->getDescription(),
+            'organizer'    => $event->getOrganizer(),
             'link'         => $event->getLink(),
             'locationName' => $event->getLocationName(),
             'latitude'     => $event->getLatitude(),
@@ -355,15 +379,16 @@ final class Event extends AbstractApiController
     /**
      * Creates a validator for the event form
      *
-     * @param  array $data Form data
      * @return \Krystal\Validation\Validator
      */
-    private function createEventValidator($data)
+    private function createEventValidator()
     {
         $validator = $this->createValidation();
 
-        $validator->field('event.title')
-                  ->required()
+        $validator->field('translation.*.title')
+                  ->addRule('maxlength', null, ['max' => 200]);
+
+        $validator->field('translation.*.organizer')
                   ->addRule('maxlength', null, ['max' => 200]);
 
         $validator->field('event.location_name')
@@ -377,26 +402,5 @@ final class Event extends AbstractApiController
                   ->addRule('maxlength', null, ['max' => 500]);
 
         return $validator;
-    }
-
-    /**
-     * Prepares event data from the form payload
-     *
-     * @param  array $data Form data
-     * @return array
-     */
-    private function prepareEventData($data)
-    {
-        return [
-            'title'           => isset($data['title']) ? $data['title'] : '',
-            'description'     => isset($data['description']) ? $data['description'] : null,
-            'link'            => isset($data['link']) ? $data['link'] : null,
-            'location_name'   => isset($data['location_name']) ? $data['location_name'] : '',
-            'latitude'        => isset($data['latitude']) && $data['latitude'] !== '' ? (float) $data['latitude'] : null,
-            'longitude'       => isset($data['longitude']) && $data['longitude'] !== '' ? (float) $data['longitude'] : null,
-            'location_source' => isset($data['location_source']) ? $data['location_source'] : 'none',
-            'starts_at'       => isset($data['starts_at']) ? $data['starts_at'] : '',
-            'ends_at'         => isset($data['ends_at']) && $data['ends_at'] !== '' ? $data['ends_at'] : null,
-        ];
     }
 }

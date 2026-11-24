@@ -6,6 +6,7 @@
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code
  */
+
 namespace Members\Service;
 
 use Members\Storage\MySQL\EventAnalyticsMapper;
@@ -21,14 +22,15 @@ use Members\Storage\MySQL\EventMapper;
  *
  * The IP hash is the only visitor identifier we keep. It is
  * SHA1(ip + salt), so the raw IP never touches the database.
+ *
+ * Counters are language-independent, so existence checks read the
+ * base row only. Payloads that carry an EventEntity need the
+ * translation join and use fetchRichById().
  */
 final class EventAnalyticsService
 {
     /**
      * Look-back window for the anti-spam check, in minutes.
-     *
-     * The same ip_hash cannot record the same event type for
-     * the same event more than once within this window.
      *
      * @const int
      */
@@ -50,8 +52,7 @@ final class EventAnalyticsService
     private $analyticsMapper;
 
     /**
-     * Event mapper instance, used to verify event existence and
-     * to bump the denormalized counters on the events table.
+     * Event mapper instance
      *
      * @var \Members\Storage\MySQL\EventMapper
      */
@@ -60,9 +61,6 @@ final class EventAnalyticsService
     /**
      * Salt used to hash the visitor IP.
      *
-     * Stored as a plain string so it can be overridden in tests.
-     * In production this should come from the module config.
-     *
      * @var string
      */
     private $ipHashSalt;
@@ -70,9 +68,9 @@ final class EventAnalyticsService
     /**
      * State initialization
      *
-     * @param  \Members\Storage\MySQL\EventAnalyticsMapper $analyticsMapper
-     * @param  \Members\Storage\MySQL\EventMapper $eventMapper
-     * @param  string $ipHashSalt
+     * @param \Members\Storage\MySQL\EventAnalyticsMapper $analyticsMapper
+     * @param \Members\Storage\MySQL\EventMapper $eventMapper
+     * @param string $ipHashSalt
      * @return void
      */
     public function __construct(EventAnalyticsMapper $analyticsMapper, EventMapper $eventMapper, $ipHashSalt = '')
@@ -85,15 +83,11 @@ final class EventAnalyticsService
     /**
      * Records a page view for an event.
      *
-     * Bumps the denormalized views_count on the events table and
-     * inserts an analytics row, unless the same visitor already
-     * recorded a view within the anti-spam window.
-     *
      * @param  int         $eventId
      * @param  int|null    $memberId  Null for anonymous visitors
      * @param  string      $source    "card" | "direct" | "admin" | "api"
-     * @param  string|null $ip        Raw visitor IP, or null
-     * @param  string|null $userAgent Raw user agent, or null
+     * @param  string|null $ip
+     * @param  string|null $userAgent
      * @return bool True when the hit was actually recorded
      */
     public function recordView($eventId, $memberId, $source, $ip = null, $userAgent = null)
@@ -103,9 +97,6 @@ final class EventAnalyticsService
 
     /**
      * Records a click on the event's registration link.
-     *
-     * Same anti-spam rules as recordView(), but tracked under a
-     * separate type so the two metrics stay independent.
      *
      * @param  int         $eventId
      * @param  int|null    $memberId
@@ -123,16 +114,13 @@ final class EventAnalyticsService
      * Returns the detailed analytics for one event, owned by a
      * specific member.
      *
-     * The member check lives here so controllers cannot leak
-     * analytics for events they do not own.
-     *
      * @param  int $eventId
      * @param  int $memberId
      * @return array|null Null when the event does not exist or is not owned by the member
      */
     public function fetchForMemberEvent($eventId, $memberId)
     {
-        $event = $this->eventMapper->findByPk((int) $eventId);
+        $event = $this->eventMapper->fetchRichById((int) $eventId);
 
         if ($event === false) {
             return null;
@@ -148,16 +136,12 @@ final class EventAnalyticsService
     /**
      * Returns the detailed analytics for one event, without ownership check.
      *
-     * Used by the admin controller, which has access to every event
-     * regardless of who created it. Unlike fetchForMemberEvent(), this
-     * method does not verify that the event belongs to a specific member.
-     *
      * @param int $eventId
      * @return array|null Null when the event does not exist
      */
     public function fetchForAdminEvent($eventId)
     {
-        $event = $this->eventMapper->findByPk((int) $eventId);
+        $event = $this->eventMapper->fetchRichById((int) $eventId);
 
         if ($event === false) {
             return null;
@@ -202,9 +186,6 @@ final class EventAnalyticsService
     /**
      * Returns the global admin dashboard.
      *
-     * Aggregates counters across all events and combines them
-     * with the top-N rankings and the daily chart.
-     *
      * @return array
      */
     public function fetchAdminDashboard()
@@ -218,7 +199,8 @@ final class EventAnalyticsService
 
         $totalViews  = isset($globalStats['total_views']) ? (int) $globalStats['total_views'] : 0;
         $totalClicks = isset($globalStats['total_clicks']) ? (int) $globalStats['total_clicks'] : 0;
-        $conversion  = $totalViews > 0 ? round(($totalClicks / $totalViews) * 100, 2) : 0.0;
+
+        $conversion = $totalViews > 0 ? round(($totalClicks / $totalViews) * 100, 2) : 0.0;
 
         return [
             'totalEvents'       => isset($globalStats['total_events']) ? (int) $globalStats['total_events'] : 0,
@@ -237,18 +219,17 @@ final class EventAnalyticsService
     /**
      * Records a single analytics event with anti-spam protection.
      *
-     * The whole operation — insert + counter bump — is wrapped
-     * in a transaction so a failed insert cannot leave the
-     * counter out of sync.
+     * The existence check reads the base row only: no content is
+     * needed to decide whether a hit may be recorded.
      *
      * @param  int         $eventId
      * @param  int|null    $memberId
-     * @param  string      $type          "view" or "click"
+     * @param  string      $type
      * @param  string      $source
-     * @param  string      $counterColumn "views_count" or "clicks_count"
+     * @param  string      $counterColumn
      * @param  string|null $ip
      * @param  string|null $userAgent
-     * @return bool True when the hit was actually recorded
+     * @return bool
      */
     private function recordEvent($eventId, $memberId, $type, $source, $counterColumn, $ip, $userAgent)
     {
@@ -284,8 +265,8 @@ final class EventAnalyticsService
                 return false;
             }
 
-            // Bump the denormalized counter on the events table
             $counterType = $counterColumn === 'clicks_count' ? 'clicks' : 'views';
+
             $this->eventMapper->incrementCounter($eventId, $counterType);
 
             return true;
@@ -294,10 +275,6 @@ final class EventAnalyticsService
 
     /**
      * Computes the SHA1 hash of the visitor IP with the salt.
-     *
-     * Returns null when no IP is available, so the caller can
-     * skip the anti-spam check (there is nothing to deduplicate
-     * on) and still record the hit.
      *
      * @param  string|null $ip
      * @return string|null
@@ -314,30 +291,36 @@ final class EventAnalyticsService
     /**
      * Builds the detailed analytics payload for a single event.
      *
+     * Expects a rich row from EventMapper::fetchRichById(), so the
+     * translated content and the author fields are present.
+     *
      * @param  array $event Event row
      * @return array
      */
     private function buildEventAnalytics(array $event)
     {
         $entity = new EventEntity();
+
         $entity->setId((int) $event['id'])
-            ->setCreatorId(isset($event['creator_id']) ? (int) $event['creator_id'] : null)
-            ->setTitle(isset($event['title']) ? $event['title'] : '')
-            ->setDescription(isset($event['description']) ? $event['description'] : '')
-            ->setLink(isset($event['link']) ? $event['link'] : '')
-            ->setLocationName(isset($event['location_name']) ? $event['location_name'] : '')
-            ->setLatitude(isset($event['latitude']) ? $event['latitude'] : null)
-            ->setLongitude(isset($event['longitude']) ? $event['longitude'] : null)
-            ->setLocationSource(isset($event['location_source']) ? $event['location_source'] : EventEntity::LOCATION_SOURCE_NONE)
-            ->setStartsAt(isset($event['starts_at']) ? $event['starts_at'] : '')
-            ->setEndsAt(isset($event['ends_at']) ? $event['ends_at'] : '')
-            ->setStatus(isset($event['status']) ? $event['status'] : EventEntity::STATUS_PENDING)
-            ->setRejectionReason(isset($event['rejection_reason']) ? $event['rejection_reason'] : '')
-            ->setViewsCount((int) $event['views_count'])
-            ->setClicksCount((int) $event['clicks_count'])
-            ->setCreatedAt(isset($event['created_at']) ? $event['created_at'] : '')
-            ->setCreatorName(isset($event['creator_name']) ? $event['creator_name'] : null)
-            ->setCreatorAvatar(isset($event['creator_avatar']) ? $event['creator_avatar'] : null);
+               ->setCreatorId(isset($event['creator_id']) && $event['creator_id'] !== null ? (int) $event['creator_id'] : null)
+               ->setLangId(isset($event['lang_id']) ? (int) $event['lang_id'] : null)
+               ->setTitle(isset($event['title']) ? $event['title'] : '')
+               ->setDescription(isset($event['description']) ? $event['description'] : '')
+               ->setOrganizer(isset($event['organizer']) ? $event['organizer'] : '')
+               ->setLink(isset($event['link']) ? $event['link'] : '')
+               ->setLocationName(isset($event['location_name']) ? $event['location_name'] : '')
+               ->setLatitude(isset($event['latitude']) && $event['latitude'] !== null ? (float) $event['latitude'] : null)
+               ->setLongitude(isset($event['longitude']) && $event['longitude'] !== null ? (float) $event['longitude'] : null)
+               ->setLocationSource(isset($event['location_source']) ? $event['location_source'] : EventEntity::LOCATION_SOURCE_NONE)
+               ->setStartsAt(isset($event['starts_at']) ? $event['starts_at'] : '')
+               ->setEndsAt(isset($event['ends_at']) ? $event['ends_at'] : '')
+               ->setStatus(isset($event['status']) ? $event['status'] : EventEntity::STATUS_PENDING)
+               ->setRejectionReason(isset($event['rejection_reason']) ? $event['rejection_reason'] : '')
+               ->setViewsCount((int) $event['views_count'])
+               ->setClicksCount((int) $event['clicks_count'])
+               ->setCreatedAt(isset($event['created_at']) ? $event['created_at'] : '')
+               ->setCreatorName(isset($event['creator_name']) ? $event['creator_name'] : null)
+               ->setCreatorAvatar(isset($event['creator_avatar']) ? $event['creator_avatar'] : null);
 
         $views      = $entity->getViewsCount();
         $clicks     = $entity->getClicksCount();

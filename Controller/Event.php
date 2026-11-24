@@ -6,6 +6,7 @@
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code
  */
+
 namespace Members\Controller;
 
 use Krystal\Stdlib\VirtualEntity;
@@ -16,6 +17,9 @@ use Members\Service\EventEntity;
  *
  * Handles both public catalog/detail pages (no auth required) and
  * member dashboard pages (auth required via middleware).
+ *
+ * Every read joins the translation table for the active language,
+ * so an event that has no translation there is treated as not found.
  */
 final class Event extends AbstractController
 {
@@ -63,8 +67,8 @@ final class Event extends AbstractController
         $analyticsService->recordView((int) $id, $memberId, 'card', $this->request->getClientIP(), $this->request->getUserAgent());
 
         $page = new VirtualEntity();
-        $page->setTitle($event['title'])
-            ->setSeo(true);
+        $page->setTitle($event->getTitle())
+             ->setSeo(true);
 
         return $this->view->render('event', [
             'page'  => $page,
@@ -95,12 +99,15 @@ final class Event extends AbstractController
         $memberManager    = $this->getModuleService('memberManager');
         $memberId         = $memberManager->isLoggedIn() ? (int) $memberManager->getMember('id') : null;
 
-        $analyticsService->recordClick((int) $id, $memberId, 'card',
+        $analyticsService->recordClick(
+            (int) $id,
+            $memberId,
+            'card',
             $this->request->getClientIP(),
             $this->request->getUserAgent()
         );
 
-        $this->response->redirect($event['link']);
+        $this->response->redirect($event->getLink());
     }
 
     /**
@@ -113,6 +120,7 @@ final class Event extends AbstractController
         $memberManager = $this->getModuleService('memberManager');
         $memberId = (int) $memberManager->getMember('id');
         $pageNumber = (int) $this->request->getQuery('page', 1);
+
         $eventService = $this->getModuleService('eventService');
         $analyticsService = $this->getModuleService('eventAnalyticsService');
 
@@ -121,7 +129,7 @@ final class Event extends AbstractController
 
         $page = new VirtualEntity();
         $page->setTitle($this->translator->translate('My events'))
-            ->setSeo(false);
+             ->setSeo(false);
 
         return $this->view->render('member-events', [
             'page'      => $page,
@@ -159,7 +167,7 @@ final class Event extends AbstractController
      */
     public function storeAction()
     {
-        $validator = $this->createEventValidator($this->request->getPost('event'));
+        $validator = $this->createEventValidator();
 
         if (!$validator->isPassed()) {
             return $this->json([
@@ -170,10 +178,10 @@ final class Event extends AbstractController
         $memberManager = $this->getModuleService('memberManager');
         $memberId      = (int) $memberManager->getMember('id');
         $eventService  = $this->getModuleService('eventService');
-        $data          = $this->prepareEventData($this->request->getPost('event'));
 
         try {
-            $eventId = $eventService->createForUser($memberId, $data);
+            $eventService->createForUser($memberId, $this->request->getPost());
+
             $this->flashBag->set('success', $this->translator->translate('The event has been created and is pending review'));
 
             return $this->json([
@@ -196,8 +204,9 @@ final class Event extends AbstractController
     {
         $memberManager = $this->getModuleService('memberManager');
         $memberId = (int) $memberManager->getMember('id');
+
         $eventService = $this->getModuleService('eventService');
-        $event = $eventService->findByIdForOwner((int) $id, $memberId);
+        $event = $eventService->fetchByIdForOwner((int) $id, $memberId, true);
 
         if ($event === false) {
             return false;
@@ -222,7 +231,7 @@ final class Event extends AbstractController
      */
     public function updateAction($id)
     {
-        $validator = $this->createEventValidator($this->request->getPost('event'));
+        $validator = $this->createEventValidator();
 
         if (!$validator->isPassed()) {
             return $this->json([
@@ -233,10 +242,10 @@ final class Event extends AbstractController
         $memberManager = $this->getModuleService('memberManager');
         $memberId = (int) $memberManager->getMember('id');
         $eventService = $this->getModuleService('eventService');
-        $data = $this->prepareEventData($this->request->getPost('event'));
 
         try {
-            $eventService->update((int) $id, $data, $memberId, false);
+            $eventService->update((int) $id, $this->request->getPost(), $memberId, false);
+
             $this->flashBag->set('success', $this->translator->translate('The event has been updated successfully'));
 
             return $this->json([
@@ -263,6 +272,7 @@ final class Event extends AbstractController
 
         try {
             $eventService->delete((int) $id, $memberId, false);
+
             $this->flashBag->set('success', $this->translator->translate('The event has been removed successfully'));
 
             return $this->json([
@@ -285,6 +295,7 @@ final class Event extends AbstractController
     {
         $memberManager = $this->getModuleService('memberManager');
         $memberId = (int) $memberManager->getMember('id');
+
         $analyticsService = $this->getModuleService('eventAnalyticsService');
         $analytics = $analyticsService->fetchForMemberEvent((int) $id, $memberId);
 
@@ -328,62 +339,30 @@ final class Event extends AbstractController
     }
 
     /**
-     * Checks whether the Events extension is enabled
-     *
-     * @return bool
-     */
-    private function isExtensionEnabled()
-    {
-        $config = $this->moduleManager->getModule($this->moduleName)->getConfig('extensions');
-
-        return !empty($config['events']['enabled']);
-    }
-
-    /**
      * Creates a validator for the event form
      *
-     * @param  array $data Form data
      * @return \Krystal\Validation\Validator
      */
-    private function createEventValidator($data)
+    private function createEventValidator()
     {
         $validator = $this->createValidation();
 
-        $validator->field('event.title')
-            ->required()
-            ->addRule('maxlength', null, ['max' => 200]);
+        $validator->field('translation.*.title')
+                  ->addRule('maxlength', null, ['max' => 200]);
+
+        $validator->field('translation.*.organizer')
+                  ->addRule('maxlength', null, ['max' => 200]);
 
         $validator->field('event.location_name')
-            ->required()
-            ->addRule('maxlength', null, ['max' => 255]);
+                  ->required()
+                  ->addRule('maxlength', null, ['max' => 255]);
 
         $validator->field('event.starts_at')
-            ->required();
+                  ->required();
 
         $validator->field('event.link')
-            ->addRule('maxlength', null, ['max' => 500]);
+                  ->addRule('maxlength', null, ['max' => 500]);
 
         return $validator;
-    }
-
-    /**
-     * Prepares event data from the form payload
-     *
-     * @param  array $data Form data
-     * @return array
-     */
-    private function prepareEventData($data)
-    {
-        return [
-            'title'           => isset($data['title']) ? $data['title'] : '',
-            'description'     => isset($data['description']) ? $data['description'] : null,
-            'link'            => isset($data['link']) ? $data['link'] : null,
-            'location_name'   => isset($data['location_name']) ? $data['location_name'] : '',
-            'latitude'        => isset($data['latitude']) && $data['latitude'] !== '' ? (float) $data['latitude'] : null,
-            'longitude'       => isset($data['longitude']) && $data['longitude'] !== '' ? (float) $data['longitude'] : null,
-            'location_source' => isset($data['location_source']) ? $data['location_source'] : 'none',
-            'starts_at'       => isset($data['starts_at']) ? $data['starts_at'] : '',
-            'ends_at'         => isset($data['ends_at']) && $data['ends_at'] !== '' ? $data['ends_at'] : null,
-        ];
     }
 }

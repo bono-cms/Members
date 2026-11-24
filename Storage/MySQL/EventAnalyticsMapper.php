@@ -221,8 +221,8 @@ final class EventAnalyticsMapper extends AbstractMapper
     /**
      * Returns the top N events by views or clicks.
      *
-     * Reads the denormalized counters on the events table, so no
-     * aggregation over the analytics log is needed here.
+     * Reads the denormalized counters on the events table. The title
+     * comes from the event translation table for the active language.
      *
      * @param  int    $limit
      * @param  string $type "views" or "clicks"
@@ -234,19 +234,23 @@ final class EventAnalyticsMapper extends AbstractMapper
 
         $db = $this->db->select([
             EventMapper::column('id'),
-            EventMapper::column('title'),
+            EventTranslationMapper::column('title'),
             EventMapper::column('creator_id'),
             EventMapper::column($column)            => 'counter',
             MemberTranslationMapper::column('name') => 'creator_name',
         ])
-            ->from(EventMapper::getTableName())
-            ->leftJoin(MemberTranslationMapper::getTableName(), [
-                MemberTranslationMapper::column('id')      => EventMapper::getRawColumn('creator_id'),
-                MemberTranslationMapper::column('lang_id') => $this->getLangId(),
-            ])
-            ->orderBy(EventMapper::column($column))
-            ->desc()
-            ->limit((int) $limit);
+        ->from(EventMapper::getTableName())
+        ->innerJoin(EventTranslationMapper::getTableName(), [
+            EventTranslationMapper::column('id')      => EventMapper::getRawColumn('id'),
+            EventTranslationMapper::column('lang_id') => $this->getLangId(),
+        ])
+        ->leftJoin(MemberTranslationMapper::getTableName(), [
+            MemberTranslationMapper::column('id')      => EventMapper::getRawColumn('creator_id'),
+            MemberTranslationMapper::column('lang_id') => $this->getLangId(),
+        ])
+        ->orderBy(EventMapper::column($column))
+        ->desc()
+        ->limit((int) $limit);
 
         return $db->queryAll();
     }

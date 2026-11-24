@@ -1,4 +1,5 @@
 <?php
+
 /**
  * This file is part of the Bono CMS
  *
@@ -20,9 +21,10 @@ use RuntimeException;
  * ownership check is applied, and where the location string is
  * resolved into coordinates.
  *
- * The mapper only reads and writes rows; this service decides
- * what is allowed to be written and in which state, and wraps
- * the raw rows into VirtualEntity instances for the views.
+ * The translation block is forwarded to the mapper untouched, the
+ * same way DictionaryService and TagService do it: the form posts
+ * translation[<langId>][lang_id] itself, so nothing needs injecting
+ * or normalizing here.
  */
 final class EventService
 {
@@ -30,7 +32,6 @@ final class EventService
     const STATUS_APPROVED = 'approved';
     const STATUS_REJECTED = 'rejected';
 
-    const MAX_TITLE_LENGTH = 200;
     const MAX_LINK_LENGTH = 500;
     const MAX_LOCATION_LENGTH = 255;
 
@@ -73,8 +74,10 @@ final class EventService
 
         $entity->setId(isset($row['id']) ? (int) $row['id'] : null)
                ->setCreatorId(isset($row['creator_id']) && $row['creator_id'] !== null ? (int) $row['creator_id'] : null)
+               ->setLangId(isset($row['lang_id']) ? (int) $row['lang_id'] : null)
                ->setTitle(isset($row['title']) ? $row['title'] : '')
                ->setDescription(isset($row['description']) ? $row['description'] : '')
+               ->setOrganizer(isset($row['organizer']) ? $row['organizer'] : '')
                ->setLink(isset($row['link']) ? $row['link'] : '')
                ->setLocationName(isset($row['location_name']) ? $row['location_name'] : '')
                ->setLatitude(isset($row['latitude']) && $row['latitude'] !== null ? (float) $row['latitude'] : null)
@@ -111,6 +114,16 @@ final class EventService
     }
 
     /**
+     * Returns the last inserted event id
+     *
+     * @return int
+     */
+    public function getLastId()
+    {
+        return (int) $this->mapper->getLastId();
+    }
+
+    /**
      * Fetches events with coordinates for map rendering
      *
      * @param array $filters
@@ -126,12 +139,12 @@ final class EventService
      * Creates an event on behalf of a regular member.
      *
      * @param int $userId Acting member id
-     * @param array $data Form payload
+     * @param array $input Raw form payload: ['event' => [...], 'translation' => [...]]
      * @throws InvalidArgumentException If required fields are missing or invalid
      * @throws RuntimeException If the insert fails
      * @return int New event id
      */
-    public function createForUser($userId, array $data)
+    public function createForUser($userId, array $input)
     {
         $userId = (int) $userId;
 
@@ -139,20 +152,20 @@ final class EventService
             throw new InvalidArgumentException('A valid user id is required to create an event');
         }
 
-        $prepared = $this->preparePayload($data);
+        $base = $this->preparePayload($input);
 
-        $prepared['creator_id'] = $userId;
-        $prepared['status'] = self::STATUS_PENDING;
-        $prepared['rejection_reason'] = null;
-        $prepared['created_at'] = date('Y-m-d H:i:s');
+        $base['creator_id'] = $userId;
+        $base['status'] = self::STATUS_PENDING;
+        $base['rejection_reason'] = null;
+        $base['created_at'] = date('Y-m-d H:i:s');
 
-        $ok = $this->mapper->insertEvent($prepared);
+        $ok = $this->mapper->saveEntity($base, $this->extractTranslations($input));
 
         if (!$ok) {
             throw new RuntimeException('Failed to create the event');
         }
 
-        return (int) $this->mapper->getLastId();
+        return $this->getLastId();
     }
 
     /**
@@ -163,45 +176,43 @@ final class EventService
      * They are published immediately, without moderation, and never
      * appear in any member's "My events" list.
      *
-     * Editing an existing event does not change its author — see update().
-     *
-     * @param array $data Form payload
+     * @param array $input Raw form payload
      * @throws InvalidArgumentException If required fields are missing or invalid
      * @throws RuntimeException If the insert fails
      * @return int New event id
      */
-    public function createByAdmin(array $data)
+    public function createByAdmin(array $input)
     {
-        $prepared = $this->preparePayload($data);
+        $base = $this->preparePayload($input);
 
-        $prepared['creator_id'] = null;
-        $prepared['status'] = self::STATUS_APPROVED;
-        $prepared['rejection_reason'] = null;
-        $prepared['created_at'] = date('Y-m-d H:i:s');
+        $base['creator_id'] = null;
+        $base['status'] = self::STATUS_APPROVED;
+        $base['rejection_reason'] = null;
+        $base['created_at'] = date('Y-m-d H:i:s');
 
-        $ok = $this->mapper->insertEvent($prepared);
+        $ok = $this->mapper->saveEntity($base, $this->extractTranslations($input));
 
         if (!$ok) {
             throw new RuntimeException('Failed to create the event');
         }
 
-        return (int) $this->mapper->getLastId();
+        return $this->getLastId();
     }
 
     /**
-     * Updates an existing event.
+     * Updates an existing event and its translations.
      *
      * The author is never rewritten here: an event created by a member
      * keeps its creator_id even when an administrator edits it.
      *
      * @param int $id Event id
-     * @param array $data Form payload
+     * @param array $input Raw form payload
      * @param int $actorId Acting user id
      * @param bool $isAdmin Whether the actor is an administrator
      * @throws InvalidArgumentException If the event does not exist or the actor has no access
      * @return bool
      */
-    public function update($id, array $data, $actorId, $isAdmin)
+    public function update($id, array $input, $actorId, $isAdmin)
     {
         $id = (int) $id;
         $existing = $this->mapper->findByPk($id);
@@ -214,18 +225,21 @@ final class EventService
             throw new InvalidArgumentException('You are not allowed to edit this event');
         }
 
-        $prepared = $this->preparePayload($data);
+        $base = $this->preparePayload($input);
+        $base['id'] = $id;
 
         if ($isAdmin && $existing['status'] === self::STATUS_REJECTED) {
-            $prepared['status'] = self::STATUS_APPROVED;
-            $prepared['rejection_reason'] = null;
+            $base['status'] = self::STATUS_APPROVED;
+            $base['rejection_reason'] = null;
         }
 
-        return $this->mapper->updateEvent($id, $prepared);
+        return $this->mapper->saveEntity($base, $this->extractTranslations($input));
     }
 
     /**
      * Approves a pending event.
+     *
+     * Touches base columns only — content is never rewritten by moderation.
      *
      * @param int $id Event id
      * @throws InvalidArgumentException If the event does not exist
@@ -280,6 +294,8 @@ final class EventService
     /**
      * Deletes an event.
      *
+     * Translations and analytics rows go with it via ON DELETE CASCADE.
+     *
      * @param int $id Event id
      * @param int $actorId Acting user id
      * @param bool $isAdmin Whether the actor is an administrator
@@ -303,14 +319,62 @@ final class EventService
     }
 
     /**
-     * Returns a single event by id as an entity, or false when not found.
+     * Fetches an event by id, optionally with every translation row.
+     *
+     * With $withTranslations = true, returns an array of entities
+     * (one per language) for the edit form. Otherwise returns a
+     * single entity for the active language.
      *
      * @param int $id
-     * @return VirtualEntity|bool
+     * @param bool $withTranslations
+     * @return EventEntity|array|bool
+     */
+    public function fetchById($id, $withTranslations = false)
+    {
+        if ($withTranslations == true) {
+            $rows = $this->mapper->fetchById((int) $id, true);
+
+            return empty($rows) ? false : $this->toEntities($rows);
+        }
+
+        $row = $this->mapper->fetchById((int) $id, false);
+
+        return $row === false ? false : $this->toEntity($row);
+    }
+
+    /**
+     * Same as fetchById(), restricted to the owner.
+     *
+     * @param int $id
+     * @param int $memberId
+     * @param bool $withTranslations
+     * @return EventEntity|array|bool
+     */
+    public function fetchByIdForOwner($id, $memberId, $withTranslations = false)
+    {
+        $row = $this->mapper->findByPk((int) $id);
+
+        if ($row === false) {
+            return false;
+        }
+
+        if ((int) $row['creator_id'] !== (int) $memberId) {
+            return false;
+        }
+
+        return $this->fetchById($id, $withTranslations);
+    }
+
+    /**
+     * Returns a single event with content and author for the active
+     * language, or false when not found or not translated.
+     *
+     * @param int $id
+     * @return EventEntity|bool
      */
     public function findById($id)
     {
-        $row = $this->mapper->findByPk((int) $id);
+        $row = $this->mapper->fetchRichById((int) $id);
 
         return $row === false ? false : $this->toEntity($row);
     }
@@ -320,11 +384,11 @@ final class EventService
      *
      * @param int $id
      * @param int $memberId
-     * @return VirtualEntity|bool
+     * @return EventEntity|bool
      */
     public function findByIdForOwner($id, $memberId)
     {
-        $row = $this->mapper->findByPk((int) $id);
+        $row = $this->mapper->fetchRichById((int) $id);
 
         if ($row === false) {
             return false;
@@ -428,23 +492,34 @@ final class EventService
     }
 
     /**
-     * Validates and normalizes the event form payload.
+     * Returns the translation block as posted.
      *
-     * @param array $data
+     * No normalization: the form posts translation[<langId>][lang_id]
+     * itself, and saveEntity() writes every row it is given.
+     *
+     * @param array $input
+     * @return array
+     */
+    private function extractTranslations(array $input)
+    {
+        return isset($input['translation']) && is_array($input['translation'])
+            ? $input['translation']
+            : [];
+    }
+
+    /**
+     * Validates and normalizes the shared base payload.
+     *
+     * Content fields are not handled here — they are forwarded to
+     * the mapper as posted.
+     *
+     * @param array $input
      * @throws InvalidArgumentException If required fields are missing or invalid
      * @return array
      */
-    private function preparePayload(array $data)
+    private function preparePayload(array $input)
     {
-        $title = isset($data['title']) ? trim((string) $data['title']) : '';
-
-        if ($title === '') {
-            throw new InvalidArgumentException('The event title is required');
-        }
-
-        if (mb_strlen($title) > self::MAX_TITLE_LENGTH) {
-            throw new InvalidArgumentException('The event title is too long');
-        }
+        $data = isset($input['event']) && is_array($input['event']) ? $input['event'] : [];
 
         $locationName = isset($data['location_name']) ? trim((string) $data['location_name']) : '';
 
@@ -495,8 +570,6 @@ final class EventService
         }
 
         return [
-            'title' => $title,
-            'description' => isset($data['description']) ? (string) $data['description'] : null,
             'link' => $link === '' ? null : $link,
             'location_name' => $locationName,
             'latitude' => $latitude,
