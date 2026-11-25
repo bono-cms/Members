@@ -282,7 +282,6 @@ Three assets, all auto-initializing on DOM ready:
 |---------------------|---------------------------|--------------------------------|
 | `event-form.js`     | `[data-event-form]`       | Map URL parser + validation gate |
 | `event-analytics.js`| `[data-event-analytics]`  | Chart.js renderer               |
-| `event-map.js`      | `[data-event-map]` / `[data-event-location-map]` | Leaflet maps |
 
 Include after jQuery 3.x:
 
