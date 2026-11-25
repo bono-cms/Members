@@ -1,13 +1,16 @@
 <?php
+
 /**
  * This file is part of the Bono CMS
  *
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code
  */
+
 namespace Members\View\Widget;
 
 use Krystal\Application\InputInterface;
+use Krystal\Date\TimeHelper;
 use Krystal\InstanceManager\DependencyInjectionContainerInterface;
 use Krystal\Widget\WidgetInterface;
 
@@ -65,13 +68,8 @@ final class EventsMapWidget implements WidgetInterface
      * @param int $defaultHeight Default map container height
      * @return void
      */
-    public function __construct(
-        array $mapPoints,
-        $defaultLatitude,
-        $defaultLongitude,
-        $defaultZoom = 10,
-        $defaultHeight = 420
-    ) {
+    public function __construct(array $mapPoints, $defaultLatitude, $defaultLongitude, $defaultZoom = 10, $defaultHeight = 420)
+    {
         $this->mapPoints = $mapPoints;
         $this->defaultLatitude = (float) $defaultLatitude;
         $this->defaultLongitude = (float) $defaultLongitude;
@@ -90,6 +88,9 @@ final class EventsMapWidget implements WidgetInterface
     {
         $urlBuilder = $container->get('urlBuilder');
         $translator = $container->get('translator');
+        $appConfig = $container->get('appConfig');
+
+        $locale = $appConfig->getLanguage();
         $viewEventLabel = $translator->translate('View event');
 
         $markers = [];
@@ -113,7 +114,7 @@ final class EventsMapWidget implements WidgetInterface
             $markers[] = [
                 'lat' => (float) $point['latitude'],
                 'lng' => (float) $point['longitude'],
-                'description' => $this->buildPopupHtml($point, $eventUrl, $viewEventLabel),
+                'description' => $this->buildPopupHtml($point, $eventUrl, $viewEventLabel, $locale),
                 'popup' => false,
             ];
         }
@@ -135,13 +136,15 @@ final class EventsMapWidget implements WidgetInterface
      * @param array $point Raw map point row
      * @param string $eventUrl
      * @param string $viewEventLabel
+     * @param string $locale
      * @return string
      */
-    private function buildPopupHtml(array $point, $eventUrl, $viewEventLabel)
+    private function buildPopupHtml(array $point, $eventUrl, $viewEventLabel, $locale)
     {
         $locationHtml = '';
+
         if (!empty($point['location_name'])) {
-            $locationName = htmlspecialchars((string) $point['location_name'], ENT_QUOTES, 'UTF-8');
+            $locationName = htmlspecialchars((string) $point['location_name']);
             $locationHtml = <<<HTML
 <div class="d-flex align-items-center gap-1 text-body-secondary">
 <i class="bi bi-geo-alt flex-shrink-0" aria-hidden="true"></i>
@@ -150,14 +153,17 @@ final class EventsMapWidget implements WidgetInterface
 HTML;
         }
 
-        $title = htmlspecialchars((string) (isset($point['title']) ? $point['title'] : ''), ENT_QUOTES, 'UTF-8');
+        $title = htmlspecialchars((string) (isset($point['title']) ? $point['title'] : ''));
 
         $dateTime = '';
+
         if (!empty($point['starts_at'])) {
             $timestamp = strtotime($point['starts_at']);
+
             if ($timestamp !== false) {
-                $date = date('M j, Y', $timestamp);
-                $time = date('H:i', $timestamp);
+                $date = TimeHelper::formatLocalized($point['starts_at'], $locale, 'MMM d, y');
+                $time = TimeHelper::formatLocalized($point['starts_at'], $locale, 'HH:mm');
+
                 // Hide time if it's midnight (matches EventEntity logic)
                 if ($time === '00:00') {
                     $dateTime = $date;
@@ -166,7 +172,8 @@ HTML;
                 }
             }
         }
-        $dateTime = htmlspecialchars($dateTime, ENT_QUOTES, 'UTF-8');
+
+        $dateTime = htmlspecialchars($dateTime);
 
         return <<<HTML
 <div class="d-flex flex-column gap-1 small">
