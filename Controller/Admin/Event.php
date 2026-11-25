@@ -47,7 +47,7 @@ final class Event extends AbstractController
             $filters['status'] = $statusFilter;
         }
 
-        $events = $eventService->fetchAllForAdmin($pageNumber, $this->getSharedPerPageCount(), $filters);
+        $events = $eventService->fetchAllForAdmin($pageNumber, 15, $filters);
 
         return $this->view->render('events', [
             'events'          => $events,
