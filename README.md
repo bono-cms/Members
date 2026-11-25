@@ -1,40 +1,32 @@
 # Members module
 
-This module provides a shared membership system for your site: member
-accounts, authentication, profiles, a public directory, tags, optional
-profile moderation, 1-to-1 private messaging, and a full events system
-with analytics. It ships both a server-rendered site area (Bootstrap 5
-templates) and a JSON API (JWT) for mobile apps and SPAs. Other modules
-that need "a logged-in user" build on top of it.
+Membership system for Bono CMS: member accounts, authentication, profiles,
+a public directory, tags, optional profile moderation, 1-to-1 private
+messaging, and an events extension with analytics. Ships a server-rendered
+site area (Bootstrap 5) and a JSON API (JWT) for mobile apps and SPAs.
 
 # Contents
 
 - [Requirements](#requirements)
 - [Configuration](#configuration)
 - [Features](#features)
-- [How it works](#how-it-works)
-- [Routes](#routes)
+- [Site pages](#site-pages)
+- [Administration](#administration)
 - [Templates](#templates)
-- [Services](#services)
-- [URL generation](#url-generation)
+- [Events JavaScript](#events-javascript)
 - [API](#api)
 - [Localization](#localization)
 - [Data and storage](#data-and-storage)
-- [Events JavaScript](#events-javascript)
-- [Notes](#notes)
 - [Known limitations](#known-limitations)
 
 # Requirements
 
-- Bono CMS with the `Cms` module loaded (the module uses its language
-  manager and mailer)
-- A working mailer configured in the `Cms` module (registration and
-  recovery emails)
-- For the bundled templates: Bootstrap 5 and Bootstrap Icons on the page.
-  For the bundled chat script: jQuery 3.x
-- For the events analytics charts: Chart.js 4.x (loaded from CDN)
-- For the events maps: Leaflet 1.9.4, plus Leaflet.markercluster 1.5.3 for
-  the catalog map
+- Bono CMS with the `Cms` module loaded (language manager, mailer)
+- A working mailer in the `Cms` module (registration and recovery emails)
+- Bootstrap 5 and Bootstrap Icons on the page (bundled templates)
+- jQuery 3.x (bundled chat and event scripts)
+- Chart.js 4.x from CDN (event analytics charts)
+- Leaflet 1.9.4 + Leaflet.markercluster 1.5.3 (event maps)
 
 # Configuration
 
@@ -45,55 +37,29 @@ Everything lives in `Config/module.config.php`.
 ```php
 'moderation' => [
     'enabled' => true,
-    'fields' => [
+    'fields'  => [
         'reserved'     => ['id', 'password', 'remove_avatar', 'email'],
         'skip'         => ['phone', 'password'],
         'translatable' => ['bio', 'title', 'name'],
-        'base'         => ['address', 'avatar', 'company']
-    ]
-]
+        'base'         => ['address', 'avatar', 'company'],
+    ],
+],
 ```
 
-| Key            | Meaning                                                                          |
-|----------------|----------------------------------------------------------------------------------|
-| `enabled`      | Master switch. When `false`, every profile edit is applied immediately.          |
-| `reserved`     | Fields that never enter the pipeline at all.                                     |
-| `skip`         | Base fields applied immediately even when moderation is on.                      |
-| `translatable` | Translated fields (per language) that are staged for review.                     |
-| `base`         | Base (non-translated) fields that are staged for review.                         |
+| Key            | Meaning                                                        |
+|----------------|----------------------------------------------------------------|
+| `enabled`      | Master switch. When `false`, every profile edit applies immediately. |
+| `reserved`     | Fields that never enter the pipeline.                          |
+| `skip`         | Base fields applied immediately even when moderation is on.    |
+| `translatable` | Translated fields staged for review.                           |
+| `base`         | Base fields staged for review.                                 |
 
-Important details:
+With the default config, `phone` and `country` apply immediately;
+`address`, `company`, `avatar`, `name`, `title` and `bio` are staged for
+admin approval. The email and password are never editable through the
+profile form.
 
-- Which fields a member may write at all is **hard-coded** in
-  `ProfileChangeService`: base fields `phone`, `address`, `country`,
-  `company`, `avatar`, and translation fields `name`, `title`, `bio`.
-  Anything else submitted is silently dropped. The config buckets only
-  decide whether an allowed field is staged or applied immediately; they
-  cannot add new writable fields.
-- With the default config, `phone` and `country` are applied immediately
-  (they are not in a staged bucket); `address`, `company`, `avatar`,
-  `name`, `title` and `bio` are staged.
-- The email address and the password cannot be changed through the profile
-  form. The password has its own path and never goes through moderation.
-- This pipeline covers **member profiles only**. Event content is never
-  staged field-by-field; the whole event goes through moderation as a unit
-  (see [Events](#events)).
-
-## API
-
-```php
-'api' => [
-    'jwt_secret' => 'REPLACE-ME-with-a-long-random-string-at-least-32-chars',
-    'jwt_ttl'    => 604800 // seconds, 7 days
-]
-```
-
-If `jwt_secret` is empty, every protected API request is rejected with
-`401`. If it is left as the shipped placeholder, every token is forgeable.
-The secret is read from the module config only; there is no environment
-variable support.
-
-## Events
+## Events extension
 
 ```php
 'extensions' => [
@@ -104,2413 +70,683 @@ variable support.
 ],
 ```
 
-| Key            | Meaning                                                                                          |
-|----------------|--------------------------------------------------------------------------------------------------|
-| `enabled`      | Master switch for the Events extension. When `false`, all event routes, menu items and dashboard widgets are hidden. |
-| `ip_hash_salt` | Salt used to hash visitor IPs for analytics deduplication. The raw IP is never stored — only `SHA1(ip + salt)`. Replace with a long random string in production. |
+| Key            | Meaning                                                        |
+|----------------|----------------------------------------------------------------|
+| `enabled`      | Master switch for the events feature.                          |
+| `ip_hash_salt` | Salt for analytics deduplication. Replace in production.       |
+
+## API
+
+```php
+'api' => [
+    'jwt_secret' => 'REPLACE-ME-with-a-long-random-string-at-least-32-chars',
+    'jwt_ttl'    => 604800, // 7 days
+],
+```
+
+Replace `jwt_secret` before enabling the API. If it's empty or left as the
+placeholder, every protected request is rejected or every token is forgeable.
 
 # Features
 
-## General features
+## Members
 
-- Session-based login for the site, JWT-based login for the API
 - Registration with email confirmation
+- Login / logout (session-based for the site, JWT for the API)
 - Password recovery by email
-- Editable member profiles with avatar, title, company, country and bio
-- Public member directory with filtering by country, company and tags
-- Tag system, grouped for the member-facing picker
-- Optional profile moderation (approve / reject edits before they go live)
-- 1-to-1 private chat with unread counts and an inbox
-- Full administration panel: members, tags, pending changes, change history
-- Translatable member data (`name`, `title`, `bio`), tags, tag groups and
-  event content (`title`, `description`, `organizer`), via the `Cms`
-  language manager
-- Events system with creation, moderation, analytics and a public catalog
-
-## Member features
-
-- Confirmed and unconfirmed accounts. Unconfirmed accounts can log in, edit
-  their profile and use chat, but do not appear in the public directory and
-  have no public profile page. They cannot use password recovery.
-- Avatar with several pre-rendered sizes (64×64, 128×128, 256×256)
-- Translatable `name`, `title` and `bio`
-- Self-selected tags inside admin-defined tag groups
-- Personal dashboard with profile summary
-- After a forced login the member is sent back to the page they originally
-  requested
-- Change history visible to administrators
-
-## Chat features
-
-- Direct (1-to-1) conversations, resolved by member pair
-- Message inbox sorted by most recent activity
-- Unread message counter, per conversation and across all conversations
-- Idempotent message sending (a retried send with the same `client_id`
-  does not duplicate)
-- Soft-deleted messages show as a tombstone
-- Polling-based delivery, with adaptive intervals
-- Optional "load earlier" pagination (API)
-
-## Directory features
-
-- Paginated, filterable list of confirmed members, in random order by
-  default
-- Filter by country (ISO 3166-1 alpha-2)
-- Filter by company (exact match)
-- Filter by tags (any-of semantics)
-- Web only: restrict to a set of member ids with `member_ids[]`
-- Public profile pages per member, with tags grouped by tag group
-
-## Administration features
-
-- Member grid with pagination (unconfirmed members are highlighted)
-- Create members manually, edit, delete
-- View full change history per member
-- Review pending profile changes with an old/new diff and a preview of
-  staged avatars
-- Manage tag groups and tags, with translations and an active/inactive flag
-- Deleting a member also removes their avatar files, translations, profile
-  change submissions, tag selections and conversation participations
-  (see [Notes](#notes) for what happens to their messages and events)
-
-## Events features
-
-### General
-
-- Create, edit and delete events with a translatable title, description and
-  organizer, plus a shared registration link, location and schedule
-- Per-language content: fill one language or all of them. A language left
-  blank is skipped, not rejected
-- Parse map URLs from Google Maps, Yandex Maps, OpenStreetMap and 2GIS to
-  extract coordinates
-- Manual coordinate entry as a fallback when URL parsing fails
-- Three event statuses: `pending`, `approved`, `rejected`
-- Optional end time for multi-hour or multi-day events
-- Past-event detection based on `ends_at` (falls back to `starts_at` when
-  no end time is set)
-
-### Member-facing
-
-- Paginated public catalog of approved events with date badges and location
-- Detail page with full event information, organizer and a "Sign up" button
-- "My events" dashboard in the member cabinet with KPI summary (total
-  views, clicks, conversion)
-- Untranslated events stay listed in "My events" with a *Not translated*
-  badge, so the author can open and complete them
-- Detailed per-event analytics: 14-day trend chart, traffic sources pie
-  chart
-- Member-created events go through moderation before appearing in the
-  catalog
-
-### Administrative
-
-- Admin grid with status filters (pending / approved / rejected) and
-  status breakdown badges
-- Untranslated events remain in the grid with a *Not translated* badge
-  rather than disappearing, so they can always be fixed
-- Approve or reject pending events with an optional rejection reason
-- Create events on behalf of the association — every admin-created event
-  skips moderation and is published without an author
-- Edit and delete any event regardless of author
-- Global analytics dashboard: KPI cards, status breakdown, top-10 events
-  by views, top-5 authors, 14-day trend chart
-- Per-event analytics with the same shape as the member view
-
-### Analytics
-
-- Views tracked on every detail page load (web and API)
-- Clicks tracked via a redirect endpoint (`/events/:id/go`)
-- Anti-spam deduplication: same `ip_hash` + `event_id` + `type` cannot be
-  recorded more than once per 10 minutes
-- Denormalized `views_count` and `clicks_count` counters on the events
-  table for fast list rendering
-- Daily and per-source breakdowns aggregated on demand
-- Conversion rate computed as `clicks / views * 100`
-- Counters are language-independent: switching language never changes them
-
-## Coming soon
-
-- Group conversations (the schema and mappers are already prepared)
-- Message edit / delete / reply endpoints (service and storage support
-  exist, no route exposes them yet)
-- Roles and permissions rework
-- Notification system
-- Profile approvals toggle per member
-- Gamification hooks
-
-# How it works
-
-## Registration and confirmation
-
-1. The visitor posts `translation[<langId>][name]`, `member[email]` and
-   `member[password]`. Email must be unique, password at least 6
-   characters, name at least 2.
-2. The member is created **unconfirmed** and **unsubscribed**, with a fresh
-   activation key, and a confirmation email is sent. The web registration
-   logs (but does not surface) a mail failure.
-3. The link in the email points at the **web** route
-   `Members:Register@confirmAction`; there is no confirmation endpoint in
-   the API.
-4. A logged-in, unconfirmed member can request a new email through
-   `Members:Register@resendAction` (web) or
-   `POST /api/v1/members/register/resend` (API).
-
-## Login and password recovery
-
-- Login is by **email** and password. (The form field is named
-  `identifier`.)
-- Recovery sends a link to the account's email. The response is identical
-  whether or not the email exists, to prevent account enumeration.
-- Opening the link **immediately resets the password** to a random
-  8-character value and displays it on the page; the member then changes it
-  from their profile. Only confirmed accounts can be recovered.
-
-## Profile editing and moderation
-
-A profile edit (`Members:Profile@updateAction`, `POST /api/v1/members/me/update`)
-is processed field by field:
-
-1. Fields outside the writable allow-list are dropped.
-2. Fields whose value did not change are ignored.
-3. With moderation **off**, the rest is applied immediately.
-4. With moderation **on**, fields in the `base` / `translatable` buckets are
-   staged as a single submission holding both the old and the new value of
-   every field; the others are applied immediately.
-
-The member sees one of three messages: *"Your profile has been updated."*,
-*"Your changes were submitted for review."* or *"Some changes were applied
-immediately; the rest are pending review."*
-
-An administrator approves or rejects each submission (rejection takes an
-optional reason). Approval applies the staged fields in a transaction;
-rejection applies nothing and discards a staged avatar file. A member may
-have several pending submissions at once; submitting again never replaces
-an earlier one.
-
-Staged avatars are stored in `/data/uploads/module/members/pending/` and
-moved into the live avatar store on approval.
-
-Edits made by an administrator in the admin form are written directly, bypass
-moderation, and do not appear in the change history.
-
-The tag selection is a direct write (never moderated), in both the web form
-and the API. Submitted tag ids are sanitized against the set of **active**
-tags.
-
-## Languages and translations
-
-`name`, `title` and `bio` are stored per language. Public reads (directory,
-public profile, inbox) use an inner join on the active language, so a member
-only appears for a language in which a translation row exists. A member
-who registered only in the default language will not be listed when the
-directory is requested in another language. The same applies to tags and
-tag groups. Reading *your own* profile falls back to the base row when no
-translation exists (name becomes empty and the display name falls back to
-the email).
-
-Web translation forms post `translation[<langId>][...]`. The API additionally
-accepts `translation[<languageCode>][...]` and, on profile update, keeps only
-the language selected by `?lang=`.
-
-### Event content
-
-Event `title`, `description` and `organizer` live in
-`bono_module_members_events_translations`. Everything else on an event —
-schedule, place, coordinates, link, status, counters — is shared across
-languages.
-
-The join type is chosen per listing, deliberately:
-
-| Read path                          | Join    | Untranslated event                        |
-|------------------------------------|---------|-------------------------------------------|
-| Public catalog (`fetchApproved`)   | `INNER` | hidden                                    |
-| Public map (`fetchMapPoints`)      | `INNER` | hidden                                    |
-| Public detail / click (web + API)  | `LEFT` + explicit guard | `404`                     |
-| Admin grid (`fetchAllForAdmin`)    | `LEFT`  | listed, flagged *Not translated*          |
-| My events (`fetchByCreatorId`)     | `LEFT`  | listed, flagged *Not translated*          |
-| Top events ranking                 | `INNER` | excluded                                  |
-
-The `LEFT JOIN` on the two management listings is a deliberate departure
-from `MemberMapper`, which inner-joins everywhere: an event hidden from the
-admin grid would be impossible to repair. In those listings the title is
-`NULL`, and `EventEntity::getDisplayTitle()` renders `#<id>` instead.
-
-Because content is per language, an event created only in Russian is
-invisible to a visitor browsing in Uzbek — but it is still fully editable,
-and adding the Uzbek row publishes it there immediately.
-
-## Tags
-
-Tags are organised in groups (`Members:Admin:TagGroup`, `Members:Admin:Tag`).
-Both have a stable `code` (unique), a sort order and translations. A tag also
-has an active flag: deactivating it hides it from the picker, the directory
-filter and public profiles, but keeps the associations, so reactivating it
-restores earlier selections. Deleting a group deletes its tags and every
-member selection of them.
+- Editable profiles: avatar, name, title, company, country, address, bio
+- Translatable profile fields (`name`, `title`, `bio`) per language
+- Optional moderation: profile edits can require admin approval
+- Public member directory, filterable by country, company and tags
+- Public profile pages per confirmed member
+- Tag system with admin-defined groups; members pick their own tags
 
 ## Chat
 
-- A direct conversation is identified by the key `minId:maxId` (unique
-  index), so the same pair always resolves to the same conversation, even
-  under concurrent requests.
-- Message body is trimmed; empty bodies and bodies over 5000 characters are
-  rejected.
-- Sending marks the conversation read for the sender. Fetching a thread or
-  polling marks it read up to the newest returned message. The read cursor
-  never moves backwards.
-- The inbox excludes archived conversations.
-- Page size defaults to 50 messages (maximum 100 in the service; the
-  endpoints do not expose a limit parameter).
-- Message `type` (`text`, `image`, `file`, `system`), `reply_to_id`,
-  edits, soft delete, muting and archiving exist in the schema and the
-  service layer but are not yet reachable from any route.
+- 1-to-1 private messaging with polling-based delivery
+- Inbox sorted by newest activity, unread counters
+- Idempotent sends (safe retry with `client_id`)
+- Soft-deleted messages render as a tombstone
 
 ## Events
 
-### Payload shape
+- Members create events (pending moderation); admins approve / reject
+- Admin-created events are published immediately, on behalf of the
+  association, with no author
+- Translatable event content: title, description, organizer per language
+- Shared fields: registration link, location, coordinates, schedule
+- Optional cover image (400×225, 800×450, 1600×900 + original)
+- Map URL parsing (Google Maps, Yandex, OSM, 2GIS) to extract coordinates
+- Public catalog, detail page with map, click-tracked "Sign up" button
+- Per-event analytics: 14-day trend, traffic sources, conversion rate
+- Global admin dashboard: KPIs, top events, top authors
+- Leaflet map with clustered markers, geolocation and radius filter
 
-Every write path takes the payload split in two:
+# Site pages
 
-```php
-$data = [                       // shared, language-independent
-    'link'            => 'https://...',
-    'location_name'   => 'Business Center',
-    'latitude'        => 41.2995,
-    'longitude'       => 69.2401,
-    'location_source' => 'url',
-    'starts_at'       => '2026-11-22 18:55',
-    'ends_at'         => '2026-11-22 22:00',
-];
+| URL                                    | Page                          | Auth     |
+|----------------------------------------|-------------------------------|----------|
+| `/member/login`                        | Login                         | Guest    |
+| `/member/register`                     | Registration                  | Guest    |
+| `/member/recovery`                     | Password recovery             | Public   |
+| `/member/profile`                      | Member dashboard              | Login    |
+| `/member/profile/edit`                 | Edit profile + tags           | Login    |
+| `/members`                             | Public directory              | Public   |
+| `/member/profile/(:var)`               | Public profile                | Public   |
+| `/member/messages`                     | Chat inbox                    | Login    |
+| `/member/messages/conversation/(:var)` | Chat thread                   | Login    |
+| `/events`                              | Events catalog + map          | Public   |
+| `/events/(:var)`                       | Event detail                  | Public   |
+| `/events/(:var)/go`                    | Click tracker → redirect      | Public   |
+| `/member/events`                       | My events dashboard           | Login    |
+| `/member/events/create`                | Create event form             | Login    |
+| `/member/events/edit/(:var)`           | Edit event form               | Login    |
+| `/member/events/analytics/(:var)`      | Event analytics               | Login    |
 
-$translations = [               // per language, keyed by language id
-    1 => ['title' => 'IT Alliance Breakfast', 'description' => '...', 'organizer' => 'IT Alliance'],
-    2 => ['title' => 'Завтрак IT-альянса',    'description' => '...', 'organizer' => null],
-];
-```
+"Login" = redirected to the login page if not authenticated.
+"Guest" = redirected to the profile if already logged in.
 
-`EventService::preparePayload()` validates the shared half;
-`prepareTranslations()` validates the content half:
-
-- A language row whose title is blank is **skipped**, not rejected. Filling
-  only some of the language tabs is legitimate.
-- At least one row must survive, so an event can never exist without a title
-  in some language. Otherwise `The event title is required` is thrown.
-- `title` is limited to 200 characters, `organizer` to 200. `description` is
-  free text.
-- Keys that cannot be resolved to a language id are dropped. Controllers run
-  the payload through `InputNormalizer::normalizeTranslations()` first, so
-  `translation[en][title]` works as well as `translation[1][title]`.
-- On update, only the languages present in the payload are written. Rows for
-  other languages are left untouched, so a partial edit never wipes content
-  the actor did not see.
-
-### Creation flow
-
-A member submits an event via `Members:Event@storeAction` (web) or
-`POST /api/v1/members/events/store` (API):
-
-1. Both halves of the payload are validated as described above.
-2. Coordinates are resolved from the submitted `latitude` / `longitude`
-   pair. If either is missing or out of range, the event is saved without
-   coordinates.
-3. The base row and its translation rows are written in one
-   `EventMapper::saveEvent()` call, with `status = 'pending'` and
-   `creator_id = <member id>`.
-4. The member is redirected to "My events" with a flash message: *"The
-   event has been created and is pending review."*
-
-An administrator creates an event via `Members:Admin:Event@storeAction`:
-
-1. Same validation and coordinate resolution.
-2. The event is inserted with `status = 'approved'` and `creator_id = NULL`.
-   It is published on behalf of the association, has no author, and appears
-   in the catalog immediately — in every language it was filled in. There is
-   no flag to toggle this; the admin creation path is always authorless.
-
-Editing works differently from creation: `EventService::update()` never
-rewrites `creator_id`, so a member's event keeps its author even when an
-administrator edits it.
-
-### Map URL parsing
-
-The `LocationParser` service accepts a pasted map URL and returns
-`['lat' => float, 'lng' => float, 'source' => 'url']` or `null`. It
-recognises:
-
-- Google Maps: `?q=LAT,LNG`, `/@LAT,LNG,ZOOM`, `/!3dLAT!4dLNG`
-- Yandex Maps: `?pt=LNG,LAT`, `?ll=LNG,LAT`
-- OpenStreetMap: `?mlat=LAT&mlon=LNG`, `#map=ZOOM/LAT/LNG`
-- 2GIS: `?m=LNG,LAT`
-- Generic fallback: any `LAT,LNG` or `LNG,LAT` pair in the URL, with
-  heuristics to disambiguate the order
-
-Short links (`maps.app.goo.gl`, `yandex.com/s/...`, `2gis.com/...`) are
-**not** resolved — they require an HTTP redirect. The user must paste the
-full URL or enter coordinates manually.
-
-### Moderation
-
-Pending events appear in the admin grid with a yellow "Pending" badge and
-a count in the top bar. An administrator can:
-
-- **Approve** — sets `status = 'approved'` and clears `rejection_reason`.
-- **Reject** — sets `status = 'rejected'` and stores an optional reason
-  (up to 500 characters). The reason is shown to the author in "My events".
-
-Moderation acts on the base row only. Approving or rejecting never touches
-translation rows, and there is no per-language approval: an event is
-approved as a whole, in every language it has.
-
-An administrator editing a rejected event automatically resets it to
-`approved` and clears the rejection reason.
-
-### Analytics recording
-
-Views and clicks are recorded through `EventAnalyticsService::recordView()`
-and `recordClick()`. Each call:
-
-1. Verifies the event exists (base row only — no content is needed).
-2. Computes `ip_hash = SHA1(ip + salt)` — the raw IP is never stored.
-3. Checks `hasRecentEvent()` — if the same `ip_hash` recorded the same
-   `type` for the same `event_id` within the last 10 minutes, the call
-   returns `false` and nothing is written.
-4. Inside a transaction: inserts a row into `event_analytics` and
-   increments the denormalized counter on the events table.
-
-When no IP is available (e.g. behind certain proxies), the anti-spam check
-is skipped and the hit is always recorded — counters may be slightly
-inflated, but legitimate hits are never lost.
-
-### Click tracking
-
-The "Sign up" button on both the catalog card and the detail page points at
-`/events/:id/go`. This endpoint:
-
-1. Verifies the event exists, is approved, has a translation for the active
-   language, and has a non-empty `link`.
-2. Records a click via `EventAnalyticsService::recordClick()`.
-3. Issues a 302 redirect to the event's `link`.
-
-If the event has no `link`, the endpoint returns 404 and the button is not
-rendered in the template.
-
-# Routes
-
-## Site (web)
-
-| URL                                    | Action                       | Guard        |
-|----------------------------------------|------------------------------|--------------|
-| `/member/login`                        | `Auth@indexAction`           | guest only   |
-| `/member/login/submit`                 | `Auth@loginAction`           | guest only   |
-| `/member/logout`                       | `Auth@logoutAction`          | login        |
-| `/member/register`                     | `Register@indexAction`       | guest only   |
-| `/member/register/submit`              | `Register@saveAction`        | guest only   |
-| `/member/register/success`             | `Register@successAction`     | guest only   |
-| `/member/register/confirm/(:var)`      | `Register@confirmAction`     |              |
-| `/member/register/resend`              | `Register@resendAction`      | login        |
-| `/member/recovery`                     | `Recovery@indexAction`       |              |
-| `/member/recovery/process`             | `Recovery@processAction`     | guest only   |
-| `/member/recovery/success`             | `Recovery@successAction`     |              |
-| `/member/recovery/confirm/(:var)`      | `Recovery@resetAction`       |              |
-| `/member/profile`                      | `Profile@indexAction`        | login        |
-| `/member/profile/edit`                 | `Profile@editAction`         | login        |
-| `/member/profile/update`               | `Profile@updateAction`       | login        |
-| `/members`                             | `Directory@indexAction`      |              |
-| `/member/profile/(:var)`               | `Directory@profileAction`    |              |
-| `/member/messages`                     | `Chat@inboxAction`           | login        |
-| `/member/messages/with/(:var)`         | `Chat@withAction`            | login        |
-| `/member/messages/conversation/(:var)` | `Chat@conversationAction`    | login        |
-| `/member/messages/send`                | `Chat@sendAction`            | login        |
-| `/member/messages/poll`                | `Chat@pollAction`            | login        |
-| `/events`                              | `Event@catalogAction`        |              |
-| `/events/(:var)/go`                    | `Event@clickAction`          |              |
-| `/events/(:var)`                       | `Event@viewAction`           |              |
-| `/member/events`                       | `Event@indexAction`          | login        |
-| `/member/events/create`                | `Event@createAction`         | login        |
-| `/member/events/store`                 | `Event@storeAction`          | login        |
-| `/member/events/edit/(:var)`           | `Event@editAction`           | login        |
-| `/member/events/update/(:var)`         | `Event@updateAction`         | login        |
-| `/member/events/delete/(:var)`         | `Event@deleteAction`         | login        |
-| `/member/events/analytics/(:var)`      | `Event@analyticsAction`      | login        |
-| `/member/events/parse-location`        | `Event@parseLocationAction`  | login        |
-
-"login" means `AuthRequiredMiddleware` (redirects to the login page and
-remembers the requested URI; also logs out sessions whose member row was
-deleted). "guest only" means `GuestOnlyMiddleware` (redirects logged-in
-members to their profile). Always generate URLs through the action names
-(see [URL generation](#url-generation)) rather than hard-coding paths.
-
-Site forms are submitted by the theme's AJAX handler and answered with JSON
-directives, always with HTTP 200: `{ "errors": ... }`, `{ "redirect": "..." }`
-or `{ "refresh": true }`. The web chat endpoints answer `{ "error": "..." }`
-(also HTTP 200) on failure.
-
-## Administration
+# Administration
 
 All under `/<admin>/module/members`:
 
-| Path                                  | Action                      |
-|---------------------------------------|-----------------------------|
-| ``                                    | Member grid                 |
-| `/add`, `/edit/(:var)`, `/save`, `/delete/(:var)` | Create / edit / delete a member |
-| `/history/(:var)`                     | Change history of a member  |
-| `/changes`                            | Pending changes             |
-| `/changes/approve/(:var)`, `/changes/reject/(:var)` | Review a submission (POST) |
-| `/tags`, `/tags/add`, `/tags/edit/(:var)`, `/tags/save`, `/tags/delete/(:var)` | Tag groups |
-| `/tags/group/(:var)`, `/tags/group/(:var)/add` | Tags of a group    |
-| `/tags/tag/edit/(:var)`, `/tags/tag/save`, `/tags/tag/delete/(:var)` | Edit a tag |
-| `/events`, `/events/create`, `/events/store`, `/events/edit/(:var)`, `/events/update/(:var)`, `/events/delete/(:var)` | Create / edit / delete an event |
-| `/events/approve/(:var)`, `/events/reject/(:var)` | Moderate an event (POST) |
-| `/events/analytics`                   | Global analytics dashboard  |
-| `/events/analytics/(:var)`            | Per-event analytics         |
-| `/events/parse-location`              | AJAX map URL parser         |
-
-The admin menu entries are *View all members*, *Review pending changes*,
-*Manage tags* and *Events*.
+| Path                     | Purpose                              |
+|--------------------------|--------------------------------------|
+| `/`                      | Members grid                         |
+| `/add`, `/edit/(:var)`   | Create / edit a member               |
+| `/changes`               | Review pending profile changes       |
+| `/history/(:var)`        | Change history for a member          |
+| `/tags`                  | Tag groups                           |
+| `/tags/group/(:var)`     | Tags inside a group                  |
+| `/events`                | Events grid                          |
+| `/events/create`         | Create an association event          |
+| `/events/edit/(:var)`    | Edit any event                       |
+| `/events/analytics`      | Global analytics dashboard           |
+| `/events/analytics/(:var)` | Per-event analytics               |
 
 # Templates
 
-The module ships a complete set of Bootstrap 5 templates in
-`View/Template/site/`, wrapped by `__layout__.phtml`. Email bodies live in
-`View/Template/messages/`. The filenames below are the ones the controllers
-look up.
+The module ships templates in `View/Template/site/` (wrapped by
+`__layout__.phtml`) and `View/Template/admin/`. Email bodies live in
+`View/Template/messages/`. Override any of them in your theme.
 
 ## Variables available in every site template
 
-Controllers add these to every page rendered on a GET request:
-
 ```
-$languages            // Language entities (active languages)
+$languages            // Active language entities
 $isLoggedIn           // bool
-$meId                 // int, current member id (0 when logged out)
-$unreadMessagesCount  // int, unread messages across all conversations
+$meId                 // Current member id (0 when logged out)
+$unreadMessagesCount  // Unread messages across conversations
 ```
 
-Each page also receives a `$page` entity (title and SEO metadata). The layout
-reads `$page->getTitle()`, `getMetaDescription()`, `getMetaKeywords()` and
-`getSeo()`, and expects a `$csrfToken` (emitted as a `csrf-token` meta tag,
-which the chat script reads).
+`$languages` is also available in every admin template.
 
-`$languages` is also available in every admin template, which is what the
-multilingual event and tag forms iterate over.
+## MemberEntity helpers
 
-Note on the name `$member`: the `SiteBootstrapper` registers a **global**
-`$member` (a `SiteService`, see [Services](#services)). The module's own
-pages that deal with a member (dashboard, profile edit, public profile,
-directory rows) override `$member` with a `MemberEntity`.
-
-## Member login template
-
-`member-login.phtml`. Receives `$page`. The form posts two fields:
-`identifier` (the email address) and `password`.
-
-## Member registration template
-
-`member-register-form.phtml`. Receives `$page` and `$defaultLangId`. The form
-posts `translation[<defaultLangId>][name]`, `member[email]` and
-`member[password]`. On success the visitor is redirected to
-`member-register-success.phtml` and a confirmation email is sent.
-
-## Confirmation, recovery and success pages
-
-| Template                          | Variables                                         |
-|-----------------------------------|---------------------------------------------------|
-| `member-register-success.phtml`   | `$page`                                           |
-| `member-confirmation.phtml`       | `$page`, `$confirmed` (bool)                      |
-| `member-recovery-form.phtml`      | `$page`; posts `email`                            |
-| `member-recovery-success.phtml`   | `$page`                                           |
-| `member-recovery-reset.phtml`     | `$page`, `$password` (the new password, or `false` when the key is invalid) |
-
-Email templates (`messages/register.phtml` receives `$name` and `$link`;
-`messages/recovery-confirm.phtml` receives `$link`).
-
-## Member profile (dashboard) template
-
-`member-dashboard.phtml`. Receives:
-
-```
-$member       // MemberEntity of the logged-in member
-$tagGroups    // The member's selected tags, grouped by tag group
-$page         // Page entity
-```
-
-The `$member` entity provides:
-
-```
+```php
 $member->getId();
 $member->getName();
-$member->getDisplayName();   // name, else email, else "#<id>"
+$member->getDisplayName();       // name → email → "#<id>"
 $member->getEmail();
 $member->getPhone();
 $member->getCompany();
-$member->getCountry();       // ISO 3166-1 alpha-2 code
-$member->getCountryName();   // human-readable name, or null
+$member->getCountry();           // ISO 3166-1 alpha-2
+$member->getCountryName();       // human-readable, or null
 $member->getAddress();
 $member->getTitle();
 $member->getBio();
 $member->getConfirmed();
-$member->getSubscriber();
-$member->getCreatedAt();
 $member->hasAvatar();
-$member->getAvatarUrl('256x256'); // 64x64, 128x128, 256x256 are generated
+$member->getAvatarUrl('256x256');
 ```
 
-`MemberEntity` also defines the constants `AVATAR_THUMB` (`64x64`),
-`AVATAR_SMALL` (`256x256`) and `AVATAR_PROFILE` (`256x256`).
+Avatar size constants: `AVATAR_THUMB` (`64x64`), `AVATAR_SMALL` (`256x256`),
+`AVATAR_PROFILE` (`256x256`).
 
-## Member profile edit template
-
-`member-profile.phtml`. It combines the editable profile fields and the tag
-picker in a single form. It receives:
-
-```
-$member       // Array of translation entities (one per language), or one entity
-$pending      // Pending submissions of this member (empty if moderation is off)
-$payload      // Tag picker payload: [ ['group' => ..., 'tags' => [...]], ... ]
-$selected     // Array of selected tag ids
-$page         // Page entity
-```
-
-The form posts `member[...]` base fields (`phone`, `country`, `company`,
-`address`, `remove_avatar`, `password`), the avatar as the file field `file`,
-`translation[<langId>][name|title|bio]` and `tags[]`. If moderation is
-enabled, some changes are staged for review rather than applied immediately.
-
-**Tag picker**
-
-The `$payload` variable is structured so you can render groups and their
-tags in one pass:
-
-```php
-<?php foreach ($payload as $block): ?>
-    <fieldset>
-        <legend><?= $block['group']['name']; ?></legend>
-        <?php foreach ($block['tags'] as $tag): ?>
-            <label>
-                <input type="checkbox" name="tags[]"
-                       value="<?= $tag['id']; ?>"
-                    <?= in_array((int) $tag['id'], array_map('intval', $selected)) ? 'checked' : ''; ?>>
-                <?= $tag['label']; ?>
-            </label>
-        <?php endforeach; ?>
-    </fieldset>
-<?php endforeach; ?>
-```
-
-`$block['group']` carries `id`, `code`, `sort_order`, `name`, `description`;
-each tag carries `id`, `group_id`, `code`, `sort_order`, `is_active`,
-`label`. Escape these values in your own templates.
-
-## Member public profile template
-
-`member-public-profile.phtml`. Rendered for a confirmed member's public page.
-It receives:
-
-```
-$member       // MemberEntity
-$tagGroups    // Selected tags grouped by tag group
-$page         // Page entity
-```
-
-Only confirmed members have a public profile. Visiting the URL of an
-unconfirmed member (or of a member with no translation in the active
-language) returns "not found". Never print the email, phone or address in
-this template.
-
-## Member directory template
-
-`member-directory.phtml`. It receives:
-
-```
-$members       // Paginated list of confirmed MemberEntity objects
-$paginator     // Paginator instance
-$total         // Total number of matching members
-$countries     // Countries that have at least one confirmed member
-$companies     // Array of distinct company names
-$payload       // Tag picker payload
-$filterCountry // Currently applied country filter (or null)
-$filterCompany // Currently applied company filter (or null)
-$filterTags    // Currently applied tag ids
-```
-
-The page shows 21 members per page. A typical directory card renders the
-member's display name, company, country and avatar. Use
-`$member->getDisplayName()` so rows never render blank. Members are returned
-in random order.
-
-## Member inbox template
-
-`member-inbox.phtml`. It receives:
-
-```
-$conversations // Array of shaped conversation rows
-$page          // Page entity
-```
-
-Each conversation row contains:
-
-```
-[
-    'id'            => int,
-    'type'          => 'direct' | 'group',
-    'displayName'   => string,
-    'other'         => null | ['id' => int, 'name' => string, 'avatar' => string|null],
-    'lastMessage'   => null | ['text' => string, 'createdAt' => string, 'senderId' => int],
-    'lastMessageAt' => string|null, // ISO 8601, UTC
-    'messageCount'  => int,
-    'unreadCount'   => int,
-    'mutedUntil'    => string|null,
-]
-```
-
-## Member conversation template
-
-`member-conversation.phtml`. It renders a single chat thread. It receives:
-
-```
-$conversationId // int
-$messages       // Raw message rows from the service
-$senders        // Lookup table of sender ids → member rows
-$meId           // The current member's id
-$otherMember    // MemberEntity of the other participant, or false
-$page           // Page entity
-```
-
-The chat form must carry the following `data-*` attributes for the bundled
-`chat.jquery.js` to work without configuration:
-
-```html
-<form id="chat-form"
-      data-conversation="<?= $conversationId; ?>"
-      data-send-url="<?= $this->url('Members:Chat@sendAction'); ?>"
-      data-poll-url="<?= $this->url('Members:Chat@pollAction'); ?>"
-      data-me-id="<?= $meId; ?>"
-      data-last-id="<?= $messages ? (int) end($messages)['id'] : 0; ?>"
-      data-translations='{"[deleted]": "..."}'>
-    <textarea name="body"></textarea>
-    <button type="submit">Send</button>
-</form>
-```
-
-`data-translations` is optional (JSON; used for the `[deleted]` tombstone
-label). The thread container must have the id `#thread`.
-
-## Events templates
-
-The Events extension ships nine templates. All of them use Bootstrap 5 and
-Bootstrap Icons, and rely on the `EventEntity` class (not raw arrays) for
-event data.
-
-### Admin templates
-
-| Template                              | Variables                                                                 |
-|---------------------------------------|---------------------------------------------------------------------------|
-| `events.phtml`                        | `$events` (array of `EventEntity`), `$paginator`, `$statusFilter`, `$statusBreakdown` |
-| `event-form.phtml`                    | `$event` (`EventEntity` or empty `VirtualEntity` for new), `$translations` (`[langId => row]`, `[]` when new), `$isNew` (bool) |
-| `event-analytics-dashboard.phtml`     | `$dashboard` (payload from `EventAnalyticsService::fetchAdminDashboard()`) |
-| `event-analytics.phtml`               | `$event` (`EventEntity`), `$analytics` (payload from `fetchForAdminEvent()`) |
-
-### Site templates
-
-| Template                              | Variables                                                                 |
-|---------------------------------------|---------------------------------------------------------------------------|
-| `events-catalog.phtml`                | `$page`, `$events` (array of `EventEntity`), `$paginator`                 |
-| `event.phtml`                         | `$page`, `$event` (`EventEntity`)                                         |
-| `member-events.phtml`                 | `$page`, `$events`, `$paginator`, `$dashboard` (summary from `fetchForMemberDashboard()`) |
-| `member-event-form.phtml`             | `$page`, `$event`, `$translations`, `$isNew`                              |
-| `member-event-analytics.phtml`        | `$page`, `$event` (`EventEntity`), `$analytics`                           |
-
-`$translations` holds **every** language row, not just the active one, so
-the form can render a tab per language. Each row carries `id`, `lang_id`,
-`title`, `description`, `organizer`.
-
-### Form tabs
-
-Both forms have the same three top-level tabs:
-
-| Tab        | Icon                | Fields                                                     |
-|------------|---------------------|------------------------------------------------------------|
-| Main       | `bi-info-circle`    | One pill per language (Title, Description, Organizer), then Registration link |
-| Location   | `bi-geo-alt`        | Location name, Map URL, Coordinates                        |
-| Schedule   | `bi-calendar-event` | Starts at, Ends at                                         |
-
-The language pills are nested inside **Main** and use
-`data-bs-toggle="pill"` with pane ids `#event-language-<langId>`. A pill
-whose language already has a title carries a green check icon. The content
-fields post as `translation[<langId>][title|description|organizer]`.
-
-Only the shared fields (`location_name`, `starts_at`) are marked `required`.
-Per-language titles are deliberately **not** required — a blank language is
-skipped by the service, and marking them required would block a
-Russian-only event when English happens to be the first tab. The
-"at least one title" rule is enforced server-side.
-
-Both forms carry `novalidate`. This is required, not cosmetic: with native
-validation enabled, a required field inside an inactive Bootstrap tab is
-unfocusable, so the browser aborts submission silently and the Save button
-appears dead. `event-form.js` gates validation instead and reveals the
-offending tab — see [Events JavaScript](#events-javascript).
-
-There is no author or event-type field. The admin form is always the
-"on behalf of the association" path, so on a new event it shows a
-*Published on behalf of the association* hint in the footer.
-
-The schedule inputs are `datetime-local`, which accepts `Y-m-d\TH:i` only.
-Both templates normalize the entity's `Y-m-d H:i:s` values before rendering;
-without that the edit form shows empty dates.
-
-### EventEntity helpers
-
-Templates use `EventEntity` methods. The most common ones:
+## EventEntity helpers
 
 ```php
 $event->getId();
-$event->getLangId();          // int, or null when untranslated in this language
-$event->getTitle();           // string or null
-$event->getDescription();     // string or null
-$event->getOrganizer();       // string or null — explicit, translatable
+$event->getLangId();
+$event->getTitle();
+$event->getDescription();
+$event->getOrganizer();          // translatable, or null
+$event->getOrganizerName();      // organizer → creator name → ""
 $event->getLink();
-$event->getLocationName();    // shared across languages
-$event->getLatitude();        // float or null
-$event->getLongitude();       // float or null
-$event->getStartsAt();        // "Y-m-d H:i:s"
-$event->getEndsAt();          // "Y-m-d H:i:s" or null
-$event->getStatus();          // "pending" | "approved" | "rejected"
-$event->getCreatorName();     // string or null (null = association event)
-$event->getViewsCount();      // int
-$event->getClicksCount();     // int
+$event->getLocationName();
+$event->getLatitude();
+$event->getLongitude();
+$event->getStartsAt();           // "Y-m-d H:i:s"
+$event->getEndsAt();
+$event->getStatus();             // pending | approved | rejected
+$event->getCreatorName();        // null for association events
+$event->getCover();
+$event->getViewsCount();
+$event->getClicksCount();
 
-// Never-blank display helpers
-$event->getDisplayTitle();    // title, else "#<id>"
-$event->getOrganizerName();   // organizer, else creator name, else ""
+// Display helpers
+$event->getDisplayTitle();       // title, else "#<id>"
+$event->getShortDescription(150);
+$event->getFormattedDate();      // "Nov 22, 2026"
+$event->getFormattedTime();      // "18:55"
+$event->getFormattedStartDateTime();
+$event->getFormattedEndTime();
+$event->getStartMonth();         // "NOV"
+$event->getStartDay();           // 22
+$event->getDirectionsUrl();
 
 // Predicates
-$event->isPast();             // true when ends_at (or starts_at) < now
-$event->isOfficial();         // true when creator_id is null (admin-created)
+$event->isPast();
+$event->isOfficial();            // creator_id is null
 $event->hasLink();
 $event->hasLocation();
 $event->hasCoordinates();
 $event->hasDescription();
-$event->hasOrganizer();       // an explicit organizer is set
+$event->hasOrganizer();
 $event->hasCreator();
+$event->hasCover();
+$event->getCoverUrl(EventEntity::COVER_CARD);  // THUMB, CARD, FULL
 
-// Formatted output
-$event->getShortDescription(150);     // plain-text excerpt
-$event->getFormattedDate();           // "Nov 22, 2026"
-$event->getFormattedTime();           // "18:55"
-$event->getFormattedStartDateTime();  // "Saturday, November 22, 2026"
-$event->getFormattedEndTime();        // "22:57" or ""
-$event->getStartMonth();              // "NOV"
-$event->getStartDay();                // 22
-$event->getStatusBadgeClass();        // "warning" | "success" | "danger"
-$event->getStatusTranslationKey();    // "Pending approval" | "Approved" | "Rejected"
-$event->getConversionRate();          // float, e.g. 12.34
-$event->getDirectionsUrl();           // Google Maps directions link
+// Status display
+$event->getStatusBadgeClass();   // warning | success | danger
+$event->getStatusTranslationKey();
+$event->getConversionRate();
 ```
 
-Use `getDisplayTitle()` in any listing that can contain untranslated events
-(admin grid, "My events", analytics headings). The public catalog and detail
-page inner-join or guard, so `getTitle()` is safe there.
+Cover size constants: `COVER_THUMB` (`400x225`), `COVER_CARD` (`800x450`),
+`COVER_FULL` (`1600x900`).
 
-`getOrganizerName()` encapsulates the fallback rule: the explicit organizer
-wins, then the creator's display name, then an empty string. Guard on the
-result before rendering the "Organized by" line.
+## Event form templates
 
-### Analytics payload shape
+Both event forms (admin and member) share the same three top-level tabs:
 
-Both `fetchForMemberEvent()` and `fetchForAdminEvent()` return:
+| Tab        | Fields                                                        |
+|------------|---------------------------------------------------------------|
+| Main       | Language tabs (Title, Description, Organizer), Registration link, Cover image |
+| Location   | Location name, Map URL, Coordinates                           |
+| Schedule   | Starts at, Ends at                                            |
+
+Language tabs are nested inside **Main**. Content fields post as
+`translation[<langId>][title|description|organizer]`. Shared fields post as
+`event[...]`. The cover uploads as `file`.
+
+Both forms carry `enctype="multipart/form-data"` and `novalidate`.
+The schedule inputs are `datetime-local` (`Y-m-d\TH:i`); the templates
+normalize the entity's `Y-m-d H:i:s` values before rendering.
+
+# Events JavaScript
+
+Three assets, all auto-initializing on DOM ready:
+
+| Asset               | Selector                  | Purpose                        |
+|---------------------|---------------------------|--------------------------------|
+| `event-form.js`     | `[data-event-form]`       | Map URL parser + validation gate |
+| `event-analytics.js`| `[data-event-analytics]`  | Chart.js renderer               |
+| `event-map.js`      | `[data-event-map]` / `[data-event-location-map]` | Leaflet maps |
+
+Include after jQuery 3.x:
 
 ```php
-[
-    'event'       => EventEntity,   // the event itself
-    'views'       => int,           // total views
-    'clicks'      => int,           // total clicks
-    'conversion'  => float,         // clicks / views * 100
-    'dailyStats'  => [              // 14 rows, zero-filled
-        ['date' => '2026-11-09', 'views' => 12, 'clicks' => 3],
-        ...
-    ],
-    'sourceStats' => [              // one row per source
-        ['source' => 'card',  'views' => 100, 'clicks' => 10],
-        ['source' => 'direct', 'views' => 20, 'clicks' => 5],
-        ...
-    ],
-]
+<?php $this->getPluginBag()->appendScript($this->moduleAsset('event-form.js', 'Members')); ?>
 ```
 
-### Admin dashboard payload shape
-
-`fetchAdminDashboard()` returns:
-
-```php
-[
-    'totalEvents'       => int,
-    'totalViews'        => int,
-    'totalClicks'       => int,
-    'uniqueMembers'     => int,
-    'conversion'        => float,
-    'statusBreakdown'   => ['pending' => int, 'approved' => int, 'rejected' => int],
-    'topEventsByViews'  => array,   // top 10, title in the active language
-    'topEventsByClicks' => array,   // top 5
-    'topAuthors'        => array,   // top 5
-    'dailyStats'        => array,   // 14 rows, zero-filled
-]
-```
-
-## Chat JavaScript
-
-The module ships `Assets/chat.jquery.js`, which:
-
-- Auto-initializes on any `#chat-form` element
-- Sends with `POST` and polls with `GET` (`conversation_id`, `since`) against
-  the form's `data-send-url` / `data-poll-url`
-- Sends the CSRF token from `<meta name="csrf-token">` as `csrf-token`
-- Pauses polling when the tab is hidden and catches up when it returns
-- Polls adaptively: 2 s for three polls after a send, 10 s while active,
-  30 s after 60 s of silence, 60 s after a failed request
-- Uses a `crypto.randomUUID()` client id (with a fallback) for idempotent
-  sends
-- Sends on Enter, inserts a new line on Shift+Enter
-
-Include it after jQuery 3.x. In a module template use the asset helper:
-
-```php
-<?php $this->getPluginBag()->appendScript($this->moduleAsset('chat.jquery.js', 'Members')); ?>
-```
-
-To disable auto-init and construct instances manually, set
-`window.Chat.autoInit = false` before loading the script. Selectors, styles,
-intervals and timeout can be overridden through the constructor options.
-
-The module also ships `Assets/site.style.css` (avatar sizes, thread height,
-status icons), which the bundled layout appends automatically.
-
-# Services
-
-Registered by the module and fetched in controllers with
-`$this->getModuleService('<name>')`:
-
-| Name                    | Class                                     |
-|-------------------------|-------------------------------------------|
-| `memberManager`         | `Members\Service\MemberManager`           |
-| `siteService`           | `Members\Service\SiteService`             |
-| `profileChangeService`  | `Members\Service\ProfileChangeService`    |
-| `chatService`           | `Members\Service\ChatService`             |
-| `tagGroupService`       | `Members\Service\TagGroupService`         |
-| `tagService`            | `Members\Service\TagService`              |
-| `memberTagService`      | `Members\Service\MemberTagService`        |
-| `inputNormalizer`       | `Members\Service\InputNormalizer`         |
-| `locationParser`        | `Members\Service\LocationParser`          |
-| `eventService`          | `Members\Service\EventService`            |
-| `eventAnalyticsService` | `Members\Service\EventAnalyticsService`   |
-
-## Site service (global `$member` in templates)
-
-`siteService` is exposed to every site template as the global `$member`
-(unless a page overrides it with an entity, see above):
-
-```php
-// TRUE when a member is logged in.
-$member->isLoggedIn();
-
-// TRUE when the logged-in member has confirmed their email.
-$member->isConfirmed();
-
-// Returns the session member data as an array, or a single key
-// when one is passed: $member->getMember('id'), etc.
-// Session keys: id, name, email, confirmed.
-$member->getMember();
-
-// Fetches any member by id (as a MemberEntity) in the current language.
-// Falls back to the base row when no translation exists.
-$member->fetchMemberById($id);
-```
-
-## Member manager
-
-Used by controllers for registration, login, recovery, profile reads and the
-directory:
-
-```php
-$memberManager->login($email, $password);          // writes the session
-$memberManager->logout();
-$memberManager->isLoggedIn();
-$memberManager->isConfirmed();
-$memberManager->getMember($key = null);
-$memberManager->fetchById($id, $withTranslations = false);
-$memberManager->fetchByIdForCurrentLang($id);
-$memberManager->fetchPublicProfile($id);           // confirmed members only
-$memberManager->fetchFiltered($page, $perPage, $filters, $random = true);
-$memberManager->fetchAvailableCountries();
-$memberManager->fetchDistinctCompanies();
-$memberManager->updatePassword($id, $plain);       // bypasses moderation
-$memberManager->initiateRecovery($email);          // key or false
-$memberManager->resetPassword($key);               // new password or false
-$memberManager->confirm($key);
-```
-
-`fetchFiltered()` accepts the filters `country`, `company`, `tagIds` and
-`memberIds`, all optional and AND-combined.
-
-## Chat service
-
-The chat service owns every rule of the chat pipeline. Controllers and API
-endpoints talk only to it:
-
-```php
-// The member's inbox.
-$chatService->fetchInbox($memberId);
-
-// Total unread count across all conversations.
-$chatService->countUnreadForMember($memberId);
-
-// Resolve or create a direct conversation with another member.
-// Throws InvalidArgumentException when the two ids are the same.
-$chatService->findOrCreateDirect($memberId, $otherId);
-
-// Participant checks.
-$chatService->isParticipant($conversationId, $memberId);
-$chatService->findConversationForMember($conversationId, $memberId); // row or false
-$chatService->findOtherMember($conversationId, $memberId);
-
-// Fetch a thread (ascending by id).
-$chatService->fetchThread($conversationId, $memberId, $sinceId = 0, $limit = 50);
-
-// Fetch a thread and advance the read cursor.
-$chatService->fetchThreadAndMarkRead($conversationId, $memberId, $sinceId = 0, $limit = 50);
-
-// Older messages for "load earlier" (descending by id).
-$chatService->fetchBefore($conversationId, $memberId, $beforeId, $limit = 50);
-
-// Send a message. Pass a client_id for idempotent retries.
-// Throws InvalidArgumentException (not a participant) or
-// RuntimeException (empty / too long).
-$chatService->sendMessage($conversationId, $senderId, $body, $clientId = null);
-
-// Resolve sender rows for a batch of messages: [memberId => row].
-$chatService->resolveSenders($messages);
-
-// Not routed yet.
-$chatService->softDeleteMessage($messageId, $memberId);
-$chatService->markReadUpTo($conversationId, $memberId, $messageId);
-```
-
-## Tag services
-
-`memberTagService` is used by the profile edit template and the directory to
-populate the tag picker:
-
-```php
-// The picker payload: [ ['group' => row, 'tags' => [row, ...]], ... ]
-// Active tags only; empty groups are skipped.
-$memberTagService->fetchPickerPayload();
-
-// The ids of the tags a member has selected.
-$memberTagService->fetchSelectedIds($memberId);
-
-// The tags a member has selected (active only), grouped by tag group,
-// ready for a public profile page.
-$memberTagService->fetchGroupedByMember($memberId);
-
-// Drops every id that is not an active tag, then replaces the member's selection.
-$memberTagService->sanitizeSelection($tagIds);
-$memberTagService->saveSelection($memberId, $safeTagIds);
-```
-
-`tagGroupService` and `tagService` provide the admin read/write layer
-(`fetchAll`, `fetchById`, `save`, `deleteById`, ...).
-
-## Profile change service
-
-Owns the moderation pipeline: `updateProfile()`, `submit()`, `approve()`,
-`reject()`, `fetchPending()`, `fetchPendingForMember()`,
-`fetchHistoryForMember()`, `countPending()`, `isModerationEnabled()`.
-
-## Input normalizer
-
-Shared by every controller that accepts a translation block:
-
-```php
-// Resolves language ids or codes to ids, injects lang_id, drops
-// unresolvable rows. Pass a second argument to keep one language only.
-$normalizer->normalizeTranslations($translations, $onlyLangId = null);
-
-// Picks a display name out of a registration payload.
-$normalizer->resolveRegistrationName($input);
-```
-
-The profile update endpoint passes `?lang=` as `$onlyLangId`. The event
-endpoints pass nothing, so an event may be written in several languages at
-once.
-
-## Location parser
-
-`locationParser` parses map URLs into coordinates. It has no external
-dependencies and makes no network requests.
-
-```php
-$coords = $locationParser->parse($url);
-// ['lat' => 41.2995, 'lng' => 69.2401] or null
-```
-
-## Event service
-
-Owns every business rule of the events pipeline. Controllers talk only to
-this service. Every write takes the payload split into a shared half and a
-per-language half (see [Payload shape](#payload-shape)).
-
-```php
-// Member path — always pending, always attributed to the member
-$eventId = $eventService->createForUser($memberId, $data, $translations);
-
-// Admin path — approved immediately, always authorless (creator_id = NULL)
-$eventId = $eventService->createByAdmin($data, $translations);
-
-// Updates never rewrite creator_id — an admin editing a member's
-// event leaves the author intact. Only the submitted languages are written.
-$eventService->update($id, $data, $translations, $actorId, $isAdmin);
-
-// Single-event reads, resolved for the active language
-$event = $eventService->findById($id);                      // any event
-$event = $eventService->findByIdForOwner($id, $memberId);   // only if creator matches
-
-// Edit-form reads: every language row, not just the active one
-$data = $eventService->fetchByIdWithTranslations($id);
-$data = $eventService->fetchByIdWithTranslationsForOwner($id, $memberId);
-// Both return ['event' => EventEntity, 'translations' => [langId => row]] or false
-
-// Moderation — base row only, never touches content
-$eventService->approve($id);
-$eventService->reject($id, $reason);
-$eventService->delete($id, $actorId, $isAdmin);
-
-// Paginated lists
-$events = $eventService->fetchApproved($page, $perPage);                // public catalog, INNER JOIN
-$events = $eventService->fetchByCreatorId($memberId, $page, $perPage);  // member's events, LEFT JOIN
-$events = $eventService->fetchAllForAdmin($page, $perPage, $filters);   // admin grid, LEFT JOIN
-$points = $eventService->fetchMapPoints($filters, $limit);              // public map, INNER JOIN
-
-// Map URL parsing (delegates to LocationParser)
-$coords = $eventService->parseLocation($url);
-```
-
-## Event analytics service
-
-Owns the analytics recording and aggregation rules.
-
-```php
-// Recording — returns true when the hit was actually persisted
-$analyticsService->recordView($eventId, $memberId, $source, $ip, $userAgent);
-$analyticsService->recordClick($eventId, $memberId, $source, $ip, $userAgent);
-
-// Reading — ownership-aware
-$analytics = $analyticsService->fetchForMemberEvent($eventId, $memberId); // null if not owner
-$analytics = $analyticsService->fetchForAdminEvent($eventId);             // no ownership check
-
-// Dashboards
-$dashboard = $analyticsService->fetchForMemberDashboard($memberId); // totals, aggregated in SQL
-$dashboard = $analyticsService->fetchAdminDashboard();              // global KPI + rankings
-```
-
-# URL generation
-
-Always generate links from the action names:
-
-```php
-<a href="<?= $this->url('Members:Directory@indexAction'); ?>">Member directory</a>
-<a href="<?= $this->url('Members:Directory@profileAction', [$memberId]); ?>">Public profile</a>
-```
-
-## Chat pages
-
-```php
-<a href="<?= $this->url('Members:Chat@inboxAction'); ?>">My messages</a>
-<a href="<?= $this->url('Members:Chat@conversationAction', [$conversationId]); ?>">
-    Open conversation
-</a>
-<a href="<?= $this->url('Members:Chat@withAction', [$otherMemberId]); ?>">
-    Message this member
-</a>
-```
-
-The `with` action resolves or creates the conversation and redirects to the
-thread, so it is safe to link to from a profile page without knowing the
-conversation id. Messaging yourself is rejected with a flash message.
-
-## Profile and account pages
-
-```php
-<a href="<?= $this->url('Members:Profile@indexAction'); ?>">My account</a>
-<a href="<?= $this->url('Members:Profile@editAction'); ?>">Edit my profile</a>
-<a href="<?= $this->url('Members:Auth@indexAction'); ?>">Log in</a>
-<a href="<?= $this->url('Members:Register@indexAction'); ?>">Register</a>
-<a href="<?= $this->url('Members:Auth@logoutAction'); ?>">Log out</a>
-```
-
-## Events pages
-
-```php
-<a href="<?= $this->url('Members:Event@catalogAction'); ?>">Events catalog</a>
-<a href="<?= $this->url('Members:Event@viewAction', [$eventId]); ?>">Event details</a>
-<a href="<?= $this->url('Members:Event@clickAction', [$eventId]); ?>">Sign up</a>
-<a href="<?= $this->url('Members:Event@indexAction'); ?>">My events</a>
-<a href="<?= $this->url('Members:Event@createAction'); ?>">Create event</a>
-<a href="<?= $this->url('Members:Event@editAction', [$eventId]); ?>">Edit event</a>
-<a href="<?= $this->url('Members:Event@analyticsAction', [$eventId]); ?>">Event analytics</a>
-```
-
-The click action records a click and redirects to the event's registration
-link. If the event has no link, or no translation for the active language,
-it returns 404.
+`event-form.js` requires `data-parse-url` and `novalidate` on the form. It
+parses map URLs into coordinates and gates form submission so the browser
+doesn't silently block on a required field inside a hidden tab.
+
+`event-analytics.js` requires Chart.js 4.x and reads `data-daily-stats` /
+`data-source-stats` JSON attributes.
+
+`event-map.js` requires Leaflet. `EventMap` fetches
+`/api/v1/members/events/render/map` and renders clustered markers.
+`SingleEventMap` reads `data-latitude`, `data-longitude`,
+`data-location-name` from its container.
+
+To disable auto-init, set `window.EventForm.autoInit = false` (etc.) before
+loading the script.
 
 # API
 
-The module exposes a JSON API under `/api/v1/members/` for mobile apps and
-SPA clients. It uses JWT tokens instead of cookies.
-
-## Before you enable the API
-
-Replace the placeholder `api.jwt_secret` in `Config/module.config.php`
-with a long random string (at least 32 characters). If the secret is left
-as the shipped placeholder, every token is forgeable.
+JSON API under `/api/v1/members/`. Uses JWT bearer tokens instead of
+cookies. Every endpoint accepts an optional `?lang=xx` parameter to select
+the language for translated fields.
 
 ## Authentication
 
-Protected endpoints expect a standard bearer token:
+Protected endpoints expect:
 
 ```
 Authorization: Bearer <token>
 ```
 
-Tokens are issued by the login endpoint and are valid for `api.jwt_ttl`
-seconds (7 days by default). The token carries the member id (`sub`) and name.
-There is no refresh flow; the client logs in again when a token expires.
-
-On every protected request the middleware checks the signature, the expiry
-and that the member still exists. Because tokens are stateless, a password
-change does **not** invalidate tokens that were already issued; only
-expiry or deleting the member does.
-
-The API never sets cookies and never redirects. Clients must treat any
-`3xx` response as a bug. A missing or invalid token yields `401` with
-`{ "error": "Unauthorized" }`.
-
-## Language
-
-Every endpoint accepts an optional `?lang=xx` query parameter (a language
-code). Translated fields (member names, titles, bios, tag labels, event
-titles, descriptions and organizers) are returned in that language.
-Omitting it uses the site's active language. See
-[Languages and translations](#languages-and-translations) for the effect on
-listings.
+Tokens are issued by the login endpoint, valid for `api.jwt_ttl` seconds.
+No refresh flow — re-login when expired. A missing or invalid token yields
+`401 { "error": "Unauthorized" }`.
 
 ## Endpoints
 
-Each endpoint is titled by its purpose; the HTTP method and URL are listed
-at the end of its section.
-
 ### Log in
 
-Authenticate and receive a JWT. Public.
+`POST /api/v1/members/auth/login` — public.
 
-**Parameters**
+| Name         | Type   | Required | Notes           |
+|--------------|--------|----------|-----------------|
+| `identifier` | string | yes      | Email address   |
+| `password`   | string | yes      | Plain-text      |
 
-| Name         | Type   | Required | Notes                  |
-|--------------|--------|----------|------------------------|
-| `identifier` | string | yes      | Email address          |
-| `password`   | string | yes      | Plain-text password    |
-
-**Response 200**
-
+**200:**
 ```json
 {
-  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-  "user": {
-    "id": 42,
-    "name": "Jane Doe",
-    "email": "jane@example.com",
-    "confirmed": true
-  }
+  "token": "eyJhbGci...",
+  "user": { "id": 42, "name": "Jane Doe", "email": "jane@example.com", "confirmed": true }
 }
 ```
 
 **Errors:** `400` missing credentials, `401` wrong identifier or password.
 
-Unconfirmed members receive a token; `confirmed` is `false`. Clients should
-show a "please confirm your email" banner and offer the
-[resend confirmation](#resend-confirmation-email) endpoint.
-
-**Endpoint:** `POST /api/v1/members/auth/login`
-
 ### Request a password recovery email
 
-Send a password-recovery email. Public. The response is identical whether
-or not the email matches an account, to prevent account enumeration. The
-email contains a link to the web reset page (see
-[Login and password recovery](#login-and-password-recovery)).
+`POST /api/v1/members/auth/recovery` — public.
 
-**Parameters**
+| Name    | Type   | Required |
+|---------|--------|----------|
+| `email` | string | yes      |
 
-| Name    | Type   | Required | Notes                 |
-|---------|--------|----------|-----------------------|
-| `email` | string | yes      | Must be a valid email |
-
-**Response 202**
-
+**202:**
 ```json
 { "message": "If an account exists with that email, a reset link has been sent." }
 ```
 
-**Errors:** `400` invalid email format.
-
-**Endpoint:** `POST /api/v1/members/auth/recovery`
+Response is identical whether or not the email matches (prevents enumeration).
 
 ### Validate the current token
 
-Validate the current token and return fresh user data. Protected.
+`GET /api/v1/members/auth/whoami` — protected.
 
-**Response 200**
-
+**200:**
 ```json
-{
-  "id": 42,
-  "name": "Jane Doe",
-  "email": "jane@example.com",
-  "confirmed": true,
-  "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
-}
+{ "id": 42, "name": "Jane Doe", "email": "jane@example.com", "confirmed": true, "avatar": "https://..." }
 ```
 
-`avatar` is `null` when the member has none.
-
-**Errors:** `401` missing, expired, forged token, or the member row was
-deleted.
-
-**Endpoint:** `GET /api/v1/members/auth/whoami`
+**Errors:** `401`.
 
 ### Register a new member
 
-Create a new member account. The account is unconfirmed until the
-confirmation link is clicked. Public. The response does not contain a token;
-the member logs in afterwards.
+`POST /api/v1/members/register` — public.
 
-**Parameters**
+| Name                          | Type   | Required | Notes                          |
+|-------------------------------|--------|----------|--------------------------------|
+| `translation[<langId>][name]` | string | yes      | Min 2 chars. `<langId>` may be a code (`en`) |
+| `member[email]`               | string | yes      | Valid, unique                  |
+| `member[password]`            | string | yes      | Min 6 chars                    |
 
-| Name                          | Type   | Required | Notes                                           |
-|-------------------------------|--------|----------|-------------------------------------------------|
-| `translation[<langId>][name]` | string | yes      | Min length 2. `<langId>` may also be a language code (`translation[en][name]`) |
-| `member[email]`               | string | yes      | Valid, unique email                             |
-| `member[password]`            | string | yes      | Min length 6                                    |
-
-**Response 201**
-
+**201:**
 ```json
 { "message": "Registration successful. Please check your email to confirm your account." }
 ```
 
-**Errors:** `422` validation errors, in the standard error shape; `500`
-the member could not be saved.
-
-A confirmation email is sent automatically. The link points at the **web**
-confirmation route, not an API route — the API deliberately does not expose
-a confirmation-by-key endpoint.
-
-**Endpoint:** `POST /api/v1/members/register`
+**Errors:** `422` validation, `500` save failure.
 
 ### Resend confirmation email
 
-Re-send the confirmation email to the currently authenticated member.
-Protected.
+`POST /api/v1/members/register/resend` — protected.
 
-**Response 200**
-
+**200:**
 ```json
 { "message": "A new confirmation email has been sent." }
 ```
 
-**Errors:** `401` no token, `409` account already confirmed.
-
-**Endpoint:** `POST /api/v1/members/register/resend`
+**Errors:** `401`, `409` already confirmed.
 
 ### Get my profile
 
-Return the authenticated member's own profile, the tag picker payload, and
-any pending moderation changes. Protected.
+`GET /api/v1/members/me` — protected.
 
-**Response 200**
-
+**200:**
 ```json
 {
   "user": {
-    "id": 42,
-    "name": "Jane Doe",
-    "login": null,
-    "email": "jane@example.com",
-    "confirmed": true,
-    "company": "Acme",
-    "phone": "+1 555 0100",
-    "country": "us",
-    "address": "123 Main St",
-    "title": "Engineer",
-    "bio": "I build things.",
-    "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
+    "id": 42, "name": "Jane Doe", "login": null, "email": "jane@example.com",
+    "confirmed": true, "company": "Acme", "phone": "+1 555 0100",
+    "country": "us", "address": "123 Main St", "title": "Engineer",
+    "bio": "I build things.", "avatar": "https://..."
   },
   "tags": {
     "selected": [1, 5, 9],
-    "available": [
-      {
-        "group": { "id": 1, "code": "interests", "name": "Interests", "description": null },
-        "tags": [
-          { "id": 1, "label": "Hiking" },
-          { "id": 2, "label": "Reading" }
-        ]
-      }
-    ]
+    "available": [{ "group": {...}, "tags": [{ "id": 1, "label": "Hiking" }] }]
   },
-  "pendingChanges": [
-    {
-      "id": 17,
-      "member_id": 42,
-      "status": "pending",
-      "payload": "{\"base\":{\"company\":{\"old\":\"\",\"new\":\"Acme\"}},\"translations\":{}}",
-      "reviewed_at": null,
-      "rejection_reason": null,
-      "created_at": "2026-01-14 09:00:00"
-    }
-  ]
+  "pendingChanges": [{ "id": 17, "member_id": 42, "status": "pending", "payload": "...", "created_at": "..." }]
 }
 ```
 
-- `login` is a legacy field and is always `null`; the schema has no login
-  column. Log in with the email address.
-- `country` is the two-letter code as stored (the framework's country list
-  uses lowercase codes).
-- Group and tag objects contain further columns (`sort_order`, `code`,
-  `is_active`, `lang_id`, ...); clients should only rely on the fields
-  shown.
-- `pendingChanges` holds the raw submission rows. `payload` is a JSON
-  **string** containing the old and new value of every staged field. The
-  list is empty when moderation is disabled.
-
-**Errors:** `401` no token, `404` member not found.
-
-**Endpoint:** `GET /api/v1/members/me`
+**Errors:** `401`, `404`.
 
 ### Update my profile
 
-Update the authenticated member's profile. Fields go through the moderation
-pipeline when moderation is enabled, otherwise they are applied directly.
-Protected.
+`POST /api/v1/members/me/update` — protected. Multipart.
 
-**Parameters**
+| Name                                | Type   | Required | Notes                              |
+|-------------------------------------|--------|----------|------------------------------------|
+| `translation[<langId>][name]`       | string | yes      | Min 2 chars                        |
+| `translation[<langId>][title]`      | string | no       |                                    |
+| `translation[<langId>][bio]`        | string | no       |                                    |
+| `member[phone]`                     | string | no       | Applied immediately                |
+| `member[country]`                   | string | no       | ISO 3166-1 alpha-2                 |
+| `member[company]`                   | string | no       |                                    |
+| `member[address]`                   | string | no       |                                    |
+| `member[remove_avatar]`             | flag   | no       |                                    |
+| `tags[]`                            | int[]  | no       |                                    |
+| `file`                              | file   | no       | Avatar image                       |
 
-| Name                                | Type   | Required | Notes                                                           |
-|-------------------------------------|--------|----------|-----------------------------------------------------------------|
-| `translation[<langId>][name]`       | string | yes      | Min length 2. Moderated by default                              |
-| `translation[<langId>][title]`      | string | no       | Moderated by default                                            |
-| `translation[<langId>][bio]`        | string | no       | Moderated by default                                            |
-| `member[phone]`                     | string | no       | Applied immediately, never staged                               |
-| `member[country]`                   | string | no       | Two-letter ISO 3166-1 code; applied immediately by default      |
-| `member[company]`                   | string | no       | Moderated by default                                            |
-| `member[address]`                   | string | no       | Moderated by default                                            |
-| `member[remove_avatar]`             | flag   | no       | Removes the avatar (moderated by default)                       |
-| `tags[]`                            | int[]  | no       | Sanitized against the active-tag set; never moderated           |
-| `file`                              | file   | no       | Multipart avatar upload; must be an image                       |
+Only the language selected by `?lang=` (or the active language) is accepted.
 
-`<langId>` may be a language id or a language code. Only the row for the
-language selected by `?lang=` (or the active language) is accepted; other
-rows are ignored. The email address cannot be changed here. Any other field
-is ignored.
-
-**Response 200**
-
+**200:**
 ```json
-{
-  "message": "Your changes were submitted for review.",
-  "user": { "...same shape as GET /me..." },
-  "pendingChanges": [ { "id": 18, "status": "pending", "created_at": "..." } ]
-}
+{ "message": "Your changes were submitted for review.", "user": {...}, "pendingChanges": [...] }
 ```
 
-`user` always reflects the **live** profile, not staged values.
-
-`message` is one of (translated to the request language):
-
-- `"Your profile has been updated."` — moderation off, or nothing staged
-- `"Your changes were submitted for review."` — everything staged
-- `"Some changes were applied immediately; the rest are pending review."` — mixed
-
-**Errors:** `401` no token, `422` validation errors.
-
-**Endpoint:** `POST /api/v1/members/me/update`
+**Errors:** `401`, `422`.
 
 ### Upload an avatar
 
-Upload a new avatar. Multipart form data. Protected.
+`POST /api/v1/members/me/avatar` — protected. Multipart.
 
-**Parameters**
+| Name   | Type | Required |
+|--------|------|----------|
+| `file` | file | yes      |
 
-| Name   | Type | Required | Notes            |
-|--------|------|----------|------------------|
-| `file` | file | yes      | Must be an image |
-
-**Response 200**
-
+**200:**
 ```json
-{
-  "message": "Your changes were submitted for review.",
-  "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
-}
+{ "message": "Your changes were submitted for review.", "avatar": "https://..." }
 ```
 
-If moderation is enabled, `avatar` still points at the **previous** avatar
-(or is `null`) until the change is approved. Rely on `pendingChanges` from
-the profile endpoint to show "avatar pending review."
-
-**Errors:** `401` no token, `422` missing or non-image file.
-
-**Endpoint:** `POST /api/v1/members/me/avatar`
+**Errors:** `401`, `422`.
 
 ### Change my password
 
-Change the authenticated member's password. Bypasses moderation (as on the
-web). Protected.
+`POST /api/v1/members/me/password` — protected.
 
-**Parameters**
+| Name       | Type   | Required | Notes    |
+|------------|--------|----------|----------|
+| `password` | string | yes      | Min 6    |
 
-| Name       | Type   | Required | Notes        |
-|------------|--------|----------|--------------|
-| `password` | string | yes      | Min length 6 |
-
-**Response 204** — no content on success. (Do not rely on a response body.)
-
-**Errors:** `401` no token, `422` validation errors.
-
-**Endpoint:** `POST /api/v1/members/me/password`
+**204** on success. **Errors:** `401`, `422`.
 
 ### List members
 
-Paginated, filtered list of **confirmed** members, 20 per page. Public.
-Members are returned in **random order**, so consecutive pages are not
-guaranteed to be disjoint.
+`GET /api/v1/members` — public. Paginated, 20 per page, random order.
 
-**Parameters**
+| Name      | Type   | Required | Notes                    |
+|-----------|--------|----------|--------------------------|
+| `page`    | int    | no       | Default 1                |
+| `country` | string | no       | ISO 3166-1 alpha-2       |
+| `company` | string | no       | Exact match              |
+| `tags[]`  | int[]  | no       | Any-of                   |
+| `lang`    | string | no       |                          |
 
-| Name      | Type   | Required | Notes                                 |
-|-----------|--------|----------|---------------------------------------|
-| `page`    | int    | no       | Default 1                             |
-| `country` | string | no       | Two-letter ISO 3166-1 code            |
-| `company` | string | no       | Exact match                           |
-| `tags[]`  | int[]  | no       | Members carrying any of these tag ids |
-| `lang`    | string | no       | Language code                         |
-
-**Response 200**
-
+**200:**
 ```json
 {
-  "data": [
-    {
-      "id": 42,
-      "name": "Jane Doe",
-      "title": "Engineer",
-      "company": "Acme",
-      "country": "us",
-      "bio": "I build things.",
-      "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
-    }
-  ],
-  "meta": {
-    "page": 1,
-    "perPage": 20,
-    "total": 137,
-    "totalPages": 7
-  },
-  "filters": {
-    "applied": { "country": "us", "company": null, "tags": [] },
-    "available": {
-      "countries": ["United States", "United Kingdom"],
-      "companies": ["Acme", "Globex"],
-      "tags": [
-        { "group": { "id": 1, "name": "Interests" }, "tags": [{ "id": 1, "label": "Hiking" }] }
-      ]
-    }
-  }
+  "data": [{ "id": 42, "name": "Jane Doe", "title": "Engineer", "company": "Acme", "country": "us", "bio": "...", "avatar": "https://..." }],
+  "meta": { "page": 1, "perPage": 20, "total": 137, "totalPages": 7 },
+  "filters": { "applied": {...}, "available": { "countries": [...], "companies": [...], "tags": [...] } }
 }
 ```
-
-`filters.available` is returned on every request so the client can render
-the filter UI without a second round-trip. Only countries and companies
-that have at least one confirmed member are listed. Email, phone and address
-are never included.
-
-**Endpoint:** `GET /api/v1/members`
 
 ### Get a member's public profile
 
-Public profile of a single **confirmed** member, with their selected tags
-grouped by tag group. Public.
+`GET /api/v1/members/profile?id=42` — public.
 
-**Parameters**
-
-| Name | Type | Required | Notes     |
-|------|------|----------|-----------|
-| `id` | int  | yes      | Member id |
-
-**Response 200**
-
+**200:**
 ```json
-{
-  "user": {
-    "id": 42,
-    "name": "Jane Doe",
-    "title": "Engineer",
-    "company": "Acme",
-    "country": "us",
-    "bio": "I build things.",
-    "avatar": "https://example.com/data/uploads/module/members/avatars/42/256x256/abc.jpg"
-  },
-  "tags": [
-    {
-      "group": { "id": 1, "name": "Interests" },
-      "tags": [{ "id": 1, "label": "Hiking" }]
-    }
-  ]
-}
+{ "user": { "id": 42, "name": "...", "title": "...", "company": "...", "country": "us", "bio": "...", "avatar": "..." }, "tags": [...] }
 ```
 
-**Errors:** `400` missing `id`, `404` no such member, member is
-unconfirmed, or the member has no translation in the requested language.
-
-**Endpoint:** `GET /api/v1/members/profile?id=42`
+**Errors:** `400`, `404`.
 
 ### List my conversations (inbox)
 
-The authenticated member's inbox, newest activity first. Protected.
+`GET /api/v1/members/chats` — protected.
 
-**Response 200**
-
+**200:**
 ```json
-{
-  "data": [
-    {
-      "id": 7,
-      "type": "direct",
-      "displayName": "John Smith",
-      "other": { "id": 43, "name": "John Smith", "avatar": "https://example.com/..." },
-      "lastMessage": {
-        "text": "See you tomorrow",
-        "createdAt": "2026-01-14T09:12:00Z",
-        "senderId": 43
-      },
-      "lastMessageAt": "2026-01-14T09:12:00Z",
-      "messageCount": 42,
-      "unreadCount": 2,
-      "mutedUntil": null
-    }
-  ]
-}
+{ "data": [{ "id": 7, "type": "direct", "displayName": "John Smith", "other": {...}, "lastMessage": {...}, "lastMessageAt": "...", "messageCount": 42, "unreadCount": 2, "mutedUntil": null }] }
 ```
-
-**Errors:** `401` no token.
-
-**Endpoint:** `GET /api/v1/members/chats`
 
 ### Get a conversation thread
 
-Fetch a conversation thread. Protected.
+`GET /api/v1/members/chat/thread?id=7` — protected.
 
-**Parameters**
+| Name     | Type | Required | Notes                    |
+|----------|------|----------|--------------------------|
+| `id`     | int  | yes      | Conversation id          |
+| `before` | int  | no       | Load-earlier pagination  |
 
-| Name     | Type | Required | Notes                                                     |
-|----------|------|----------|-----------------------------------------------------------|
-| `id`     | int  | yes      | Conversation id                                           |
-| `before` | int  | no       | Return messages older than this message id (load-earlier) |
-
-Without `before`, returns up to 50 messages in **ascending** id order,
-starting from the oldest, and marks the thread read. With `before`, returns up
-to 50 messages older than that id in **descending** id order and does **not**
-advance the read cursor.
-
-**Response 200**
-
-```json
-{
-  "data": [
-    {
-      "_id": 100,
-      "text": "Hello",
-      "createdAt": "2026-01-14T09:00:00Z",
-      "type": "text",
-      "deleted": false,
-      "editedAt": null,
-      "replyToId": null,
-      "clientId": null,
-      "user": {
-        "_id": 42,
-        "name": "Jane Doe",
-        "avatar": "https://example.com/..."
-      }
-    }
-  ]
-}
-```
-
-`user` is `null` when the sender's account has been deleted. Soft-deleted
-messages appear with `"deleted": true` and `"text": ""`; clients should
-render a tombstone.
-
-**Errors:** `400` missing `id`, `401` no token, `403` not a participant.
-
-**Endpoint:** `GET /api/v1/members/chat/thread?id=7`
+**200:** ascending message list, marks thread read.
+**Errors:** `400`, `401`, `403`.
 
 ### Send a message
 
-Send a message. Protected.
+`POST /api/v1/members/chat/send` — protected.
 
-**Parameters**
+| Name              | Type   | Required | Notes                          |
+|-------------------|--------|----------|--------------------------------|
+| `conversation_id` | int    | yes      |                                |
+| `body`            | string | yes      | Max 5000 chars                 |
+| `client_id`       | string | no       | UUID for idempotent retry      |
 
-| Name              | Type   | Required | Notes                        |
-|-------------------|--------|----------|------------------------------|
-| `conversation_id` | int    | yes      |                              |
-| `body`            | string | yes      | Trimmed, max 5000 characters |
-| `client_id`       | string | no       | UUID (max 36 chars); idempotent send |
-
-**Response 201**
-
-```json
-{ "id": 101 }
-```
-
-If `client_id` matches an existing message in the same conversation, the
-original id is returned and no new row is inserted. Use this for safe
-retries on flaky networks.
-
-**Errors:** `401` no token, `403` not a participant, `422` missing
-`conversation_id` / `body` (validation shape), or the body is empty after
-trimming or too long (`{ "error": "..." }`, in English).
-
-**Endpoint:** `POST /api/v1/members/chat/send`
+**201:** `{ "id": 101 }`. **Errors:** `401`, `403`, `422`.
 
 ### Start a conversation
 
-Resolve or create a direct conversation with another member. Protected.
+`POST /api/v1/members/chat/start` — protected.
 
-**Parameters**
+| Name        | Type | Required |
+|-------------|------|----------|
+| `member_id` | int  | yes      |
 
-| Name        | Type | Required | Notes                 |
-|-------------|------|----------|-----------------------|
-| `member_id` | int  | yes      | The other member's id |
-
-**Response 200**
-
-```json
-{ "conversationId": 7 }
-```
-
-The same pair always resolves to the same conversation id. Concurrent
-requests are safe.
-
-**Errors:** `400` missing `member_id`, `401` no token, `422` trying to
-start a conversation with yourself.
-
-**Endpoint:** `POST /api/v1/members/chat/start`
+**200:** `{ "conversationId": 7 }`. **Errors:** `400`, `401`, `422`.
 
 ### Poll for new messages
 
-Poll for new messages. Same response shape as the thread endpoint, filtered
-to messages with `_id > since` in ascending order. Advances the read cursor
-to the newest returned message. Protected.
+`GET /api/v1/members/chat/poll?id=7&since=100` — protected.
 
-**Parameters**
-
-| Name    | Type | Required | Notes                                             |
-|---------|------|----------|---------------------------------------------------|
-| `id`    | int  | yes      | Conversation id                                   |
-| `since` | int  | no       | Return only messages with `_id` greater than this |
-
-**Response 200**
-
-```json
-{
-  "data": [
-    { "_id": 101, "text": "Hi", "createdAt": "2026-01-14T09:15:00Z", "type": "text", "deleted": false, "editedAt": null, "replyToId": null, "clientId": null, "user": { "_id": 43, "name": "John Smith", "avatar": "..." } }
-  ]
-}
-```
-
-Polling is the only real-time mechanism; there is no WebSocket or SSE
-endpoint. A sensible client pattern is burst after send (2–3 s), then
-active (10 s), then idle (30 s after 60 s of silence), then back off to
-60 s on failure. The bundled `chat.jquery.js` implements exactly this.
-
-Note that the **web** poll endpoint (`/member/messages/poll`) is a separate
-route used by `chat.jquery.js`: it takes `conversation_id` instead of `id`
-and answers `{ "messages": [...] }` instead of `{ "data": [...] }`.
-
-**Errors:** `400` missing `id`, `401` no token, `403` not a participant.
-
-**Endpoint:** `GET /api/v1/members/chat/poll?id=7&since=100`
+**200:** messages newer than `since`, ascending. Advances the read cursor.
 
 ### Get the unread message count
 
-Total unread count across all conversations, for badge rendering.
-Protected.
+`GET /api/v1/members/chat/unread` — protected.
 
-**Response 200**
-
-```json
-{ "count": 3 }
-```
-
-**Errors:** `401` no token.
-
-**Endpoint:** `GET /api/v1/members/chat/unread`
-
-## Events API
-
-The Events extension exposes seven endpoints under `/api/v1/members/events`
-and `/api/v1/members/me/events`. Four are public (catalog, detail,
-click-tracker, map) and three require JWT.
-
-Note that the detail path carries a literal `view` segment
-(`/events/view/:id`) and creation posts to `/events/store`. Both are
-deliberate: a bare `/events/(:var)` wildcard would swallow the literal
-`store` segment depending on route declaration order. The same reasoning
-applies to `/events/render/map`, which is registered as two literal
-segments.
-
-### Event payload
-
-Every endpoint that returns an event uses this shape. `title`,
-`description` and `organizer` are translated and **nullable**;
-`displayTitle` and `organizerName` are always safe to render.
-
-| Field           | Type         | Notes                                                        |
-|-----------------|--------------|--------------------------------------------------------------|
-| `id`            | int          |                                                              |
-| `langId`        | int \| null  | `null` when the event has no row for the requested language   |
-| `title`         | string\|null | raw translated title                                          |
-| `displayTitle`  | string       | title, else `#<id>` — use this in lists                       |
-| `description`   | string\|null | raw translated description                                    |
-| `organizer`     | string\|null | explicit translated organizer                                 |
-| `organizerName` | string       | organizer, else creator name, else `""`                       |
-| `link`          | string\|null | shared across languages                                       |
-| `locationName`  | string       | shared across languages                                       |
-| `latitude`      | float\|null  |                                                              |
-| `longitude`     | float\|null  |                                                              |
-| `startsAt`      | string       | `Y-m-d H:i:s`                                                 |
-| `endsAt`        | string\|null |                                                              |
-| `status`        | string       | `pending` \| `approved` \| `rejected`                         |
-| `creatorName`   | string\|null | `null` for association events                                 |
-| `viewsCount`    | int          | language-independent                                          |
-| `clicksCount`   | int          | language-independent                                          |
+**200:** `{ "count": 3 }`.
 
 ### List approved events
 
-Public. Paginated, 20 per page. Only events translated into the requested
-language are returned.
+`GET /api/v1/members/events` — public. Paginated, 20 per page.
 
-**Parameters**
+| Name   | Type   | Required |
+|--------|--------|----------|
+| `page` | int    | no       |
+| `lang` | string | no       |
 
-| Name   | Type   | Required | Notes         |
-|--------|--------|----------|---------------|
-| `page` | int    | no       | Default 1     |
-| `lang` | string | no       | Language code |
-
-**Response 200**
-
+**200:**
 ```json
 {
-  "data": [
-    {
-      "id": 42,
-      "langId": 1,
-      "title": "IT Alliance Breakfast",
-      "displayTitle": "IT Alliance Breakfast",
-      "description": "Monthly meetup",
-      "organizer": "IT Alliance",
-      "organizerName": "IT Alliance",
-      "link": "https://example.com/register",
-      "locationName": "Business Center",
-      "latitude": 41.2995,
-      "longitude": 69.2401,
-      "startsAt": "2026-11-22 18:55:00",
-      "endsAt": "2026-11-22 22:00:00",
-      "status": "approved",
-      "creatorName": "Jane Doe",
-      "viewsCount": 120,
-      "clicksCount": 15
-    }
-  ],
+  "data": [{
+    "id": 42,
+    "cover": "https://.../800x450/abc.jpg",
+    "title": "IT Alliance Breakfast",
+    "description": "Monthly meetup",
+    "organizer": "IT Alliance",
+    "link": "https://example.com/register",
+    "locationName": "Business Center",
+    "latitude": 41.2995, "longitude": 69.2401,
+    "startsAt": "2026-11-22 18:55:00", "endsAt": "2026-11-22 22:00:00",
+    "status": "approved",
+    "creatorName": "Jane Doe",
+    "viewsCount": 120, "clicksCount": 15
+  }],
   "meta": { "page": 1, "perPage": 20, "total": 42, "totalPages": 3 }
 }
 ```
 
-`creatorName` is `null` for association events (those created in the admin
-panel).
-
-**Endpoint:** `GET /api/v1/members/events`
+`cover` and `creatorName` are `null` when absent. Only events with a
+translation for the requested language are returned.
 
 ### Get a single event
 
-Public. Records a view with `source = 'api'`.
+`GET /api/v1/members/events/view/:id` — public. Records a view.
 
-**Response 200**
-
-```json
-{ "data": { "...same shape as above..." } }
-```
-
-**Errors:** `404` event not found, not approved, or not translated into the
-requested language.
-
-**Endpoint:** `GET /api/v1/members/events/view/:id`
+**200:** `{ "data": { ...event... } }`. **Errors:** `404`.
 
 ### Record a click and return the link
 
-Public. Returns the registration link and records a click. The mobile app
-opens the link in an external browser.
+`GET /api/v1/members/events/:id/click` — public.
 
-**Response 200**
-
-```json
-{ "link": "https://example.com/register" }
-```
-
-**Errors:** `404` event not found, not approved, not translated into the
-requested language, or has no link.
-
-**Endpoint:** `GET /api/v1/members/events/:id/click`
+**200:** `{ "link": "https://example.com/register" }`. **Errors:** `404`.
 
 ### Render events on a map
 
-Public. Returns approved events that have usable coordinates, as a flat
-list of map points intended for a single "load all markers" request. There
-is no pagination.
+`GET /api/v1/members/events/render/map` — public. No pagination.
 
-Only events with `status = 'approved'`, a translation in the requested
-language, and both `latitude` and `longitude` non-null and within
-`-90..90` / `-180..180` are returned. Events without coordinates are omitted
-silently — they are not an error and are not counted anywhere in the
-response.
+| Name    | Type   | Required | Notes                                       |
+|---------|--------|----------|---------------------------------------------|
+| `from`  | string | no       | `starts_at >= from` (MySQL datetime)         |
+| `to`    | string | no       | `starts_at <= to`                            |
+| `bbox`  | string | no       | `minLat,minLng,maxLat,maxLng`                |
+| `limit` | int    | no       | Default 500, max 1000                        |
+| `lang`  | string | no       | Language of returned titles                  |
 
-**Parameters**
-
-| Name    | Type   | Required | Notes                                                                        |
-|---------|--------|----------|------------------------------------------------------------------------------|
-| `from`  | string | no       | Keeps events with `starts_at >= from`. MySQL datetime string, not validated   |
-| `to`    | string | no       | Keeps events with `starts_at <= to`. Same format caveat                       |
-| `bbox`  | string | no       | `minLat,minLng,maxLat,maxLng` — four comma-separated numbers. Corners are normalized, so reversed order is accepted |
-| `limit` | int    | no       | Default 500, clamped to 1–1000                                               |
-| `lang`  | string | no       | Selects the language of the returned titles                                  |
-
-Pass full `Y-m-d H:i:s` values for `from` / `to`. A bare date is coerced to
-midnight, so `to=2026-11-30` excludes everything happening later that day.
-
-**Response 200**
-
+**200:**
 ```json
 {
-  "data": [
-    {
-      "id": 42,
-      "title": "IT Alliance Breakfast",
-      "latitude": 41.2995,
-      "longitude": 69.2401,
-      "location_name": "Business Center",
-      "starts_at": "2026-11-22 18:55:00",
-      "url": "/events/42"
-    }
-  ],
+  "data": [{ "id": 42, "title": "...", "latitude": 41.29, "longitude": 69.24, "location_name": "...", "starts_at": "2026-11-22 18:55:00", "url": "/events/42" }],
   "meta": { "total": 1, "limit": 500, "clipped": false }
 }
 ```
 
-Rows are ordered by `starts_at` **ascending** (soonest first) and cut at
-`limit`, so clipping drops the *latest* events rather than arbitrary ones.
-
-`meta` is **not** the pagination envelope used by the other list endpoints:
-
-| Key       | Meaning                                                                                                    |
-|-----------|------------------------------------------------------------------------------------------------------------|
-| `total`   | Number of rows in `data` — **not** the number of matching events                                            |
-| `limit`   | The effective limit after clamping                                                                          |
-| `clipped` | `true` when `total >= limit`, i.e. there are probably more matches. Also `true` when exactly `limit` events match, so treat it as a hint, not a guarantee |
-
-**The payload differs from the rest of the Events API.** Keys are
-`snake_case` (`location_name`, `starts_at`), not `camelCase`, and the row is
-a reduced subset. A client cannot reuse its event decoder here.
-
-`url` is a **relative path to the web detail page** (`/events/42`) — not an
-API path and not an absolute URL. Prefix it with the site origin before
-opening it. Following it records a web view (`source = 'card'`); calling
-`GET /api/v1/members/events/view/:id` instead records `source = 'api'`.
-
-This endpoint does **not** record views or clicks, so rendering hundreds of
-markers does not inflate the counters.
-
-**Errors:** none specific. Malformed input never produces a `4xx`:
-
-- A `bbox` that is not four numbers, or that falls outside the valid ranges,
-  is **silently dropped** and the request returns worldwide results.
-- `from` / `to` are used in the comparison as given; a non-datetime string
-  simply matches nothing useful.
-- A non-numeric `limit` casts to `0` and is then clamped to **1**, not to the
-  500 default.
-
-Always `200` on success, `500` on an unhandled server error.
-
-**Endpoint:** `GET /api/v1/members/events/render/map`
+**Note:** this endpoint returns `snake_case` keys and a reduced row — it
+differs from every other events endpoint. `url` is a relative web path.
+Malformed `bbox` or non-numeric `limit` are silently ignored.
 
 ### Create an event
 
-Protected. The event is created with `status = 'pending'` and
-`creator_id` set to the authenticated member.
+`POST /api/v1/members/events/store` — protected. Multipart.
 
-Content is posted per language. Several languages may be sent in one call;
-a single row is also accepted and the rest can be filled in later. A row
-whose title is blank is skipped. At least one non-blank title is required.
+| Name                                       | Type   | Required | Notes                       |
+|--------------------------------------------|--------|----------|-----------------------------|
+| `translation[<langId>][title]`             | string | no       | Max 200                     |
+| `translation[<langId>][description]`       | string | no       |                             |
+| `translation[<langId>][organizer]`         | string | no       | Max 200                     |
+| `translation[<langId>][lang_id]`           | int    | yes      | Same as `<langId>`          |
+| `event[location_name]`                     | string | yes      | Max 255                     |
+| `event[starts_at]`                         | string | yes      | `Y-m-d H:i:s`               |
+| `event[link]`                              | string | no       | Max 500                     |
+| `event[latitude]`                          | float  | no       |                             |
+| `event[longitude]`                         | float  | no       |                             |
+| `event[location_source]`                   | string | no       | `none` \| `manual` \| `url` |
+| `event[ends_at]`                           | string | no       |                             |
+| `file`                                     | file   | no       | Cover image                 |
 
-**Parameters**
-
-| Name                                       | Type   | Required | Notes                                    |
-|--------------------------------------------|--------|----------|------------------------------------------|
-| `translation[<langId>][title]`             | string | yes*     | Max 200. At least one language must have it |
-| `translation[<langId>][description]`       | string | no       |                                          |
-| `translation[<langId>][organizer]`         | string | no       | Max 200                                  |
-| `event[location_name]`                     | string | yes      | Max 255. Shared across languages         |
-| `event[starts_at]`                         | string | yes      | `Y-m-d H:i:s`                            |
-| `event[link]`                              | string | no       | Max 500                                  |
-| `event[latitude]`                          | float  | no       | -90..90                                  |
-| `event[longitude]`                         | float  | no       | -180..180                                |
-| `event[location_source]`                   | string | no       | `none` \| `manual` \| `url`              |
-| `event[ends_at]`                           | string | no       | `Y-m-d H:i:s`                            |
-
-`<langId>` may be a language id or a language code
-(`translation[en][title]`). Unlike the profile update endpoint, this does
-**not** narrow the payload to `?lang=`.
-
-**Response 201**
-
-```json
-{ "id": 42, "message": "The event has been created and is pending review" }
-```
-
-**Errors:** `401` no token, `422` validation errors or no usable
-translation row.
-
-**Endpoint:** `POST /api/v1/members/events/store`
+**201:** `{ "id": 42, "message": "The event has been created and is pending review" }`.
+**Errors:** `401`, `422`.
 
 ### List my events with summary
 
-Protected. Returns the member's own events and a summary across all of them.
-Association events created in the admin panel never appear here — they have
-no owner.
+`GET /api/v1/members/me/events` — protected.
 
-Untranslated events **are** included, with `title: null` and a non-null
-`displayTitle`. Clients should render `displayTitle` and may use
-`langId === null` to show a "needs translation" hint.
-
-**Response 200**
-
+**200:**
 ```json
-{
-  "data": [ "...events..." ],
-  "summary": { "eventCount": 5, "totalViews": 420, "totalClicks": 63, "conversion": 15.0 },
-  "meta": { "page": 1, "perPage": 20, "total": 5, "totalPages": 1 }
-}
+{ "data": [...], "summary": { "eventCount": 5, "totalViews": 420, "totalClicks": 63, "conversion": 15.0 }, "meta": {...} }
 ```
-
-**Endpoint:** `GET /api/v1/members/me/events`
 
 ### Get analytics for my event
 
-Protected. Returns the detailed analytics payload for an event owned by the
-authenticated member.
+`GET /api/v1/members/me/events/:id/analytics` — protected.
 
-**Response 200**
-
+**200:**
 ```json
-{
-  "data": {
-    "event": { "...event shape..." },
-    "views": 120,
-    "clicks": 15,
-    "conversion": 12.5,
-    "dailyStats": [ { "date": "2026-11-09", "views": 12, "clicks": 3 }, "..." ],
-    "sourceStats": [ { "source": "card", "views": 100, "clicks": 10 }, "..." ]
-  }
-}
+{ "data": { "event": {...}, "views": 120, "clicks": 15, "conversion": 12.5, "dailyStats": [...], "sourceStats": [...] } }
 ```
 
-**Errors:** `401` no token, `404` event not found or not owned by the member.
-
-**Endpoint:** `GET /api/v1/members/me/events/:id/analytics`
+**Errors:** `401`, `404`.
 
 ## Error shape
 
-Non-validation errors use a single shape:
-
+Non-validation errors:
 ```json
 { "error": "Human-readable message" }
 ```
 
-Validation errors (HTTP 422) use the framework's standard shape:
-
+Validation errors (422):
 ```json
-{
-  "errors": {
-    "member[email]": ["This email is already taken"],
-    "member[password]": ["..."]
-  }
-}
+{ "errors": { "member[email]": ["This email is already taken"] } }
 ```
-
-Error strings returned by chat sending, event service exceptions and a few
-other endpoints are English and are not translated.
 
 ## Status codes
 
 | Code | Meaning                                                |
 |------|--------------------------------------------------------|
 | 200  | OK                                                     |
-| 201  | Created (registration, message send, event create)     |
-| 202  | Accepted (password recovery request)                   |
+| 201  | Created                                                |
+| 202  | Accepted (recovery request)                            |
 | 204  | No content (password change)                           |
-| 400  | Malformed request (missing required query/body param)  |
-| 401  | Missing, expired, forged JWT; or member deleted        |
-| 403  | Authenticated but not allowed (not a participant)      |
-| 404  | Resource not found, or hidden by confirmation/language |
+| 400  | Malformed request                                      |
+| 401  | Missing / expired / forged JWT, or member deleted      |
+| 403  | Not a participant                                      |
+| 404  | Not found, or hidden by language / confirmation state  |
 | 409  | Conflict (resend when already confirmed)               |
 | 422  | Validation failure                                     |
 | 500  | Unhandled server error                                 |
 
 # Localization
 
-All user-facing strings are translation keys written in English. Add another
-language by creating `Translations/<code>/messages.php` returning a
-`key => translation` array. Validation attribute labels are translated too
-(for example `Conversation_id`).
+User-facing strings are translation keys in English. Add a language by
+creating `Translations/<code>/messages.php` returning a `key => translation`
+array.
 
-Content translations (member names, tag labels, event titles) are a separate
-mechanism: they live in the `_translations` tables and are managed through
-the forms, not through message files. Adding a language in the `Cms` module
-adds a tab to every multilingual form automatically; existing events simply
-have no row for it until someone fills it in.
+Content translations (member names, event titles, tag labels) live in
+`_translations` tables and are managed through the forms, not message files.
+Adding a language in the `Cms` module adds a tab to every multilingual form
+automatically.
 
 # Data and storage
 
-Tables (all prefixed through the framework's table prefix):
-
-| Table                                              | Purpose                                         |
-|----------------------------------------------------|-------------------------------------------------|
-| `bono_module_members`                              | Base member row                                 |
-| `bono_module_members_translations`                 | `name`, `title`, `bio` per language             |
-| `bono_module_members_changes`                      | Moderation submissions (JSON payload, status)   |
-| `bono_module_members_conversations`                | Conversations (`direct_key` unique)             |
-| `bono_module_members_conversation_participants`    | Participants, read cursor, mute and archive     |
-| `bono_module_members_messages`                     | Messages (`client_id` unique per conversation)  |
-| `bono_module_members_tag_groups` / `_translations` | Tag groups                                      |
-| `bono_module_members_tags` / `_translations`       | Tags                                            |
-| `bono_module_members_member_tags`                  | Member ↔ tag selections                         |
-| `bono_module_members_events`                       | Events — shared fields (`creator_id` NULL = association event) |
-| `bono_module_members_events_translations`          | `title`, `description`, `organizer` per language |
-| `bono_module_members_event_analytics`              | Event views and clicks (ip_hash, source)        |
+| Table                                              | Purpose                              |
+|----------------------------------------------------|--------------------------------------|
+| `bono_module_members`                              | Base member row                      |
+| `bono_module_members_translations`                 | `name`, `title`, `bio` per language  |
+| `bono_module_members_changes`                      | Moderation submissions               |
+| `bono_module_members_conversations`                | Chat conversations                   |
+| `bono_module_members_conversation_participants`    | Participants, read cursor            |
+| `bono_module_members_messages`                     | Chat messages                        |
+| `bono_module_members_tag_groups` / `_translations` | Tag groups                           |
+| `bono_module_members_tags` / `_translations`       | Tags                                 |
+| `bono_module_members_member_tags`                  | Member ↔ tag selections              |
+| `bono_module_members_events`                       | Events (shared fields, cover)        |
+| `bono_module_members_events_translations`          | `title`, `description`, `organizer`  |
+| `bono_module_members_event_analytics`              | Views and clicks                     |
 
 Files:
 
-- `/data/uploads/module/members/avatars/<memberId>/<WxH>/<file>` — live avatars
+- `/data/uploads/module/members/avatars/<memberId>/<WxH>/<file>` — avatars
 - `/data/uploads/module/members/pending/` — avatars awaiting moderation
-
-`jwt_version`, `last_seen_at` and `is_banned` exist on the members table for
-future use; nothing reads them yet.
-
-## Upgrading an installation that predates event translations
-
-`schema.sql` drops tables, so running it as-is destroys your events. Move the
-content across first, **replacing `1` with your default language id**:
-
-```sql
-CREATE TABLE `bono_module_members_events_translations` (
-    `id`          INT NOT NULL,
-    `lang_id`     INT NOT NULL,
-    `title`       VARCHAR(200) NOT NULL,
-    `description` TEXT NULL,
-    `organizer`   VARCHAR(200) NULL,
-    PRIMARY KEY (`id`, `lang_id`),
-    KEY `idx_lang_id` (`lang_id`),
-    CONSTRAINT `fk_event_tr_event`
-        FOREIGN KEY (`id`) REFERENCES `bono_module_members_events` (`id`)
-        ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-INSERT INTO `bono_module_members_events_translations`
-    (`id`, `lang_id`, `title`, `description`, `organizer`)
-SELECT `id`, 1, `title`, `description`, NULL
-FROM `bono_module_members_events`;
-
-ALTER TABLE `bono_module_members_events`
-    DROP COLUMN `title`,
-    DROP COLUMN `description`;
-```
-
-After this, every existing event exists in one language only and is hidden
-from the public catalog in the others until translated.
-
-# Events JavaScript
-
-The module ships three JS assets for the Events extension, all following the
-same pattern as `chat.jquery.js`: IIFE wrapper, auto-initialization on DOM
-ready, data-attribute configuration, overridable selectors.
-
-## `event-form.js` — map URL parser and validation gate
-
-Auto-initializes on any `<form data-event-form>` element. The form must
-carry:
-
-- `data-parse-url` — endpoint that accepts a map URL and returns
-  `{lat, lng, source}`
-- `novalidate` — **required**, see below
-
-Inside the form, the following elements are discovered by `data-role` /
-`data-action`:
-
-- `data-role="map-url"` — text input with the pasted URL
-- `data-role="latitude"` — latitude input (filled on success)
-- `data-role="longitude"` — longitude input (filled on success)
-- `data-role="location-source"` — source select (set to `"url"` on success)
-- `data-action="parse-location"` — the "Extract" button
-
-The script:
-
-- Sends a POST with `{url, csrf-token}` to the parse endpoint
-- Shows a spinner on the button while the request is in flight
-- Prevents double-clicks via an internal `isParsing` flag
-- Alerts the translated error message when parsing fails
-- Reads translations from `data-translations` (JSON) on the form
-- Gates form submission: on `submit` it runs `checkValidity()`, and if the
-  form is invalid it activates the tab holding the first offending field,
-  focuses it and shows the native bubble
-
-**Why `novalidate` is required.** The shared required fields
-(`location_name`, `starts_at`) live in Bootstrap tabs that are hidden with
-`display: none`. Native constraint validation runs *before* the `submit`
-event is dispatched, tries to focus the invalid control, finds it
-unfocusable, and aborts submission silently — Chrome logs
-`An invalid form control with name='...' is not focusable` and the Save
-button appears dead. Turning native validation off and gating it in JS is
-the only way to intercept that case. `checkValidity()`, `reportValidity()`
-and the `:invalid` selector all keep working under `novalidate`.
-
-The gate binds to `document` in the **capture** phase so it runs before the
-theme's own submit handler on the form. Focus is deferred to `shown.bs.tab`,
-which fires on the tab *trigger*, not the pane, because Bootstrap adds
-`.active` only after the fade transition.
-
-Per-language titles are not `required`, so no nested pane ever needs
-revealing — `closest('.tab-pane')` is sufficient.
-
-Include it after jQuery 3.x:
-
-```php
-<?php $this->getPluginBag()->appendScript($this->moduleAsset('event-form.js', 'Members')); ?>
-```
-
-## `event-analytics.js` — Chart.js renderer
-
-Requires Chart.js 4.x. Auto-initializes on any element carrying
-`data-event-analytics`. The container must carry:
-
-- `data-daily-stats` — JSON array of `{date, views, clicks}`
-
-Optional:
-
-- `data-source-stats` — JSON array of `{source, views, clicks}`
-- `data-role="daily-chart"` — canvas for the line chart
-- `data-role="source-chart"` — canvas for the pie chart
-- `data-translations` — JSON object with `views` and `clicks` keys
-
-The script:
-
-- Renders a line chart (views + clicks over 14 days) when `data-daily-stats`
-  is non-empty
-- Renders a pie chart (traffic sources) when `data-source-stats` is
-  non-empty
-- Skips rendering silently when Chart.js is not loaded
-- Exposes a `destroy()` method for dynamic teardown
-
-Include Chart.js first, then the asset:
-
-```php
-<?php
-$this->getPluginBag()->appendScript('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js');
-$this->getPluginBag()->appendScript($this->moduleAsset('event-analytics.js', 'Members'));
-?>
-```
-
-## `event-map.js` — Leaflet maps
-
-Requires Leaflet 1.9.4, plus Leaflet.markercluster 1.5.3 for the catalog map.
-Exposes two constructors, each with its own auto-init flag:
-
-| Constructor      | Auto-init selector             | Purpose                        |
-|------------------|--------------------------------|--------------------------------|
-| `EventMap`       | `[data-event-map]`             | Catalog map, clustered markers |
-| `SingleEventMap` | `[data-event-location-map]`    | One event's location           |
-
-`EventMap` fetches `/api/v1/members/events/render/map` with **no query
-parameters**, so it loads up to 500 soonest approved events worldwide and
-does radius filtering client-side. It adds a geolocation control; once the
-visitor grants access, an optional
-`[data-event-map-radius-filter]` select is enabled and distances appear in
-the popups.
-
-`SingleEventMap` reads `data-latitude`, `data-longitude` and
-`data-location-name` from its container and appends its own "Get directions"
-link.
-
-Both expect the map endpoint's `snake_case` payload
-(`title`, `location_name`, `starts_at`, `url`). Changing that contract
-requires updating this asset in the same change.
-
-## Disabling auto-init
-
-All three scripts expose a global flag. Set it **before** loading the script
-to construct instances manually:
-
-```html
-<script>
-    window.EventForm.autoInit = false;
-    window.EventAnalytics.autoInit = false;
-    window.EventMap.autoInit = false;
-    window.SingleEventMap.autoInit = false;
-</script>
-<script src=".../event-form.js"></script>
-<script src=".../event-analytics.js"></script>
-<script>
-    new EventForm({ form: '#my-form', translations: { extracting: 'Извлечение…' } });
-    new EventAnalytics({ container: '#my-dashboard' });
-</script>
-```
-
-# Notes
-
-- Unconfirmed members can log in, edit their profile, and use chat, but
-  are not listed in the public directory and do not have a public profile
-  page. They cannot use password recovery. (The hint in the admin form that
-  they "cannot log in" is inaccurate.)
-- Deleting a member permanently removes their profile, translations, avatar
-  files, profile changes, tag selections and conversation memberships.
-  Messages they sent are **kept**, with the sender cleared (they render with
-  `user: null` in the API). Back up first.
-- The tag picker only shows active tags. Deactivating a tag hides it from
-  the form and from public profiles, but keeps the association, so
-  reactivating it restores previous selections.
-- Profile moderation is optional. When it is off, edits are applied
-  immediately and the pending-changes section of the admin area is empty.
-- Registration and recovery links use a random key stored on the member row
-  (`activation_key`) that is not cleared after use and has no expiry. Treat
-  old emails accordingly.
-- The bundled `chat.jquery.js` requires jQuery 3.x. It is optional — you
-  can build your own client against the API or the controller actions.
-- Events created by members go through moderation (`status = 'pending'`)
-  before appearing in the public catalog. Admin-created events are published
-  immediately with `status = 'approved'`.
-- Every admin-created event has `creator_id = NULL` and appears in the
-  catalog without an author (the grid shows an "Official" badge). There is
-  no flag to turn this off. Such events do not show up in any member's
-  "My events" list.
-- Editing an event never changes its author. `EventService::update()` does
-  not write `creator_id`, so a member's event stays attributed to that
-  member even when an administrator edits it. Only the creation path
-  decides authorship.
-- Event `title`, `description` and `organizer` are per language.
-  `location_name`, `link`, coordinates, schedule, status and counters are
-  shared. Changing the place or the time changes it for every language at
-  once.
-- The `organizer` field is a free-text label, independent of the author.
-  `getOrganizerName()` prefers it and falls back to the creator's display
-  name, so events without an explicit organizer keep showing their author.
-  An association event with no organizer shows no "Organized by" line.
-- An event with no translation for the active language is hidden from the
-  public catalog and map, and its detail and click endpoints return 404.
-  It remains visible and editable in the admin grid and in "My events",
-  flagged *Not translated*, with `getDisplayTitle()` rendering `#<id>`.
-- Saving an event writes only the languages present in the payload. Leaving
-  a language tab blank does not delete its existing content — it is simply
-  skipped. There is no way to remove a translation through the form.
-- Moderation acts on the event as a whole. Approving publishes every
-  language it has; there is no per-language approval.
-- The `EventEntity` class wraps every event row. Templates must use its
-  getter methods (`$event->getTitle()`) and predicates (`$event->isPast()`,
-  `$event->hasLink()`) — raw array access is not supported.
-- The click-tracking endpoint `/events/:id/go` returns 404 when the event
-  has no registration link. The "Sign up" button is not rendered in that
-  case.
-- Analytics deduplication uses `SHA1(ip + salt)`. The raw IP is never
-  stored. When no IP is available, the anti-spam check is skipped and the
-  hit is always recorded.
-- Deleting an event cascades to its translation and analytics rows
-  (`ON DELETE CASCADE`). Deleting a member sets `creator_id = NULL` on their
-  events (`ON DELETE SET NULL`), so the events survive member removal — but
-  they then become indistinguishable from association events created in the
-  admin panel.
-- The `LocationParser` does not resolve short links
-  (`maps.app.goo.gl`, `yandex.com/s/...`, `2gis.com/...`). Users must paste
-  the full URL or enter coordinates manually.
+- `/data/uploads/module/members/events/covers/<eventId>/<WxH>/<file>` — covers
 
 # Known limitations
 
-Behaviors of this version that integrators should be aware of:
-
-- **Avatar changes are handled only by the moderation pipeline.** With
-  `moderation.enabled` set to `false`, an uploaded avatar is currently not
-  processed (neither on the web nor via the API).
-- **Thread endpoints return the oldest 50 messages** when no `before` /
-  `since` is given, so a conversation longer than 50 messages needs polling
-  with `since` or a different loading strategy on the client.
-- The country lists returned by `fetchAvailableCountries()` and
-  `filters.available.countries` are plain name lists rather than
-  `code => name` maps, so a country filter built from them cannot map back
-  to codes.
-- Message editing, deleting, replies, muting and archiving are not exposed
-  through any route.
-- Members without a translation in the requested language are hidden from
-  directory listings, public profiles and the admin grid for that language.
-- Tokens cannot be revoked before they expire.
-- The `LocationParser` does not resolve short links (Google's
-  `maps.app.goo.gl`, Yandex's `yandex.com/s/...`, 2GIS's short URLs). Users
-  must paste the full URL or enter coordinates manually.
-- The admin analytics dashboard and the member analytics page share the
-  same payload shape, but the admin version is served by
-  `fetchForAdminEvent()` (no ownership check) while the member version is
-  served by `fetchForMemberEvent()` (ownership enforced).
-- Every admin-created event is authorless (`creator_id = NULL`). There is
-  no way to attribute an admin-created event to a member, and no record of
-  which administrator created it. If an event needs an author, create it
-  from the member cabinet instead.
-- Analytics counters (`views_count`, `clicks_count`) are denormalized on
-  the events table for fast list rendering. They are kept in sync with the
-  `event_analytics` log via a transaction, but a crash between the two
-  writes can leave them briefly inconsistent.
-- **Untranslated events are invisible publicly.** An event created in one
-  language does not appear in the catalog, the map, or search results for
-  any other language, and there is no fallback to a default language.
-  Publishing broadly means filling every language tab.
-- **A translation cannot be deleted through the UI.** Clearing a title and
-  saving leaves the stored row untouched, because blank rows are skipped.
-  Removing a language requires a direct database delete.
-- Event moderation is all-or-nothing per event, not per language. A member
-  cannot submit a new translation for review while another language is
-  already approved — editing an approved event keeps it approved.
-- The map endpoint drops a malformed or out-of-range `bbox` silently instead
-  of returning `400`, so a client with a bug receives worldwide markers
-  rather than an error. A `bbox` crossing the antimeridian is normalized with
-  `min`/`max` and therefore selects the complement of the intended region.
-- The map endpoint returns `snake_case` keys while every other Events
-  endpoint returns `camelCase`, and returns a reduced row. The bundled
-  `event-map.js` depends on the `snake_case` shape, so normalizing the
-  controller requires updating that asset in the same change.
-- `EventService` exception messages are English. Message files ship
-  translations for them, but they only take effect if the controller passes
-  the message through `$this->translator->translate()`.
+- **Avatar changes require moderation.** With `moderation.enabled = false`,
+  uploaded avatars are not processed.
+- **Chat threads return the oldest 50 messages** by default.
+- **Members without a translation** for the active language are hidden from
+  the directory, public profiles and the admin grid.
+- **Events without a translation** for the active language are hidden from
+  the catalog, map, admin grid and "My events". The forms post every
+  language tab, so this only matters when a new language is added later.
+- **Blank language tabs** are saved as empty titles, not skipped.
+- **Event covers bypass moderation** — they are written directly.
+- **JWT tokens cannot be revoked** before expiry.
+- **Event service error messages** are English. Translations ship in the
+  message files but only apply if controllers pass them through
+  `$this->translator->translate()`.
+- **The map endpoint** returns `snake_case` keys unlike every other events
+  endpoint, and silently ignores malformed `bbox` / `limit` parameters.
