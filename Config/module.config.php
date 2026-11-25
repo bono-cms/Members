@@ -6,6 +6,13 @@
 return [
     'name'        => 'Members',
     'description' => 'This module lets you manage membership system on your site',
+    'bookmarks' => [
+        [
+            'name' => 'Events',
+            'controller' => 'Members:Admin:Event@indexAction',
+            'icon' => 'fas fa-calendar'
+        ]
+    ],
     'menu'        => [
         'name'  => 'Members',
         'icon'  => 'fas fa-users',
