@@ -52,6 +52,7 @@ final class EventMapper extends AbstractMapper
         return [
             self::column('id'),
             self::column('creator_id'),
+            self::column('cover'),
             self::column('link'),
             self::column('location_name'),
             self::column('latitude'),

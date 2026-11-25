@@ -195,7 +195,7 @@ final class Event extends AbstractApiController
         $eventService = $this->getModuleService('eventService');
 
         try {
-            $eventId = $eventService->createForUser($memberId, $this->request->getPost());
+            $eventId = $eventService->createForUser($memberId, $this->request->getAll());
 
             $this->response->setStatusCode(201);
 
@@ -342,6 +342,7 @@ final class Event extends AbstractApiController
     {
         return [
             'id'           => $event->getId(),
+            'cover'        => $event->getCoverUrl(EventEntity::COVER_CARD),
             'title'        => $event->getTitle(),
             'description'  => $event->getDescription(),
             'organizer'    => $event->getOrganizer(),

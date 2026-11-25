@@ -49,6 +49,10 @@ $mapConfig = $this->widget(new EventsMapWidget($events, $_ENV['location']['lat']
             <?php foreach ($events as $event): ?>
             <div class="col-12 col-md-6 col-xl-4">
                 <a href="<?= $this->url('Members:Event@viewAction', [$event->getId()]); ?>" class="card h-100 text-decoration-none text-body shadow-sm border-0">
+                    <?php if ($event->hasCover()): ?>
+                    <img src="<?= $event->getCoverUrl(EventEntity::COVER_CARD); ?>" class="card-img-top" alt="<?= htmlspecialchars($event->getTitle()); ?>" />
+                    <?php endif; ?>
+
                     <div class="card-body p-4">
                         <div class="d-flex align-items-start gap-3 mb-3">
                             <div class="bg-primary bg-opacity-10 text-primary rounded-3 d-flex flex-column align-items-center justify-content-center flex-shrink-0 px-3 py-2 lh-1">

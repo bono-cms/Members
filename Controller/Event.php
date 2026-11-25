@@ -180,7 +180,7 @@ final class Event extends AbstractController
         $eventService  = $this->getModuleService('eventService');
 
         try {
-            $eventService->createForUser($memberId, $this->request->getPost());
+            $eventService->createForUser($memberId, $this->request->getAll());
 
             $this->flashBag->set('success', $this->translator->translate('The event has been created and is pending review'));
 
@@ -244,7 +244,7 @@ final class Event extends AbstractController
         $eventService = $this->getModuleService('eventService');
 
         try {
-            $eventService->update((int) $id, $this->request->getPost(), $memberId, false);
+            $eventService->update((int) $id, $this->request->getAll(), $memberId, false);
 
             $this->flashBag->set('success', $this->translator->translate('The event has been updated successfully'));
 

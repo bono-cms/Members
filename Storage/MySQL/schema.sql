@@ -228,6 +228,7 @@ DROP TABLE IF EXISTS `bono_module_members_events`;
 CREATE TABLE `bono_module_members_events` (
     `id`                INT NOT NULL PRIMARY KEY AUTO_INCREMENT,
     `creator_id`        INT NULL,
+    `cover`             VARCHAR(255) NULL COMMENT 'Optional cover image filename',
     `link`              VARCHAR(500) NULL,
     `location_name`     VARCHAR(255) NOT NULL,
     `latitude`          DECIMAL(10,8) NULL,

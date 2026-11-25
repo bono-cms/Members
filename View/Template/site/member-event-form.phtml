@@ -3,6 +3,7 @@
 use Krystal\Form\Element;
 use Krystal\Stdlib\VirtualEntity;
 use Cms\Service\LanguageManager;
+use Members\Service\EventEntity;
 
 $entity = isset($event[0]) ? $event[0] : $event;
 $isNew  = !$entity->getId();
@@ -36,7 +37,7 @@ $this->getPluginBag()->appendScript($this->moduleAsset('event-form.js', 'Members
                     <a href="<?= $this->url('Members:Event@indexAction'); ?>" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> <?= $this->translate('Back'); ?></a>
                 </div>
 
-                <form class="card border-0 shadow-sm" autocomplete="off" novalidate method="POST" action="<?= $isNew ? $this->url('Members:Event@storeAction') : $this->url('Members:Event@updateAction', [$entity->getId()]); ?>" data-event-form data-parse-url="<?= $this->url('Members:Event@parseLocationAction'); ?>">
+                <form class="card border-0 shadow-sm" autocomplete="off" enctype="multipart/form-data" novalidate method="POST" action="<?= $isNew ? $this->url('Members:Event@storeAction') : $this->url('Members:Event@updateAction', [$entity->getId()]); ?>" data-event-form data-parse-url="<?= $this->url('Members:Event@parseLocationAction'); ?>">
                     <?= Element::hidden('event[id]', $entity->getId()); ?>
 
                     <div class="card-header bg-white">
@@ -108,6 +109,24 @@ $this->getPluginBag()->appendScript($this->moduleAsset('event-form.js', 'Members
                                 </div>
                                 <small class="text-muted"><?= $this->translate('Leave blank if registration is not required'); ?></small>
                             </div>
+
+                            <div class="mb-3">
+                                <label class="form-label"><?= $this->translate('Cover image'); ?></label>
+
+                                <?php if ($entity->hasCover()): ?>
+                                <div class="mb-2">
+                                    <img src="<?= $entity->getCoverUrl(EventEntity::COVER_THUMB); ?>" class="img-fluid img-thumbnail" style="max-width:350px;" alt="" />
+                                </div>
+                                <div class="form-check mb-2">
+                                    <?= Element::checkbox('event[remove_cover]', false, ['class' => 'form-check-input', 'id' => 'event_remove_cover']); ?>
+                                    <label class="form-check-label text-danger" for="event_remove_cover"><?= $this->translate('Remove this cover'); ?></label>
+                                </div>
+                                <?php endif; ?>
+
+                                <?= Element::file('file', 'image/x-png, image/gif, image/jpeg', ['class' => 'form-control']); ?>
+                                <?= Element::hidden('event[cover]', $entity->getCover()); ?>
+                                <small class="text-muted"><?= $this->translate('Optional. A wide image works best.'); ?></small>
+                            </div>                            
                         </div>
 
                         <div class="tab-pane fade" id="location" role="tabpanel">

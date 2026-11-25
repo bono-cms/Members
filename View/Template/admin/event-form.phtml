@@ -3,6 +3,7 @@
 use Krystal\Form\Element;
 use Krystal\Stdlib\VirtualEntity;
 use Cms\Service\LanguageManager;
+use Members\Service\EventEntity;
 
 $entity = isset($event[0]) ? $event[0] : $event;
 $isNew  = !$entity->getId();
@@ -28,7 +29,7 @@ $this->getPluginBag()->appendScript($this->moduleAsset('event-form.js', 'Members
 
 ?>
 
-<form class="card" autocomplete="off" novalidate data-event-form data-parse-url="<?= $this->url('Members:Admin:Event@parseLocationAction'); ?>">
+<form class="card" autocomplete="off" enctype="multipart/form-data" novalidate data-event-form data-parse-url="<?= $this->url('Members:Admin:Event@parseLocationAction'); ?>">
     <?= Element::hidden('event[id]', $entity->getId()); ?>
 
     <div class="card-header bg-white">
@@ -107,6 +108,31 @@ $this->getPluginBag()->appendScript($this->moduleAsset('event-form.js', 'Members
                     <small class="text-muted"><?= $this->translate('Leave blank if registration is not required'); ?></small>
                 </div>
             </div>
+
+            <div class="row mb-3">
+                <label class="col-lg-2 col-form-label"><?= $this->translate('Cover image'); ?></label>
+                <div class="col-lg-10">
+                    <?php if ($entity->hasCover()): ?>
+                    <div class="mb-2">
+                        <img data-image="preview" src="<?= $entity->getCoverUrl(EventEntity::COVER_THUMB); ?>" class="img-fluid img-thumbnail" style="max-width:350px;" alt="" />
+                    </div>
+                    <div class="form-check mb-2">
+                        <?= Element::checkbox('event[remove_cover]', false, ['class' => 'form-check-input', 'id' => 'event_remove_cover']); ?>
+                        <label class="form-check-label text-danger" for="event_remove_cover"><?= $this->translate('Remove this cover'); ?></label>
+                    </div>
+                    <?php else: ?>
+                    <img data-image="preview" class="img-fluid img-thumbnail d-none mb-2" style="max-width:350px;" />
+                    <?php endif; ?>
+
+                    <a class="btn btn-outline-primary" data-button="upload" data-target="[name='file']" href="#">
+                        <i class="bi bi-image"></i> <?= $this->translate('Upload a cover'); ?>
+                    </a>
+                    <?= Element::file('file', 'image/x-png, image/gif, image/jpeg', ['class' => 'd-none', 'data-plugin' => 'preview']); ?>
+                    <?= Element::hidden('event[cover]', $entity->getCover()); ?>
+
+                    <div class="form-text"><?= $this->translate('Optional. A wide image works best.'); ?></div>
+                </div>
+            </div>            
         </div>
 
         <div class="tab-pane fade" id="location" role="tabpanel">

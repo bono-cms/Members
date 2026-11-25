@@ -33,6 +33,8 @@ final class Event extends AbstractController
         $pageNumber = (int) $this->request->getQuery('page', 1);
         $statusFilter = $this->request->getQuery('status', '');
 
+        $this->view->getPluginBag()->load(['preview']);
+
         $this->view->getBreadcrumbBag()
                    ->addOne('Members', 'Members:Admin:Members@indexAction')
                    ->addOne('Events');
@@ -94,7 +96,7 @@ final class Event extends AbstractController
         $eventService = $this->getModuleService('eventService');
 
         try {
-            $eventId = $eventService->createByAdmin($this->request->getPost());
+            $eventId = $eventService->createByAdmin($this->request->getAll());
 
             $this->flashBag->set('success', $this->translator->translate('The event has been created successfully'));
 
@@ -156,7 +158,7 @@ final class Event extends AbstractController
         $eventService = $this->getModuleService('eventService');
 
         try {
-            $eventService->update((int) $id, $this->request->getPost(), 0, true);
+            $eventService->update((int) $id, $this->request->getAll(), 0, true);
 
             $this->flashBag->set('success', $this->translator->translate('The event has been updated successfully'));
 
@@ -346,6 +348,9 @@ final class Event extends AbstractController
 
         $validator->field('event.link')
                   ->addRule('urlpattern');
+
+        $validator->file('file')
+                  ->addRule('image');
 
         return $validator;
     }

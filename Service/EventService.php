@@ -10,6 +10,7 @@
 namespace Members\Service;
 
 use InvalidArgumentException;
+use Krystal\Image\Tool\ImageManagerInterface;
 use Members\Storage\MySQL\EventMapper;
 use RuntimeException;
 
@@ -18,13 +19,16 @@ use RuntimeException;
  *
  * Controllers (web, admin, API) talk only to this service. It is
  * the single place where status transitions happen, where the
- * ownership check is applied, and where the location string is
- * resolved into coordinates.
+ * ownership check is applied, where the location string is
+ * resolved into coordinates, and where cover files are written
+ * and removed.
  *
  * The translation block is forwarded to the mapper untouched, the
  * same way DictionaryService and TagService do it: the form posts
- * translation[<langId>][lang_id] itself, so nothing needs injecting
- * or normalizing here.
+ * translation[<langId>][lang_id] itself.
+ *
+ * Input arrives in the framework's standard shape:
+ *   ['data' => ['event' => [...], 'translation' => [...]], 'files' => [...]]
  */
 final class EventService
 {
@@ -50,16 +54,25 @@ final class EventService
     private $locationParser;
 
     /**
+     * Cover image manager
+     *
+     * @var \Krystal\Image\Tool\ImageManagerInterface
+     */
+    private $coverImageManager;
+
+    /**
      * State initialization
      *
      * @param EventMapper $mapper
      * @param LocationParser $locationParser
+     * @param \Krystal\Image\Tool\ImageManagerInterface $coverImageManager
      * @return void
      */
-    public function __construct(EventMapper $mapper, LocationParser $locationParser)
+    public function __construct(EventMapper $mapper, LocationParser $locationParser, ImageManagerInterface $coverImageManager)
     {
         $this->mapper = $mapper;
         $this->locationParser = $locationParser;
+        $this->coverImageManager = $coverImageManager;
     }
 
     /**
@@ -72,8 +85,18 @@ final class EventService
     {
         $entity = new EventEntity();
 
+        $cover = isset($row['cover']) ? (string) $row['cover'] : '';
+
+        $coverBag = clone $this->coverImageManager->getImageBag();
+        $coverBag->setId(isset($row['id']) ? (int) $row['id'] : 0)
+                 ->setCover($cover);
+
+        $entity->setImageBag($coverBag);
+
         $entity->setId(isset($row['id']) ? (int) $row['id'] : null)
                ->setCreatorId(isset($row['creator_id']) && $row['creator_id'] !== null ? (int) $row['creator_id'] : null)
+               ->setCover($cover)
+               ->setCoverBag($coverBag)
                ->setLangId(isset($row['lang_id']) ? (int) $row['lang_id'] : null)
                ->setTitle(isset($row['title']) ? $row['title'] : '')
                ->setDescription(isset($row['description']) ? $row['description'] : '')
@@ -139,7 +162,7 @@ final class EventService
      * Creates an event on behalf of a regular member.
      *
      * @param int $userId Acting member id
-     * @param array $input Raw form payload: ['event' => [...], 'translation' => [...]]
+     * @param array $input Raw request payload (data + files)
      * @throws InvalidArgumentException If required fields are missing or invalid
      * @throws RuntimeException If the insert fails
      * @return int New event id
@@ -159,24 +182,32 @@ final class EventService
         $base['rejection_reason'] = null;
         $base['created_at'] = date('Y-m-d H:i:s');
 
+        $file = $this->extractFile($input);
+        $base['cover'] = $file ? $file->getUniqueName() : '';
+
         $ok = $this->mapper->saveEntity($base, $this->extractTranslations($input));
 
         if (!$ok) {
             throw new RuntimeException('Failed to create the event');
         }
 
-        return $this->getLastId();
+        $id = $this->getLastId();
+
+        // The file can only be stored once the id is known
+        if ($file) {
+            $this->coverImageManager->upload($id, $file);
+        }
+
+        return $id;
     }
 
     /**
      * Creates an event on behalf of the association (admin path).
      *
-     * Admin-created events are always authorless: creator_id is NULL,
-     * which EventEntity::isOfficial() reports as an official event.
-     * They are published immediately, without moderation, and never
-     * appear in any member's "My events" list.
+     * Admin-created events are always authorless: creator_id is NULL.
+     * They are published immediately, without moderation.
      *
-     * @param array $input Raw form payload
+     * @param array $input Raw request payload (data + files)
      * @throws InvalidArgumentException If required fields are missing or invalid
      * @throws RuntimeException If the insert fails
      * @return int New event id
@@ -190,23 +221,32 @@ final class EventService
         $base['rejection_reason'] = null;
         $base['created_at'] = date('Y-m-d H:i:s');
 
+        $file = $this->extractFile($input);
+        $base['cover'] = $file ? $file->getUniqueName() : '';
+
         $ok = $this->mapper->saveEntity($base, $this->extractTranslations($input));
 
         if (!$ok) {
             throw new RuntimeException('Failed to create the event');
         }
 
-        return $this->getLastId();
+        $id = $this->getLastId();
+
+        if ($file) {
+            $this->coverImageManager->upload($id, $file);
+        }
+
+        return $id;
     }
 
     /**
-     * Updates an existing event and its translations.
+     * Updates an existing event, its translations and its cover.
      *
-     * The author is never rewritten here: an event created by a member
-     * keeps its creator_id even when an administrator edits it.
+     * The author is never rewritten here. Only the languages present
+     * in the payload are written.
      *
      * @param int $id Event id
-     * @param array $input Raw form payload
+     * @param array $input Raw request payload (data + files)
      * @param int $actorId Acting user id
      * @param bool $isAdmin Whether the actor is an administrator
      * @throws InvalidArgumentException If the event does not exist or the actor has no access
@@ -233,13 +273,13 @@ final class EventService
             $base['rejection_reason'] = null;
         }
 
+        $this->applyCoverChange($id, $existing, $input, $base);
+
         return $this->mapper->saveEntity($base, $this->extractTranslations($input));
     }
 
     /**
      * Approves a pending event.
-     *
-     * Touches base columns only — content is never rewritten by moderation.
      *
      * @param int $id Event id
      * @throws InvalidArgumentException If the event does not exist
@@ -292,7 +332,7 @@ final class EventService
     }
 
     /**
-     * Deletes an event.
+     * Deletes an event and its cover files.
      *
      * Translations and analytics rows go with it via ON DELETE CASCADE.
      *
@@ -315,15 +355,15 @@ final class EventService
             throw new InvalidArgumentException('You are not allowed to delete this event');
         }
 
+        if (!empty($existing['cover'])) {
+            $this->coverImageManager->delete($id);
+        }
+
         return $this->mapper->deleteEvent($id);
     }
 
     /**
      * Fetches an event by id, optionally with every translation row.
-     *
-     * With $withTranslations = true, returns an array of entities
-     * (one per language) for the edit form. Otherwise returns a
-     * single entity for the active language.
      *
      * @param int $id
      * @param bool $withTranslations
@@ -366,8 +406,7 @@ final class EventService
     }
 
     /**
-     * Returns a single event with content and author for the active
-     * language, or false when not found or not translated.
+     * Returns a single event with content and author for the active language.
      *
      * @param int $id
      * @return EventEntity|bool
@@ -492,26 +531,82 @@ final class EventService
     }
 
     /**
-     * Returns the translation block as posted.
+     * Applies a cover removal or replacement to the base payload.
      *
-     * No normalization: the form posts translation[<langId>][lang_id]
-     * itself, and saveEntity() writes every row it is given.
+     * The current filename is read from the stored row, never from the
+     * posted hidden field, so a tampered payload cannot point the
+     * deletion at another event's files.
+     *
+     * When neither removal nor a new upload is requested, the cover
+     * column is left out of $base entirely and saveEntity() skips it.
+     *
+     * @param int $id
+     * @param array $existing Stored base row
+     * @param array $input Raw request payload
+     * @param array $base Payload being built, modified by reference
+     * @return void
+     */
+    private function applyCoverChange($id, array $existing, array $input, array &$base)
+    {
+        $current = isset($existing['cover']) ? (string) $existing['cover'] : '';
+
+        $data = isset($input['data']['event']) && is_array($input['data']['event'])
+            ? $input['data']['event']
+            : [];
+
+        $file = $this->extractFile($input);
+
+        if (!empty($data['remove_cover'])) {
+            if ($current !== '') {
+                $this->coverImageManager->delete($id);
+            }
+
+            $base['cover'] = '';
+
+            return;
+        }
+
+        if ($file) {
+            if ($current !== '') {
+                $this->coverImageManager->delete($id);
+            }
+
+            $this->coverImageManager->upload($id, $file);
+
+            $base['cover'] = $file->getUniqueName();
+        }
+    }
+
+    /**
+     * Returns the uploaded cover file, or false when none was sent
+     *
+     * @param array $input
+     * @return \Krystal\Http\FileTransfer\FileEntity|bool
+     */
+    private function extractFile(array $input)
+    {
+        return isset($input['files']['file']) && !empty($input['files']['file'])
+            ? $input['files']['file']
+            : false;
+    }
+
+    /**
+     * Returns the translation block as posted.
      *
      * @param array $input
      * @return array
      */
     private function extractTranslations(array $input)
     {
-        return isset($input['translation']) && is_array($input['translation'])
-            ? $input['translation']
+        return isset($input['data']['translation']) && is_array($input['data']['translation'])
+            ? $input['data']['translation']
             : [];
     }
 
     /**
      * Validates and normalizes the shared base payload.
      *
-     * Content fields are not handled here — they are forwarded to
-     * the mapper as posted.
+     * Content fields and the cover are not handled here.
      *
      * @param array $input
      * @throws InvalidArgumentException If required fields are missing or invalid
@@ -519,7 +614,9 @@ final class EventService
      */
     private function preparePayload(array $input)
     {
-        $data = isset($input['event']) && is_array($input['event']) ? $input['event'] : [];
+        $data = isset($input['data']['event']) && is_array($input['data']['event'])
+            ? $input['data']['event']
+            : [];
 
         $locationName = isset($data['location_name']) ? trim((string) $data['location_name']) : '';
 

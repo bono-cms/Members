@@ -89,7 +89,12 @@ final class Module extends AbstractCmsModule
             ),
 
             'locationParser' => $locationParser,
-            'eventService'   => new EventService($eventMapper, $locationParser),
+
+            'eventService' => new EventService(
+                $eventMapper,
+                $locationParser,
+                $this->createCoverImageManager()
+            ),
 
             'eventAnalyticsService' => new EventAnalyticsService(
                 $eventAnalyticsMapper,
@@ -119,6 +124,39 @@ final class Module extends AbstractCmsModule
 
         return new ImageManager(
             '/data/uploads/module/members/avatars/',
+            $this->appConfig->getRootDir(),
+            $this->appConfig->getRootUrl(),
+            $plugins
+        );
+    }
+
+    /**
+     * Builds the event cover image manager
+     *
+     * Separate from the avatar manager: covers live in their own
+     * directory and use wide (16:9) renders instead of squares.
+     *
+     * @return \Krystal\Image\Tool\ImageManager
+     */
+    private function createCoverImageManager()
+    {
+        $plugins = [
+            'thumb' => [
+                'quality' => 80,
+                'dimensions' => [
+                    [400, 225],
+                    [800, 450],
+                    [1600, 900],
+                ],
+            ],
+
+            'original' => [
+                'prefix' => 'original',
+            ],
+        ];
+
+        return new ImageManager(
+            '/data/uploads/module/members/events/covers/',
             $this->appConfig->getRootDir(),
             $this->appConfig->getRootUrl(),
             $plugins
