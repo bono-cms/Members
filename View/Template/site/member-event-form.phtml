@@ -50,16 +50,56 @@ $this->getPluginBag()->appendScript($this->moduleAsset('event-form.js', 'Members
                             <li class="nav-item" role="presentation">
                                 <a class="nav-link" href="#schedule" role="tab" data-bs-toggle="tab"><i class="bi bi-calendar-event"></i> <?= $this->translate('Schedule'); ?></a>
                             </li>
-                            <?php foreach ($languages as $language): ?>
-                            <li class="nav-item" role="presentation">
-                                <a class="nav-link" href="#language-<?= $language->getId(); ?>" role="tab" data-bs-toggle="tab"><i class="bi bi-translate"></i> <?= $language->getName(); ?></a>
-                            </li>
-                            <?php endforeach; ?>
                         </ul>
                     </div>
 
                     <div class="card-body tab-content">
                         <div class="tab-pane fade show active" id="main" role="tabpanel">
+
+                            <?php // ─── Translatable content, one tab per language ─── ?>
+                            <ul class="nav nav-tabs" role="tablist">
+                                <?php foreach ($languages as $index => $language): ?>
+                                <li class="nav-item" role="presentation">
+                                    <a class="nav-link <?= $index === 0 ? 'active' : ''; ?>" href="#language-<?= $language->getId(); ?>" role="tab" data-bs-toggle="tab">
+                                        <i class="bi bi-translate"></i> <?= htmlspecialchars($language->getName()); ?>
+                                    </a>
+                                </li>
+                                <?php endforeach; ?>
+                            </ul>
+
+                            <div class="tab-content border-start border-end border-bottom p-3 mb-4">
+                                <?php foreach ($languages as $index => $language): ?>
+                                <?php
+                                $translation = is_array($event) ? LanguageManager::findByLangId($language->getId(), $event) : $event;
+
+                                if (!$translation instanceof VirtualEntity) {
+                                    $translation = new VirtualEntity();
+                                }
+                                ?>
+                                <div class="tab-pane fade <?= $index === 0 ? 'show active' : ''; ?>" id="language-<?= $language->getId(); ?>" role="tabpanel">
+                                    <?= Element::hidden(sprintf('translation[%s][id]', $language->getId()), $translation->getId()); ?>
+                                    <?= Element::hidden(sprintf('translation[%s][lang_id]', $language->getId()), $language->getId()); ?>
+
+                                    <div class="mb-3">
+                                        <label class="form-label"><?= $this->translate('Title'); ?></label>
+                                        <?= Element::text(sprintf('translation[%s][title]', $language->getId()), $translation->getTitle(), ['class' => 'form-control', 'maxlength' => 200]); ?>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label class="form-label"><?= $this->translate('Description'); ?></label>
+                                        <?= Element::textarea(sprintf('translation[%s][description]', $language->getId()), $translation->getDescription(), ['class' => 'form-control', 'rows' => 4]); ?>
+                                    </div>
+
+                                    <div class="mb-0">
+                                        <label class="form-label"><?= $this->translate('Organizer'); ?></label>
+                                        <?= Element::text(sprintf('translation[%s][organizer]', $language->getId()), $translation->getOrganizer(), ['class' => 'form-control', 'maxlength' => 200]); ?>
+                                        <small class="text-muted"><?= $this->translate('Leave blank to show the author name instead'); ?></small>
+                                    </div>
+                                </div>
+                                <?php endforeach; ?>
+                            </div>
+
+                            <?php // ─── Shared across all languages ─── ?>
                             <div class="mb-3">
                                 <label class="form-label"><?= $this->translate('Registration link'); ?></label>
                                 <div class="input-group">
@@ -125,36 +165,6 @@ $this->getPluginBag()->appendScript($this->moduleAsset('event-form.js', 'Members
                                 <i class="bi bi-info-circle"></i> <?= $this->translate('After submission, your event will be reviewed by the association and published upon approval.'); ?>
                             </div>
                         </div>
-
-                        <?php foreach ($languages as $language): ?>
-                        <?php
-                        $translation = is_array($event) ? LanguageManager::findByLangId($language->getId(), $event) : $event;
-
-                        if (!$translation instanceof VirtualEntity) {
-                            $translation = new VirtualEntity();
-                        }
-                        ?>
-                        <div class="tab-pane fade" id="language-<?= $language->getId(); ?>" role="tabpanel">
-                            <?= Element::hidden(sprintf('translation[%s][id]', $language->getId()), $translation->getId()); ?>
-                            <?= Element::hidden(sprintf('translation[%s][lang_id]', $language->getId()), $language->getId()); ?>
-
-                            <div class="mb-3">
-                                <label class="form-label"><?= $this->translate('Title'); ?></label>
-                                <?= Element::text(sprintf('translation[%s][title]', $language->getId()), $translation->getTitle(), ['class' => 'form-control', 'maxlength' => 200]); ?>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label"><?= $this->translate('Description'); ?></label>
-                                <?= Element::textarea(sprintf('translation[%s][description]', $language->getId()), $translation->getDescription(), ['class' => 'form-control', 'rows' => 4]); ?>
-                            </div>
-
-                            <div class="mb-3">
-                                <label class="form-label"><?= $this->translate('Organizer'); ?></label>
-                                <?= Element::text(sprintf('translation[%s][organizer]', $language->getId()), $translation->getOrganizer(), ['class' => 'form-control', 'maxlength' => 200]); ?>
-                                <small class="text-muted"><?= $this->translate('Leave blank to show the author name instead'); ?></small>
-                            </div>
-                        </div>
-                        <?php endforeach; ?>
                     </div>
 
                     <div class="card-footer bg-white d-flex justify-content-end gap-2">

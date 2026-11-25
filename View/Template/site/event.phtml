@@ -11,7 +11,6 @@
 use Members\View\Widget\EventLocationMapWidget;
 
 $mapConfig = $this->widget(new EventLocationMapWidget($event));
-$organizerName = $event->getOrganizerName();
 
 ?>
 
@@ -57,9 +56,14 @@ $organizerName = $event->getOrganizerName();
                                 </p>
                                 <?php endif; ?>
 
-                                <?php if ($organizerName !== ''): ?>
+                                <?php if ($event->hasOrganizer()): ?>
                                 <p class="text-muted small mt-2 mb-0">
-                                    <i class="bi bi-person" aria-hidden="true"></i> <?= $this->translate('Organized by'); ?> <strong><?= htmlspecialchars($organizerName); ?></strong>
+                                    <i class="bi bi-person" aria-hidden="true"></i> <?= $this->translate('Organized by'); ?> <strong><?= htmlspecialchars($event->getOrganizer()); ?></strong>
+                                </p>
+
+                                <?php elseif ($event->hasCreator()): ?>
+                                <p class="text-muted small mt-2 mb-0">
+                                    <i class="bi bi-person" aria-hidden="true"></i> <?= $this->translate('Organized by'); ?> <strong><?= htmlspecialchars($event->getCreatorName()); ?></strong>
                                 </p>
                                 <?php endif; ?>
                             </div>
