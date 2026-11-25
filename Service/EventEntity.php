@@ -6,8 +6,10 @@
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code
  */
+
 namespace Members\Service;
 
+use Krystal\Date\TimeHelper;
 use Krystal\Stdlib\VirtualEntity;
 
 /**
@@ -207,9 +209,6 @@ final class EventEntity extends VirtualEntity
     /**
      * Returns the cover URL for a given size, or null when there is none
      *
-     * Guards on the bag as well as the filename: entities built outside
-     * EventService (e.g. the analytics payload) carry no image bag.
-     *
      * @param string $size One of the COVER_* constants
      * @return string|null
      */
@@ -231,7 +230,7 @@ final class EventEntity extends VirtualEntity
     /**
      * Checks whether event has attached cover file
      *
-     * @return bool
+     * @return boolean
      */
     public function hasCover()
     {
@@ -240,10 +239,6 @@ final class EventEntity extends VirtualEntity
 
     /**
      * Returns the organizer label to display
-     *
-     * Prefers the explicit, translatable organizer field and falls
-     * back to the creator's display name. Returns an empty string
-     * when neither is available, so callers can guard on the result.
      *
      * @return string
      */
@@ -262,10 +257,6 @@ final class EventEntity extends VirtualEntity
 
     /**
      * Returns a title that is never blank
-     *
-     * An event with no translation for the active language has a
-     * NULL title; the admin grid and "My events" still list it, so
-     * this fallback keeps those rows identifiable.
      *
      * @return string
      */
@@ -360,9 +351,10 @@ final class EventEntity extends VirtualEntity
     /**
      * Returns the formatted start date (e.g. "Nov 22, 2026")
      *
+     * @param string $locale Locale code
      * @return string
      */
-    public function getFormattedDate()
+    public function getFormattedDate($locale)
     {
         $startsAt = $this->getStartsAt();
 
@@ -370,13 +362,7 @@ final class EventEntity extends VirtualEntity
             return '';
         }
 
-        $timestamp = strtotime($startsAt);
-
-        if ($timestamp === false) {
-            return '';
-        }
-
-        return date('M j, Y', $timestamp);
+        return TimeHelper::formatLocalized($startsAt, $locale, 'MMM d, y');
     }
 
     /**
@@ -385,23 +371,25 @@ final class EventEntity extends VirtualEntity
      * Returns empty string when the time is midnight (00:00),
      * because midnight means "no specific time was set".
      *
+     * @param string $locale Locale code
      * @return string
      */
-    public function getFormattedTime()
+    public function getFormattedTime($locale)
     {
         if (!$this->hasStartTime()) {
             return '';
         }
 
-        return date('H:i', strtotime($this->getStartsAt()));
+        return TimeHelper::formatLocalized($this->getStartsAt(), $locale, 'HH:mm');
     }
 
     /**
      * Returns the full formatted start date and time (e.g. "Saturday, November 22, 2026")
      *
+     * @param string $locale Locale code
      * @return string
      */
-    public function getFormattedStartDateTime()
+    public function getFormattedStartDateTime($locale)
     {
         $startsAt = $this->getStartsAt();
 
@@ -409,21 +397,16 @@ final class EventEntity extends VirtualEntity
             return '';
         }
 
-        $timestamp = strtotime($startsAt);
-
-        if ($timestamp === false) {
-            return '';
-        }
-
-        return date('l, F j, Y', $timestamp);
+        return TimeHelper::formatLocalized($startsAt, $locale, 'EEEE, MMMM d, y');
     }
 
     /**
      * Returns the month abbreviation for the start date (e.g. "NOV")
      *
+     * @param string $locale Locale code
      * @return string
      */
-    public function getStartMonth()
+    public function getStartMonth($locale)
     {
         $startsAt = $this->getStartsAt();
 
@@ -431,13 +414,9 @@ final class EventEntity extends VirtualEntity
             return '';
         }
 
-        $timestamp = strtotime($startsAt);
+        $month = TimeHelper::formatLocalized($startsAt, $locale, 'MMM');
 
-        if ($timestamp === false) {
-            return '';
-        }
-
-        return strtoupper(date('M', $timestamp));
+        return mb_strtoupper($month, 'UTF-8');
     }
 
     /**
@@ -468,31 +447,33 @@ final class EventEntity extends VirtualEntity
      * Returns empty string when the time is midnight (00:00),
      * because midnight means "no specific time was set".
      *
+     * @param string $locale Locale code
      * @return string
      */
-    public function getFormattedEndTime()
+    public function getFormattedEndTime($locale)
     {
         if (!$this->hasEndTime()) {
             return '';
         }
 
-        return date('H:i', strtotime($this->getEndsAt()));
+        return TimeHelper::formatLocalized($this->getEndsAt(), $locale, 'HH:mm');
     }
 
     /**
      * Returns the "HH:MM — HH:MM" / "HH:MM" label, or '' for date-only events
      *
+     * @param string $locale Locale code
      * @return string
      */
-    public function getTimeRange()
+    public function getTimeRange($locale)
     {
-        $start = $this->getFormattedTime();
+        $start = $this->getFormattedTime($locale);
 
         if ($start === '') {
             return '';
         }
 
-        $end = $this->getFormattedEndTime();
+        $end = $this->getFormattedEndTime($locale);
 
         return $end === '' ? $start : $start . ' — ' . $end;
     }

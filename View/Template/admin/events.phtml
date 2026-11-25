@@ -81,8 +81,8 @@ use Krystal\Widget\GridView\GridViewWidget;
                 [
                     'column' => 'starts_at',
                     'label'  => 'Date',
-                    'value'  => function ($event) {
-                        return htmlspecialchars($event->getFormattedDate() . ' ' . $event->getFormattedTime());
+                    'value'  => function ($event) use ($currentLanguage){
+                        return htmlspecialchars($event->getFormattedDate($currentLanguage->getCode()) . ' ' . $event->getFormattedTime($currentLanguage->getCode()));
                     },
                 ],
                 [

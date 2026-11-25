@@ -48,13 +48,13 @@ $this->getPluginBag()->appendScript($this->moduleAsset('event-analytics.js', 'Me
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body text-center">
                 <div class="text-muted small text-uppercase"><?= $this->translate('Event date'); ?></div>
-                <div class="h6 mb-0"><?= htmlspecialchars(trim($event->getFormattedDate() . ' ' . $event->getFormattedTime())); ?></div>
+                <div class="h6 mb-0"><?= htmlspecialchars(trim($event->getFormattedDate($currentLanguage->getCode()) . ' ' . $event->getFormattedTime($currentLanguage->getCode()))); ?></div>
             </div>
         </div>
     </div>
 </div>
 
-<div class="row g-3" data-event-analytics data-daily-stats="<?= htmlspecialchars(json_encode($analytics['dailyStats']), ENT_QUOTES); ?>" data-source-stats="<?= htmlspecialchars(json_encode($analytics['sourceStats']), ENT_QUOTES); ?>" data-translations="<?= htmlspecialchars(json_encode(['views' => $this->translate('Views'), 'clicks' => $this->translate('Clicks')]), ENT_QUOTES); ?>">
+<div class="row g-3" data-event-analytics data-daily-stats="<?= htmlspecialchars(json_encode($analytics['dailyStats'])); ?>" data-source-stats="<?= htmlspecialchars(json_encode($analytics['sourceStats']), ENT_QUOTES); ?>" data-translations="<?= htmlspecialchars(json_encode(['views' => $this->translate('Views'), 'clicks' => $this->translate('Clicks')])); ?>">
     <div class="col-md-8">
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body">
