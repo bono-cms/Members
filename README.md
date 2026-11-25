@@ -1,4 +1,5 @@
 # Members module
+============
 
 Membership system for Bono CMS: member accounts, authentication, profiles,
 a public directory, tags, optional profile moderation, 1-to-1 private
@@ -117,10 +118,17 @@ placeholder, every protected request is rejected or every token is forgeable.
 - Shared fields: registration link, location, coordinates, schedule
 - Optional cover image (400×225, 800×450, 1600×900 + original)
 - Map URL parsing (Google Maps, Yandex, OSM, 2GIS) to extract coordinates
+- **Date-only events**: events with a start time of `00:00` are treated as
+  date-only; the time portion is hidden in all display helpers
+- **Actual vs expired**: `/events` shows only upcoming (non-expired) events;
+  `/events/archive` shows past events without a map
 - Public catalog, detail page with map, click-tracked "Sign up" button
 - Per-event analytics: 14-day trend, traffic sources, conversion rate
 - Global admin dashboard: KPIs, top events, top authors
-- Leaflet map with clustered markers, geolocation and radius filter
+- Leaflet map with clustered markers showing **all** non-expired events
+  with coordinates (not just the paginated subset), plus geolocation and
+  radius filter
+- Admin grid sorted by event date (newest first)
 
 # Site pages
 
@@ -135,7 +143,8 @@ placeholder, every protected request is rejected or every token is forgeable.
 | `/member/profile/(:var)`               | Public profile                | Public   |
 | `/member/messages`                     | Chat inbox                    | Login    |
 | `/member/messages/conversation/(:var)` | Chat thread                   | Login    |
-| `/events`                              | Events catalog + map          | Public   |
+| `/events`                              | Events catalog + map (actual only) | Public |
+| `/events/archive`                      | Past events (no map)          | Public   |
 | `/events/(:var)`                       | Event detail                  | Public   |
 | `/events/(:var)/go`                    | Click tracker → redirect      | Public   |
 | `/member/events`                       | My events dashboard           | Login    |
@@ -158,7 +167,7 @@ All under `/<admin>/module/members`:
 | `/history/(:var)`        | Change history for a member          |
 | `/tags`                  | Tag groups                           |
 | `/tags/group/(:var)`     | Tags inside a group                  |
-| `/events`                | Events grid                          |
+| `/events`                | Events grid (sorted by event date)   |
 | `/events/create`         | Create an association event          |
 | `/events/edit/(:var)`    | Edit any event                       |
 | `/events/analytics`      | Global analytics dashboard           |
@@ -228,15 +237,16 @@ $event->getClicksCount();
 $event->getDisplayTitle();       // title, else "#<id>"
 $event->getShortDescription(150);
 $event->getFormattedDate();      // "Nov 22, 2026"
-$event->getFormattedTime();      // "18:55"
+$event->getFormattedTime();      // "18:55" or "" for midnight
 $event->getFormattedStartDateTime();
-$event->getFormattedEndTime();
+$event->getFormattedEndTime();   // "22:00" or "" for midnight
+$event->getTimeRange();          // "18:55 — 22:00", "18:55", or ""
 $event->getStartMonth();         // "NOV"
 $event->getStartDay();           // 22
 $event->getDirectionsUrl();
 
 // Predicates
-$event->isPast();
+$event->isPast();                // uses ends_at when set, else starts_at
 $event->isOfficial();            // creator_id is null
 $event->hasLink();
 $event->hasLocation();
@@ -245,6 +255,8 @@ $event->hasDescription();
 $event->hasOrganizer();
 $event->hasCreator();
 $event->hasCover();
+$event->hasStartTime();          // false when time is 00:00
+$event->hasEndTime();            // false when time is 00:00
 $event->getCoverUrl(EventEntity::COVER_CARD);  // THUMB, CARD, FULL
 
 // Status display
@@ -255,6 +267,26 @@ $event->getConversionRate();
 
 Cover size constants: `COVER_THUMB` (`400x225`), `COVER_CARD` (`800x450`),
 `COVER_FULL` (`1600x900`).
+
+### Midnight = date-only
+
+An event with a start or end time of `00:00` is treated as a date-only
+event. `hasStartTime()` / `hasEndTime()` return `false`, and
+`getFormattedTime()` / `getFormattedEndTime()` return an empty string.
+`getTimeRange()` returns the full range when both times are meaningful,
+just the start time when only the start is meaningful, or `""` when the
+start is midnight.
+
+### Expiry rule
+
+`isPast()` and the SQL `COALESCE(ends_at, starts_at)` expression used by
+the mapper agree on when an event expires:
+
+- If `ends_at` is set, the event expires at `ends_at`.
+- Otherwise, the event expires at `starts_at`.
+
+This rule is shared between `EventEntity::isPast()` and
+`EventMapper::getExpiryExpression()`.
 
 ## Event form templates
 
@@ -271,6 +303,7 @@ Language tabs are nested inside **Main**. Content fields post as
 `event[...]`. The cover uploads as `file`.
 
 Both forms carry `enctype="multipart/form-data"` and `novalidate`.
+
 The schedule inputs are `datetime-local` (`Y-m-d\TH:i`); the templates
 normalize the entity's `Y-m-d H:i:s` values before rendering.
 
@@ -282,6 +315,7 @@ Three assets, all auto-initializing on DOM ready:
 |---------------------|---------------------------|--------------------------------|
 | `event-form.js`     | `[data-event-form]`       | Map URL parser + validation gate |
 | `event-analytics.js`| `[data-event-analytics]`  | Chart.js renderer               |
+| `event-map.js`      | `[data-event-location-map]` | Single-event Leaflet map      |
 
 Include after jQuery 3.x:
 
@@ -296,10 +330,14 @@ doesn't silently block on a required field inside a hidden tab.
 `event-analytics.js` requires Chart.js 4.x and reads `data-daily-stats` /
 `data-source-stats` JSON attributes.
 
-`event-map.js` requires Leaflet. `EventMap` fetches
-`/api/v1/members/events/render/map` and renders clustered markers.
-`SingleEventMap` reads `data-latitude`, `data-longitude`,
-`data-location-name` from its container.
+`event-map.js` is used only on the single-event detail page. It reads
+`data-latitude`, `data-longitude`, `data-location-name` from its container
+and renders a Leaflet map with a single marker.
+
+The catalog map on `/events` is rendered server-side by `EventsMapWidget`,
+which receives all non-expired events with coordinates from the controller
+(no AJAX). The widget builds the configuration array consumed by the
+framework's map renderer service.
 
 To disable auto-init, set `window.EventForm.autoInit = false` (etc.) before
 loading the script.
@@ -334,6 +372,7 @@ No refresh flow — re-login when expired. A missing or invalid token yields
 | `password`   | string | yes      | Plain-text      |
 
 **200:**
+
 ```json
 {
   "token": "eyJhbGci...",
@@ -352,6 +391,7 @@ No refresh flow — re-login when expired. A missing or invalid token yields
 | `email` | string | yes      |
 
 **202:**
+
 ```json
 { "message": "If an account exists with that email, a reset link has been sent." }
 ```
@@ -363,6 +403,7 @@ Response is identical whether or not the email matches (prevents enumeration).
 `GET /api/v1/members/auth/whoami` — protected.
 
 **200:**
+
 ```json
 { "id": 42, "name": "Jane Doe", "email": "jane@example.com", "confirmed": true, "avatar": "https://..." }
 ```
@@ -380,6 +421,7 @@ Response is identical whether or not the email matches (prevents enumeration).
 | `member[password]`            | string | yes      | Min 6 chars                    |
 
 **201:**
+
 ```json
 { "message": "Registration successful. Please check your email to confirm your account." }
 ```
@@ -391,6 +433,7 @@ Response is identical whether or not the email matches (prevents enumeration).
 `POST /api/v1/members/register/resend` — protected.
 
 **200:**
+
 ```json
 { "message": "A new confirmation email has been sent." }
 ```
@@ -402,6 +445,7 @@ Response is identical whether or not the email matches (prevents enumeration).
 `GET /api/v1/members/me` — protected.
 
 **200:**
+
 ```json
 {
   "user": {
@@ -440,6 +484,7 @@ Response is identical whether or not the email matches (prevents enumeration).
 Only the language selected by `?lang=` (or the active language) is accepted.
 
 **200:**
+
 ```json
 { "message": "Your changes were submitted for review.", "user": {...}, "pendingChanges": [...] }
 ```
@@ -455,6 +500,7 @@ Only the language selected by `?lang=` (or the active language) is accepted.
 | `file` | file | yes      |
 
 **200:**
+
 ```json
 { "message": "Your changes were submitted for review.", "avatar": "https://..." }
 ```
@@ -484,6 +530,7 @@ Only the language selected by `?lang=` (or the active language) is accepted.
 | `lang`    | string | no       |                          |
 
 **200:**
+
 ```json
 {
   "data": [{ "id": 42, "name": "Jane Doe", "title": "Engineer", "company": "Acme", "country": "us", "bio": "...", "avatar": "https://..." }],
@@ -497,6 +544,7 @@ Only the language selected by `?lang=` (or the active language) is accepted.
 `GET /api/v1/members/profile?id=42` — public.
 
 **200:**
+
 ```json
 { "user": { "id": 42, "name": "...", "title": "...", "company": "...", "country": "us", "bio": "...", "avatar": "..." }, "tags": [...] }
 ```
@@ -508,6 +556,7 @@ Only the language selected by `?lang=` (or the active language) is accepted.
 `GET /api/v1/members/chats` — protected.
 
 **200:**
+
 ```json
 { "data": [{ "id": 7, "type": "direct", "displayName": "John Smith", "other": {...}, "lastMessage": {...}, "lastMessageAt": "...", "messageCount": 42, "unreadCount": 2, "mutedUntil": null }] }
 ```
@@ -522,6 +571,7 @@ Only the language selected by `?lang=` (or the active language) is accepted.
 | `before` | int  | no       | Load-earlier pagination  |
 
 **200:** ascending message list, marks thread read.
+
 **Errors:** `400`, `401`, `403`.
 
 ### Send a message
@@ -568,6 +618,7 @@ Only the language selected by `?lang=` (or the active language) is accepted.
 | `lang` | string | no       |
 
 **200:**
+
 ```json
 {
   "data": [{
@@ -607,15 +658,21 @@ translation for the requested language are returned.
 
 `GET /api/v1/members/events/render/map` — public. No pagination.
 
-| Name    | Type   | Required | Notes                                       |
-|---------|--------|----------|---------------------------------------------|
-| `from`  | string | no       | `starts_at >= from` (MySQL datetime)         |
-| `to`    | string | no       | `starts_at <= to`                            |
-| `bbox`  | string | no       | `minLat,minLng,maxLat,maxLng`                |
-| `limit` | int    | no       | Default 500, max 1000                        |
-| `lang`  | string | no       | Language of returned titles                  |
+| Name     | Type   | Required | Notes                                       |
+|----------|--------|----------|---------------------------------------------|
+| `period` | string | no       | `upcoming` (default), `past`, or `all`      |
+| `from`   | string | no       | `starts_at >= from` (MySQL datetime)        |
+| `to`     | string | no       | `starts_at <= to`                           |
+| `bbox`   | string | no       | `minLat,minLng,maxLat,maxLng`               |
+| `limit`  | int    | no       | Default 500, max 1000                       |
+| `lang`   | string | no       | Language of returned titles                 |
+
+By default, only non-expired events are returned (`period=upcoming`),
+matching the web catalog. The mobile app can request past events with
+`?period=past` or all events with `?period=all`.
 
 **200:**
+
 ```json
 {
   "data": [{ "id": 42, "title": "...", "latitude": 41.29, "longitude": 69.24, "location_name": "...", "starts_at": "2026-11-22 18:55:00", "url": "/events/42" }],
@@ -647,6 +704,7 @@ Malformed `bbox` or non-numeric `limit` are silently ignored.
 | `file`                                     | file   | no       | Cover image                 |
 
 **201:** `{ "id": 42, "message": "The event has been created and is pending review" }`.
+
 **Errors:** `401`, `422`.
 
 ### List my events with summary
@@ -654,6 +712,7 @@ Malformed `bbox` or non-numeric `limit` are silently ignored.
 `GET /api/v1/members/me/events` — protected.
 
 **200:**
+
 ```json
 { "data": [...], "summary": { "eventCount": 5, "totalViews": 420, "totalClicks": 63, "conversion": 15.0 }, "meta": {...} }
 ```
@@ -663,6 +722,7 @@ Malformed `bbox` or non-numeric `limit` are silently ignored.
 `GET /api/v1/members/me/events/:id/analytics` — protected.
 
 **200:**
+
 ```json
 { "data": { "event": {...}, "views": 120, "clicks": 15, "conversion": 12.5, "dailyStats": [...], "sourceStats": [...] } }
 ```
@@ -672,11 +732,13 @@ Malformed `bbox` or non-numeric `limit` are silently ignored.
 ## Error shape
 
 Non-validation errors:
+
 ```json
 { "error": "Human-readable message" }
 ```
 
 Validation errors (422):
+
 ```json
 { "errors": { "member[email]": ["This email is already taken"] } }
 ```
@@ -749,3 +811,7 @@ Files:
   `$this->translator->translate()`.
 - **The map endpoint** returns `snake_case` keys unlike every other events
   endpoint, and silently ignores malformed `bbox` / `limit` parameters.
+- **The `COALESCE(ends_at, starts_at)` expiry expression** is not sargable.
+  At a few thousand events this is irrelevant; if the table grows, add a
+  stored generated column `expires_at AS COALESCE(ends_at, starts_at) STORED`
+  with an index and point the expression at it.
