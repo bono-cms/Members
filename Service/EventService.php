@@ -6,7 +6,6 @@
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code
  */
-
 namespace Members\Service;
 
 use InvalidArgumentException;
@@ -35,7 +34,6 @@ final class EventService
     const STATUS_PENDING = 'pending';
     const STATUS_APPROVED = 'approved';
     const STATUS_REJECTED = 'rejected';
-
     const MAX_LINK_LENGTH = 500;
     const MAX_LOCATION_LENGTH = 255;
 
@@ -56,7 +54,7 @@ final class EventService
     /**
      * Cover image manager
      *
-     * @var \Krystal\Image\Tool\ImageManagerInterface
+     * @var ImageManagerInterface
      */
     private $coverImageManager;
 
@@ -65,7 +63,7 @@ final class EventService
      *
      * @param EventMapper $mapper
      * @param LocationParser $locationParser
-     * @param \Krystal\Image\Tool\ImageManagerInterface $coverImageManager
+     * @param ImageManagerInterface $coverImageManager
      * @return void
      */
     public function __construct(EventMapper $mapper, LocationParser $locationParser, ImageManagerInterface $coverImageManager)
@@ -84,37 +82,35 @@ final class EventService
     private function toEntity(array $row)
     {
         $entity = new EventEntity();
-
         $cover = isset($row['cover']) ? (string) $row['cover'] : '';
 
         $coverBag = clone $this->coverImageManager->getImageBag();
         $coverBag->setId(isset($row['id']) ? (int) $row['id'] : 0)
-                 ->setCover($cover);
+            ->setCover($cover);
 
         $entity->setImageBag($coverBag);
-
         $entity->setId(isset($row['id']) ? (int) $row['id'] : null)
-               ->setCreatorId(isset($row['creator_id']) && $row['creator_id'] !== null ? (int) $row['creator_id'] : null)
-               ->setCover($cover)
-               ->setCoverBag($coverBag)
-               ->setLangId(isset($row['lang_id']) ? (int) $row['lang_id'] : null)
-               ->setTitle(isset($row['title']) ? $row['title'] : '')
-               ->setDescription(isset($row['description']) ? $row['description'] : '')
-               ->setOrganizer(isset($row['organizer']) ? $row['organizer'] : '')
-               ->setLink(isset($row['link']) ? $row['link'] : '')
-               ->setLocationName(isset($row['location_name']) ? $row['location_name'] : '')
-               ->setLatitude(isset($row['latitude']) && $row['latitude'] !== null ? (float) $row['latitude'] : null)
-               ->setLongitude(isset($row['longitude']) && $row['longitude'] !== null ? (float) $row['longitude'] : null)
-               ->setLocationSource(isset($row['location_source']) ? $row['location_source'] : EventEntity::LOCATION_SOURCE_NONE)
-               ->setStartsAt(isset($row['starts_at']) ? $row['starts_at'] : '')
-               ->setEndsAt(isset($row['ends_at']) ? $row['ends_at'] : '')
-               ->setStatus(isset($row['status']) ? $row['status'] : EventEntity::STATUS_PENDING)
-               ->setRejectionReason(isset($row['rejection_reason']) ? $row['rejection_reason'] : '')
-               ->setViewsCount(isset($row['views_count']) ? (int) $row['views_count'] : 0)
-               ->setClicksCount(isset($row['clicks_count']) ? (int) $row['clicks_count'] : 0)
-               ->setCreatedAt(isset($row['created_at']) ? $row['created_at'] : '')
-               ->setCreatorName(isset($row['creator_name']) ? $row['creator_name'] : null)
-               ->setCreatorAvatar(isset($row['creator_avatar']) ? $row['creator_avatar'] : null);
+            ->setCreatorId(isset($row['creator_id']) && $row['creator_id'] !== null ? (int) $row['creator_id'] : null)
+            ->setCover($cover)
+            ->setCoverBag($coverBag)
+            ->setLangId(isset($row['lang_id']) ? (int) $row['lang_id'] : null)
+            ->setTitle(isset($row['title']) ? $row['title'] : '')
+            ->setDescription(isset($row['description']) ? $row['description'] : '')
+            ->setOrganizer(isset($row['organizer']) ? $row['organizer'] : '')
+            ->setLink(isset($row['link']) ? $row['link'] : '')
+            ->setLocationName(isset($row['location_name']) ? $row['location_name'] : '')
+            ->setLatitude(isset($row['latitude']) && $row['latitude'] !== null ? (float) $row['latitude'] : null)
+            ->setLongitude(isset($row['longitude']) && $row['longitude'] !== null ? (float) $row['longitude'] : null)
+            ->setLocationSource(isset($row['location_source']) ? $row['location_source'] : EventEntity::LOCATION_SOURCE_NONE)
+            ->setStartsAt(isset($row['starts_at']) ? $row['starts_at'] : '')
+            ->setEndsAt(isset($row['ends_at']) ? $row['ends_at'] : '')
+            ->setStatus(isset($row['status']) ? $row['status'] : EventEntity::STATUS_PENDING)
+            ->setRejectionReason(isset($row['rejection_reason']) ? $row['rejection_reason'] : '')
+            ->setViewsCount(isset($row['views_count']) ? (int) $row['views_count'] : 0)
+            ->setClicksCount(isset($row['clicks_count']) ? (int) $row['clicks_count'] : 0)
+            ->setCreatedAt(isset($row['created_at']) ? $row['created_at'] : '')
+            ->setCreatorName(isset($row['creator_name']) ? $row['creator_name'] : null)
+            ->setCreatorAvatar(isset($row['creator_avatar']) ? $row['creator_avatar'] : null);
 
         return $entity;
     }
@@ -176,7 +172,6 @@ final class EventService
         }
 
         $base = $this->preparePayload($input);
-
         $base['creator_id'] = $userId;
         $base['status'] = self::STATUS_PENDING;
         $base['rejection_reason'] = null;
@@ -215,7 +210,6 @@ final class EventService
     public function createByAdmin(array $input)
     {
         $base = $this->preparePayload($input);
-
         $base['creator_id'] = null;
         $base['status'] = self::STATUS_APPROVED;
         $base['rejection_reason'] = null;
@@ -475,6 +469,30 @@ final class EventService
     }
 
     /**
+     * Fetches a paginated list of actual (not yet expired) events for the public catalog.
+     *
+     * @param int $pageNumber
+     * @param int $itemsPerPage
+     * @return array
+     */
+    public function fetchUpcoming($pageNumber, $itemsPerPage)
+    {
+        return $this->toEntities($this->mapper->fetchUpcoming((int) $pageNumber, (int) $itemsPerPage));
+    }
+
+    /**
+     * Fetches a paginated list of expired events for the archive page.
+     *
+     * @param int $pageNumber
+     * @param int $itemsPerPage
+     * @return array
+     */
+    public function fetchPast($pageNumber, $itemsPerPage)
+    {
+        return $this->toEntities($this->mapper->fetchPast((int) $pageNumber, (int) $itemsPerPage));
+    }
+
+    /**
      * Fetches a paginated list of approved events for the public catalog.
      *
      * @param int $pageNumber
@@ -549,7 +567,6 @@ final class EventService
     private function applyCoverChange($id, array $existing, array $input, array &$base)
     {
         $current = isset($existing['cover']) ? (string) $existing['cover'] : '';
-
         $data = isset($input['data']['event']) && is_array($input['data']['event'])
             ? $input['data']['event']
             : [];
@@ -572,7 +589,6 @@ final class EventService
             }
 
             $this->coverImageManager->upload($id, $file);
-
             $base['cover'] = $file->getUniqueName();
         }
     }

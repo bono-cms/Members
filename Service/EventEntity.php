@@ -6,7 +6,6 @@
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code
  */
-
 namespace Members\Service;
 
 use Krystal\Stdlib\VirtualEntity;
@@ -26,8 +25,8 @@ final class EventEntity extends VirtualEntity
      * @const string
      */
     const COVER_THUMB = '400x225';
-    const COVER_CARD  = '800x450';
-    const COVER_FULL  = '1600x900';
+    const COVER_CARD = '800x450';
+    const COVER_FULL = '1600x900';
 
     /**
      * Event status constants
@@ -46,6 +45,15 @@ final class EventEntity extends VirtualEntity
     const LOCATION_SOURCE_MANUAL = 'manual';
     const LOCATION_SOURCE_URL = 'url';
     const LOCATION_SOURCE_NONE = 'none';
+
+    /**
+     * A time of 00:00 means "no specific time was set" — the event
+     * is date-only. Rendering "00:00" is noise, so every display
+     * helper treats it as absent.
+     *
+     * @const string
+     */
+    const MIDNIGHT = '00:00';
 
     /**
      * Tells whether the event is official (created by admin on behalf of the association)
@@ -156,6 +164,47 @@ final class EventEntity extends VirtualEntity
     }
 
     /**
+     * Tells whether the event has a meaningful start time
+     *
+     * @return bool
+     */
+    public function hasStartTime()
+    {
+        return $this->hasMeaningfulTime($this->getStartsAt());
+    }
+
+    /**
+     * Tells whether the event has a meaningful end time
+     *
+     * @return bool
+     */
+    public function hasEndTime()
+    {
+        return $this->hasMeaningfulTime($this->getEndsAt());
+    }
+
+    /**
+     * Determines whether a datetime carries a time other than midnight
+     *
+     * @param string|null $value
+     * @return bool
+     */
+    private function hasMeaningfulTime($value)
+    {
+        if (empty($value)) {
+            return false;
+        }
+
+        $timestamp = strtotime($value);
+
+        if ($timestamp === false) {
+            return false;
+        }
+
+        return date('H:i', $timestamp) !== self::MIDNIGHT;
+    }
+
+    /**
      * Returns the cover URL for a given size, or null when there is none
      *
      * Guards on the bag as well as the filename: entities built outside
@@ -181,8 +230,8 @@ final class EventEntity extends VirtualEntity
 
     /**
      * Checks whether event has attached cover file
-     * 
-     * @return boolean
+     *
+     * @return bool
      */
     public function hasCover()
     {
@@ -333,23 +382,18 @@ final class EventEntity extends VirtualEntity
     /**
      * Returns the formatted start time (e.g. "18:55")
      *
+     * Returns empty string when the time is midnight (00:00),
+     * because midnight means "no specific time was set".
+     *
      * @return string
      */
     public function getFormattedTime()
     {
-        $startsAt = $this->getStartsAt();
-
-        if (empty($startsAt)) {
+        if (!$this->hasStartTime()) {
             return '';
         }
 
-        $timestamp = strtotime($startsAt);
-
-        if ($timestamp === false) {
-            return '';
-        }
-
-        return date('H:i', $timestamp);
+        return date('H:i', strtotime($this->getStartsAt()));
     }
 
     /**
@@ -421,23 +465,36 @@ final class EventEntity extends VirtualEntity
     /**
      * Returns the formatted end time (e.g. "22:57")
      *
+     * Returns empty string when the time is midnight (00:00),
+     * because midnight means "no specific time was set".
+     *
      * @return string
      */
     public function getFormattedEndTime()
     {
-        $endsAt = $this->getEndsAt();
-
-        if (empty($endsAt)) {
+        if (!$this->hasEndTime()) {
             return '';
         }
 
-        $timestamp = strtotime($endsAt);
+        return date('H:i', strtotime($this->getEndsAt()));
+    }
 
-        if ($timestamp === false) {
+    /**
+     * Returns the "HH:MM — HH:MM" / "HH:MM" label, or '' for date-only events
+     *
+     * @return string
+     */
+    public function getTimeRange()
+    {
+        $start = $this->getFormattedTime();
+
+        if ($start === '') {
             return '';
         }
 
-        return date('H:i', $timestamp);
+        $end = $this->getFormattedEndTime();
+
+        return $end === '' ? $start : $start . ' — ' . $end;
     }
 
     /**

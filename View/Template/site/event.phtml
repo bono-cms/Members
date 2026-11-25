@@ -14,7 +14,6 @@ use Members\Service\EventEntity;
 $mapConfig = $this->widget(new EventLocationMapWidget($event));
 
 ?>
-
 <section class="flex-grow-1 d-flex justify-content-center align-items-start py-5 bg-light">
     <div class="container">
         <div class="row justify-content-center">
@@ -23,49 +22,39 @@ $mapConfig = $this->widget(new EventLocationMapWidget($event));
                     <a href="<?= $this->url('Members:Event@catalogAction'); ?>" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-left" aria-hidden="true"></i> <?= $this->translate('Back to events'); ?>
                     </a>
-
                     <?php if ($event->isPast()): ?>
                     <span class="badge bg-secondary">
                         <i class="bi bi-clock-history" aria-hidden="true"></i> <?= $this->translate('Past event'); ?>
                     </span>
                     <?php endif; ?>
                 </div>
-
                 <div class="card border-0 shadow-sm">
                     <?php if ($event->hasCover()): ?>
                     <img src="<?= $event->getCoverUrl(EventEntity::COVER_FULL); ?>" class="card-img-top" alt="<?= htmlspecialchars($event->getTitle()); ?>" />
                     <?php endif; ?>
-
                     <div class="card-body p-4 p-md-5">
                         <div class="d-flex flex-column flex-md-row align-items-md-start gap-4 mb-4">
                             <div class="bg-primary bg-opacity-10 text-primary rounded-3 d-flex flex-column align-items-center justify-content-center flex-shrink-0 px-4 py-3 lh-1">
                                 <span class="fw-bold fs-2 lh-1"><?= $event->getStartMonth(); ?></span>
                                 <span class="fw-bold fs-4 lh-1 mt-1"><?= $event->getStartDay(); ?></span>
                             </div>
-
                             <div class="flex-grow-1 min-w-0">
                                 <h1 class="h2 mb-2"><?= htmlspecialchars($event->getDisplayTitle()); ?></h1>
-
                                 <p class="text-muted mb-2">
                                     <i class="bi bi-calendar-event" aria-hidden="true"></i> <?= htmlspecialchars($event->getFormattedStartDateTime()); ?>
-                                    &middot;
-                                    <i class="bi bi-clock" aria-hidden="true"></i> <?= htmlspecialchars($event->getFormattedTime()); ?>
-                                    <?php if ($event->getEndsAt()): ?>
-                                    &mdash; <?= htmlspecialchars($event->getFormattedEndTime()); ?>
+                                    <?php if ($event->hasStartTime()): ?>
+                                    &middot; <i class="bi bi-clock" aria-hidden="true"></i> <?= htmlspecialchars($event->getTimeRange()); ?>
                                     <?php endif; ?>
                                 </p>
-
                                 <?php if ($event->hasLocation()): ?>
                                 <p class="text-muted mb-0">
                                     <i class="bi bi-geo-alt" aria-hidden="true"></i> <?= htmlspecialchars($event->getLocationName()); ?>
                                 </p>
                                 <?php endif; ?>
-
                                 <?php if ($event->hasOrganizer()): ?>
                                 <p class="text-muted small mt-2 mb-0">
                                     <i class="bi bi-person" aria-hidden="true"></i> <?= $this->translate('Organized by'); ?> <strong><?= htmlspecialchars($event->getOrganizer()); ?></strong>
                                 </p>
-
                                 <?php elseif ($event->hasCreator()): ?>
                                 <p class="text-muted small mt-2 mb-0">
                                     <i class="bi bi-person" aria-hidden="true"></i> <?= $this->translate('Organized by'); ?> <strong><?= htmlspecialchars($event->getCreatorName()); ?></strong>
@@ -73,14 +62,12 @@ $mapConfig = $this->widget(new EventLocationMapWidget($event));
                                 <?php endif; ?>
                             </div>
                         </div>
-
                         <?php if ($event->hasDescription()): ?>
                         <hr class="my-4">
                         <div class="mb-4">
                             <?= nl2br(htmlspecialchars($event->getDescription())); ?>
                         </div>
                         <?php endif; ?>
-
                         <?php if (!empty($mapConfig)): ?>
                         <hr class="my-4">
                         <div class="mb-4">
@@ -95,7 +82,6 @@ $mapConfig = $this->widget(new EventLocationMapWidget($event));
                             </a>
                         </div>
                         <?php endif; ?>
-
                         <?php if ($event->hasLink()): ?>
                         <div class="d-flex flex-wrap gap-2">
                             <a href="<?= $this->url('Members:Event@clickAction', [$event->getId()]); ?>" class="btn btn-primary btn-lg" target="_blank" rel="noopener">

@@ -195,8 +195,14 @@ return [
     // The redirect route "/events/(:var)/go" MUST be registered
     // before "/events/(:var)", otherwise "go" would be captured as
     // the event id.
+    // The "/events/archive" route MUST be registered before
+    // "/events/(:var)", otherwise "archive" would be captured as
+    // the event id.
     '/events' => [
         'controller' => 'Event@catalogAction',
+    ],
+    '/events/archive' => [
+        'controller' => 'Event@archiveAction',
     ],
     '/events/(:var)/go' => [
         'controller' => 'Event@clickAction',
@@ -321,7 +327,7 @@ return [
     ],
     '/api/v1/members/events/store' => [
         'controller' => 'Api:Event@storeAction',
-        'methods'    => ['POST'],
+        'methods' => ['POST'],
         'middleware' => [JwtAuthMiddleware::class],
     ],
     '/api/v1/members/me/events' => [
@@ -333,9 +339,9 @@ return [
         'middleware' => [JwtAuthMiddleware::class],
     ],
     '/api/v1/members/events/(:var)/click' => [
-        'controller' => 'Api:Event@clickAction'
+        'controller' => 'Api:Event@clickAction',
     ],
     '/api/v1/members/events/render/map' => [
-        'controller' => 'Api:Event@mapAction'
+        'controller' => 'Api:Event@mapAction',
     ],
 ];

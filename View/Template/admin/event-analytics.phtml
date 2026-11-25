@@ -1,4 +1,5 @@
 <?php
+
 /**
  * Detailed analytics for a single event (admin view)
  *
@@ -47,11 +48,12 @@ $this->getPluginBag()->appendScript($this->moduleAsset('event-analytics.js', 'Me
         <div class="card border-0 shadow-sm h-100">
             <div class="card-body text-center">
                 <div class="text-muted small text-uppercase"><?= $this->translate('Event date'); ?></div>
-                <div class="h6 mb-0"><?= htmlspecialchars($event->getFormattedDate()); ?> <?= htmlspecialchars($event->getFormattedTime()); ?></div>
+                <div class="h6 mb-0"><?= htmlspecialchars(trim($event->getFormattedDate() . ' ' . $event->getFormattedTime())); ?></div>
             </div>
         </div>
     </div>
 </div>
+
 <div class="row g-3" data-event-analytics data-daily-stats="<?= htmlspecialchars(json_encode($analytics['dailyStats']), ENT_QUOTES); ?>" data-source-stats="<?= htmlspecialchars(json_encode($analytics['sourceStats']), ENT_QUOTES); ?>" data-translations="<?= htmlspecialchars(json_encode(['views' => $this->translate('Views'), 'clicks' => $this->translate('Clicks')]), ENT_QUOTES); ?>">
     <div class="col-md-8">
         <div class="card border-0 shadow-sm h-100">
@@ -66,9 +68,9 @@ $this->getPluginBag()->appendScript($this->moduleAsset('event-analytics.js', 'Me
             <div class="card-body">
                 <h6 class="card-title"><i class="bi bi-pie-chart"></i> <?= $this->translate('Traffic sources'); ?></h6>
                 <?php if (empty($analytics['sourceStats'])): ?>
-                    <p class="text-muted mb-0"><?= $this->translate('No data yet'); ?></p>
+                <p class="text-muted mb-0"><?= $this->translate('No data yet'); ?></p>
                 <?php else: ?>
-                    <canvas data-role="source-chart" height="200"></canvas>
+                <canvas data-role="source-chart" height="200"></canvas>
                 <?php endif; ?>
             </div>
         </div>

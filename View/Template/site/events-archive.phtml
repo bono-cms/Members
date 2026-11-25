@@ -1,0 +1,73 @@
+<?php
+
+/**
+ * Archive of expired events — list only, deliberately no map.
+ *
+ * @var \Krystal\Stdlib\VirtualEntity $page
+ * @var array $events
+ * @var \Krystal\Paginate\PaginatorInterface $paginator
+ */
+
+use Krystal\Widget\Pagination\PaginationWidget;
+use Members\Service\EventEntity;
+
+?>
+
+<section class="flex-grow-1 d-flex justify-content-center align-items-start py-5 bg-light">
+    <div class="container">
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+            <h1 class="h3 mb-0">
+                <i class="bi bi-clock-history" aria-hidden="true"></i> <?= $this->translate('Past events'); ?>
+            </h1>
+            <a href="<?= $this->url('Members:Event@catalogAction'); ?>" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i> <?= $this->translate('Upcoming events'); ?>
+            </a>
+        </div>
+        <?php if (empty($events)): ?>
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-archive text-muted fs-1" aria-hidden="true"></i>
+                <h2 class="h4 text-muted mt-3"><?= $this->translate('No past events yet'); ?></h2>
+            </div>
+        </div>
+        <?php else: ?>
+        <div class="row g-4">
+            <?php foreach ($events as $event): ?>
+            <div class="col-12 col-md-6 col-xl-4">
+                <a href="<?= $this->url('Members:Event@viewAction', [$event->getId()]); ?>" class="card h-100 text-decoration-none text-body shadow-sm border-0 opacity-75">
+                    <?php if ($event->hasCover()): ?>
+                    <img src="<?= $event->getCoverUrl(EventEntity::COVER_CARD); ?>" class="card-img-top" alt="<?= htmlspecialchars($event->getDisplayTitle()); ?>" />
+                    <?php endif; ?>
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-start gap-3 mb-3">
+                            <div class="bg-secondary bg-opacity-10 text-secondary rounded-3 d-flex flex-column align-items-center justify-content-center flex-shrink-0 px-3 py-2 lh-1">
+                                <span class="fw-bold fs-4 lh-1"><?= $event->getStartMonth(); ?></span>
+                                <span class="fw-bold fs-5 lh-1 mt-1"><?= $event->getStartDay(); ?></span>
+                            </div>
+                            <div class="flex-grow-1 min-w-0">
+                                <h2 class="h5 mb-1"><?= htmlspecialchars($event->getDisplayTitle()); ?></h2>
+                                <p class="text-muted small mb-0 text-truncate">
+                                    <?php if ($event->hasStartTime()): ?>
+                                    <i class="bi bi-clock" aria-hidden="true"></i> <?= htmlspecialchars($event->getTimeRange()); ?>
+                                    <?php endif; ?>
+                                    <?php if ($event->hasLocation()): ?>
+                                    <?php if ($event->hasStartTime()): ?>&middot;<?php endif; ?>
+                                    <i class="bi bi-geo-alt" aria-hidden="true"></i> <?= htmlspecialchars($event->getLocationName()); ?>
+                                    <?php endif; ?>
+                                </p>
+                            </div>
+                        </div>
+                        <span class="badge bg-secondary">
+                            <i class="bi bi-clock-history" aria-hidden="true"></i> <?= $this->translate('Past event'); ?>
+                        </span>
+                    </div>
+                </a>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <div class="mt-4">
+            <?= $this->widget(new PaginationWidget($paginator)); ?>
+        </div>
+        <?php endif; ?>
+    </div>
+</section>

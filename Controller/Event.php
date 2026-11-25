@@ -6,7 +6,6 @@
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code
  */
-
 namespace Members\Controller;
 
 use Krystal\Stdlib\VirtualEntity;
@@ -24,7 +23,7 @@ use Members\Service\EventEntity;
 final class Event extends AbstractController
 {
     /**
-     * Renders the public catalog of approved events
+     * Renders the public catalog of actual (non-expired) events
      *
      * @return string
      */
@@ -32,15 +31,40 @@ final class Event extends AbstractController
     {
         $pageNumber = (int) $this->request->getQuery('page', 1);
         $eventService = $this->getModuleService('eventService');
-        $events = $eventService->fetchApproved($pageNumber, 20);
+        $events = $eventService->fetchUpcoming($pageNumber, 20);
 
         $page = new VirtualEntity();
         $page->setTitle($this->translator->translate('Events'))
-             ->setSeo(true);
+            ->setSeo(true);
 
         return $this->view->render('events-catalog', [
-            'page'      => $page,
-            'events'    => $events,
+            'page' => $page,
+            'events' => $events,
+            'paginator' => $eventService->getPaginator(),
+        ]);
+    }
+
+    /**
+     * Renders the archive of expired events.
+     *
+     * No map is rendered here: the archive is a historical list, and
+     * the map endpoint only serves actual events.
+     *
+     * @return string
+     */
+    public function archiveAction()
+    {
+        $pageNumber = (int) $this->request->getQuery('page', 1);
+        $eventService = $this->getModuleService('eventService');
+        $events = $eventService->fetchPast($pageNumber, 20);
+
+        $page = new VirtualEntity();
+        $page->setTitle($this->translator->translate('Past events'))
+            ->setSeo(true);
+
+        return $this->view->render('events-archive', [
+            'page' => $page,
+            'events' => $events,
             'paginator' => $eventService->getPaginator(),
         ]);
     }
@@ -48,7 +72,7 @@ final class Event extends AbstractController
     /**
      * Renders the detail page of a single event
      *
-     * @param  string $id Event id
+     * @param string $id Event id
      * @return string|bool
      */
     public function viewAction($id)
@@ -61,17 +85,23 @@ final class Event extends AbstractController
         }
 
         $analyticsService = $this->getModuleService('eventAnalyticsService');
-        $memberManager    = $this->getModuleService('memberManager');
-        $memberId         = $memberManager->isLoggedIn() ? (int) $memberManager->getMember('id') : null;
+        $memberManager = $this->getModuleService('memberManager');
+        $memberId = $memberManager->isLoggedIn() ? (int) $memberManager->getMember('id') : null;
 
-        $analyticsService->recordView((int) $id, $memberId, 'card', $this->request->getClientIP(), $this->request->getUserAgent());
+        $analyticsService->recordView(
+            (int) $id,
+            $memberId,
+            'card',
+            $this->request->getClientIP(),
+            $this->request->getUserAgent()
+        );
 
         $page = new VirtualEntity();
         $page->setTitle($event->getTitle())
-             ->setSeo(true);
+            ->setSeo(true);
 
         return $this->view->render('event', [
-            'page'  => $page,
+            'page' => $page,
             'event' => $event,
         ]);
     }
@@ -96,8 +126,8 @@ final class Event extends AbstractController
         }
 
         $analyticsService = $this->getModuleService('eventAnalyticsService');
-        $memberManager    = $this->getModuleService('memberManager');
-        $memberId         = $memberManager->isLoggedIn() ? (int) $memberManager->getMember('id') : null;
+        $memberManager = $this->getModuleService('memberManager');
+        $memberId = $memberManager->isLoggedIn() ? (int) $memberManager->getMember('id') : null;
 
         $analyticsService->recordClick(
             (int) $id,
@@ -120,20 +150,18 @@ final class Event extends AbstractController
         $memberManager = $this->getModuleService('memberManager');
         $memberId = (int) $memberManager->getMember('id');
         $pageNumber = (int) $this->request->getQuery('page', 1);
-
         $eventService = $this->getModuleService('eventService');
         $analyticsService = $this->getModuleService('eventAnalyticsService');
-
         $events = $eventService->fetchByCreatorId($memberId, $pageNumber, 20);
         $dashboard = $analyticsService->fetchForMemberDashboard($memberId);
 
         $page = new VirtualEntity();
         $page->setTitle($this->translator->translate('My events'))
-             ->setSeo(false);
+            ->setSeo(false);
 
         return $this->view->render('member-events', [
-            'page'      => $page,
-            'events'    => $events,
+            'page' => $page,
+            'events' => $events,
             'paginator' => $eventService->getPaginator(),
             'dashboard' => $dashboard,
         ]);
@@ -151,12 +179,12 @@ final class Event extends AbstractController
 
         $page = new VirtualEntity();
         $page->setTitle($this->translator->translate('Create event'))
-             ->setSeo(false);
+            ->setSeo(false);
 
         return $this->view->render('member-event-form', [
-            'page'  => $page,
+            'page' => $page,
             'event' => $event,
-            'isNew' => true
+            'isNew' => true,
         ]);
     }
 
@@ -176,12 +204,11 @@ final class Event extends AbstractController
         }
 
         $memberManager = $this->getModuleService('memberManager');
-        $memberId      = (int) $memberManager->getMember('id');
-        $eventService  = $this->getModuleService('eventService');
+        $memberId = (int) $memberManager->getMember('id');
+        $eventService = $this->getModuleService('eventService');
 
         try {
             $eventService->createForUser($memberId, $this->request->getAll());
-
             $this->flashBag->set('success', $this->translator->translate('The event has been created and is pending review'));
 
             return $this->json([
@@ -197,14 +224,13 @@ final class Event extends AbstractController
     /**
      * Renders the form for editing an existing event
      *
-     * @param  string $id Event id
+     * @param string $id Event id
      * @return string|bool
      */
     public function editAction($id)
     {
         $memberManager = $this->getModuleService('memberManager');
         $memberId = (int) $memberManager->getMember('id');
-
         $eventService = $this->getModuleService('eventService');
         $event = $eventService->fetchByIdForOwner((int) $id, $memberId, true);
 
@@ -214,10 +240,10 @@ final class Event extends AbstractController
 
         $page = new VirtualEntity();
         $page->setTitle($this->translator->translate('Edit event'))
-             ->setSeo(false);
+            ->setSeo(false);
 
         return $this->view->render('member-event-form', [
-            'page'  => $page,
+            'page' => $page,
             'event' => $event,
             'isNew' => false,
         ]);
@@ -226,7 +252,7 @@ final class Event extends AbstractController
     /**
      * Updates an existing event
      *
-     * @param  string $id Event id
+     * @param string $id Event id
      * @return string JSON
      */
     public function updateAction($id)
@@ -245,7 +271,6 @@ final class Event extends AbstractController
 
         try {
             $eventService->update((int) $id, $this->request->getAll(), $memberId, false);
-
             $this->flashBag->set('success', $this->translator->translate('The event has been updated successfully'));
 
             return $this->json([
@@ -261,7 +286,7 @@ final class Event extends AbstractController
     /**
      * Deletes an event
      *
-     * @param  string $id Event id
+     * @param string $id Event id
      * @return string JSON
      */
     public function deleteAction($id)
@@ -272,7 +297,6 @@ final class Event extends AbstractController
 
         try {
             $eventService->delete((int) $id, $memberId, false);
-
             $this->flashBag->set('success', $this->translator->translate('The event has been removed successfully'));
 
             return $this->json([
@@ -288,14 +312,13 @@ final class Event extends AbstractController
     /**
      * Renders detailed analytics for a member's own event
      *
-     * @param  string $id Event id
+     * @param string $id Event id
      * @return string|bool
      */
     public function analyticsAction($id)
     {
         $memberManager = $this->getModuleService('memberManager');
         $memberId = (int) $memberManager->getMember('id');
-
         $analyticsService = $this->getModuleService('eventAnalyticsService');
         $analytics = $analyticsService->fetchForMemberEvent((int) $id, $memberId);
 
@@ -305,11 +328,11 @@ final class Event extends AbstractController
 
         $page = new VirtualEntity();
         $page->setTitle($this->translator->translate('Event analytics'))
-             ->setSeo(false);
+            ->setSeo(false);
 
         return $this->view->render('member-event-analytics', [
-            'page'      => $page,
-            'event'     => $analytics['event'],
+            'page' => $page,
+            'event' => $analytics['event'],
             'analytics' => $analytics,
         ]);
     }
@@ -332,8 +355,8 @@ final class Event extends AbstractController
         }
 
         return $this->json([
-            'lat'    => $coords['lat'],
-            'lng'    => $coords['lng'],
+            'lat' => $coords['lat'],
+            'lng' => $coords['lng'],
             'source' => $coords['source'],
         ]);
     }
@@ -348,20 +371,20 @@ final class Event extends AbstractController
         $validator = $this->createValidation();
 
         $validator->field('translation.*.title')
-                  ->addRule('maxlength', null, ['max' => 200]);
+            ->addRule('maxlength', null, ['max' => 200]);
 
         $validator->field('translation.*.organizer')
-                  ->addRule('maxlength', null, ['max' => 200]);
+            ->addRule('maxlength', null, ['max' => 200]);
 
         $validator->field('event.location_name')
-                  ->required()
-                  ->addRule('maxlength', null, ['max' => 255]);
+            ->required()
+            ->addRule('maxlength', null, ['max' => 255]);
 
         $validator->field('event.starts_at')
-                  ->required();
+            ->required();
 
         $validator->field('event.link')
-                  ->addRule('maxlength', null, ['max' => 500]);
+            ->addRule('maxlength', null, ['max' => 500]);
 
         return $validator;
     }

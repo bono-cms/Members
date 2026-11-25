@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Public catalog of approved events
+ * Public catalog of actual (non-expired) events
  *
  * @var \Krystal\Stdlib\VirtualEntity $page
  * @var array $events Array of EventEntity objects
@@ -19,20 +19,26 @@ $mapConfig = $this->widget(new EventsMapWidget($events, $_ENV['location']['lat']
 
 <section class="flex-grow-1 d-flex justify-content-center align-items-start py-5 bg-light">
     <div class="container">
-        <h1 class="h3 mb-4">
-            <i class="bi bi-calendar-event" aria-hidden="true"></i> <?= $this->translate('Events'); ?>
-        </h1>
+        <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+            <h1 class="h3 mb-0">
+                <i class="bi bi-calendar-event" aria-hidden="true"></i> <?= $this->translate('Events'); ?>
+            </h1>
+
+            <a href="<?= $this->url('Members:Event@archiveAction'); ?>" class="btn btn-outline-secondary">
+                <i class="bi bi-clock-history" aria-hidden="true"></i> <?= $this->translate('Past events'); ?>
+            </a>
+        </div>
 
         <!-- Events Map -->
         <div class="card border-0 shadow-sm mb-4 overflow-hidden">
             <div class="card-body p-0">
                 <?php if (!empty($mapConfig['markers'])): ?>
-                <?= $map->render($mapConfig); ?>
+                    <?= $map->render($mapConfig); ?>
                 <?php else: ?>
-                <div class="text-center py-5 text-muted">
-                    <i class="bi bi-geo-alt fs-1" aria-hidden="true"></i>
-                    <p class="mt-2 mb-0"><?= $this->translate('No events with coordinates to display on the map.'); ?></p>
-                </div>
+                    <div class="text-center py-5 text-muted">
+                        <i class="bi bi-geo-alt fs-1" aria-hidden="true"></i>
+                        <p class="mt-2 mb-0"><?= $this->translate('No events with coordinates to display on the map.'); ?></p>
+                    </div>
                 <?php endif; ?>
             </div>
         </div>
@@ -51,36 +57,35 @@ $mapConfig = $this->widget(new EventsMapWidget($events, $_ENV['location']['lat']
             <div class="col-12 col-md-6 col-xl-4">
                 <a href="<?= $this->url('Members:Event@viewAction', [$event->getId()]); ?>" class="card h-100 text-decoration-none text-body shadow-sm border-0">
                     <?php if ($event->hasCover()): ?>
-                    <img src="<?= $event->getCoverUrl(EventEntity::COVER_CARD); ?>" class="card-img-top" alt="<?= htmlspecialchars($event->getTitle()); ?>" />
+                        <img src="<?= $event->getCoverUrl(EventEntity::COVER_CARD); ?>" class="card-img-top" alt="<?= htmlspecialchars($event->getDisplayTitle()); ?>" />
                     <?php endif; ?>
-
                     <div class="card-body p-4">
                         <div class="d-flex align-items-start gap-3 mb-3">
                             <div class="bg-primary bg-opacity-10 text-primary rounded-3 d-flex flex-column align-items-center justify-content-center flex-shrink-0 px-3 py-2 lh-1">
                                 <span class="fw-bold fs-4 lh-1"><?= $event->getStartMonth(); ?></span>
                                 <span class="fw-bold fs-5 lh-1 mt-1"><?= $event->getStartDay(); ?></span>
                             </div>
-
                             <div class="flex-grow-1 min-w-0">
-                                <h2 class="h5 mb-1"><?= $event->getTitle(); ?></h2>
+                                <h2 class="h5 mb-1"><?= htmlspecialchars($event->getDisplayTitle()); ?></h2>
                                 <p class="text-muted small mb-0 text-truncate">
-                                    <i class="bi bi-clock" aria-hidden="true"></i> <?= $event->getFormattedTime(); ?>
+                                    <?php if ($event->hasStartTime()): ?>
+                                        <i class="bi bi-clock" aria-hidden="true"></i> <?= htmlspecialchars($event->getTimeRange()); ?>
+                                    <?php endif; ?>
                                     <?php if ($event->hasLocation()): ?>
-                                    &middot; <i class="bi bi-geo-alt" aria-hidden="true"></i> <?= $event->getLocationName(); ?>
+                                        <?php if ($event->hasStartTime()): ?>&middot;<?php endif; ?>
+                                        <i class="bi bi-geo-alt" aria-hidden="true"></i> <?= htmlspecialchars($event->getLocationName()); ?>
                                     <?php endif; ?>
                                 </p>
                             </div>
                         </div>
-
                         <?php if ($event->hasDescription()): ?>
-                        <p class="text-body-secondary small mb-0"><?= $event->getShortDescription(); ?></p>
+                            <p class="text-body-secondary small mb-0"><?= $event->getShortDescription(); ?></p>
                         <?php endif; ?>
                     </div>
                 </a>
             </div>
             <?php endforeach; ?>
         </div>
-
         <div class="mt-4">
             <?= $this->widget(new PaginationWidget($paginator)); ?>
         </div>

@@ -6,11 +6,10 @@
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code
  */
-
 namespace Members\Storage\MySQL;
 
-use Krystal\Db\Sql\RawSqlFragment;
 use Cms\Storage\MySQL\AbstractMapper;
+use Krystal\Db\Sql\RawSqlFragment;
 use Members\Service\EventEntity;
 
 /**
@@ -81,7 +80,7 @@ final class EventMapper extends AbstractMapper
     {
         return array_merge($this->getColumns(), [
             MemberTranslationMapper::column('name') => 'creator_name',
-            MemberMapper::column('avatar')          => 'creator_avatar',
+            MemberMapper::column('avatar') => 'creator_avatar',
         ]);
     }
 
@@ -94,7 +93,7 @@ final class EventMapper extends AbstractMapper
     private function joinTranslation($db)
     {
         $db->innerJoin(EventTranslationMapper::getTableName(), [
-            EventTranslationMapper::column('id')      => self::getRawColumn('id'),
+            EventTranslationMapper::column('id') => self::getRawColumn('id'),
             EventTranslationMapper::column('lang_id') => $this->getLangId(),
         ]);
 
@@ -116,10 +115,53 @@ final class EventMapper extends AbstractMapper
         $db->leftJoin(MemberMapper::getTableName(), [
             MemberMapper::column('id') => self::getRawColumn('creator_id'),
         ])
-        ->leftJoin(MemberTranslationMapper::getTableName(), [
-            MemberTranslationMapper::column('id')      => MemberMapper::getRawColumn('id'),
-            MemberTranslationMapper::column('lang_id') => $this->getLangId(),
-        ]);
+            ->leftJoin(MemberTranslationMapper::getTableName(), [
+                MemberTranslationMapper::column('id') => MemberMapper::getRawColumn('id'),
+                MemberTranslationMapper::column('lang_id') => $this->getLangId(),
+            ]);
+
+        return $db;
+    }
+
+    /**
+     * SQL expression for the moment an event stops being actual.
+     *
+     * Mirrors EventEntity::isPast(): ends_at when present, else starts_at.
+     *
+     * @return string
+     */
+    private function getExpiryExpression()
+    {
+        return sprintf('COALESCE(%s, %s)', self::column('ends_at'), self::column('starts_at'));
+    }
+
+    /**
+     * Current time in the application timezone.
+     *
+     * date() is used instead of NOW() so the cut-off matches the
+     * timestamps written by EventService and the analytics mapper.
+     *
+     * @return string
+     */
+    private function getNow()
+    {
+        return date('Y-m-d H:i:s');
+    }
+
+    /**
+     * Base query for the public catalog: approved + content + author
+     *
+     * @return \Krystal\Db\Sql\Db
+     */
+    private function createApprovedQuery()
+    {
+        $db = $this->db->select($this->getRichColumns())
+            ->from(self::getTableName());
+
+        $this->joinTranslation($db);
+        $this->joinAuthor($db);
+
+        $db->whereEquals(self::column('status'), EventEntity::STATUS_APPROVED);
 
         return $db;
     }
@@ -152,7 +194,7 @@ final class EventMapper extends AbstractMapper
     public function fetchRichById($id)
     {
         $db = $this->db->select($this->getRichColumns())
-                       ->from(self::getTableName());
+            ->from(self::getTableName());
 
         $this->joinTranslation($db);
         $this->joinAuthor($db);
@@ -175,7 +217,7 @@ final class EventMapper extends AbstractMapper
     public function updateEvent($id, array $data)
     {
         $db = $this->db->update(self::getTableName(), $data)
-                       ->whereEquals('id', (int) $id);
+            ->whereEquals('id', (int) $id);
 
         return $db->execute();
     }
@@ -211,6 +253,8 @@ final class EventMapper extends AbstractMapper
     /**
      * Fetches a paginated list of all events for the admin grid.
      *
+     * Sorted by event date, newest first.
+     *
      * Supported filters: status.
      *
      * @param int $pageNumber
@@ -225,7 +269,7 @@ final class EventMapper extends AbstractMapper
             : null;
 
         $db = $this->db->select($this->getRichColumns())
-                       ->from(self::getTableName());
+            ->from(self::getTableName());
 
         $this->joinTranslation($db);
         $this->joinAuthor($db);
@@ -234,9 +278,9 @@ final class EventMapper extends AbstractMapper
             $db->whereEquals(self::column('status'), $status);
         }
 
-        $db->orderBy(self::column('created_at'))
-           ->desc()
-           ->paginate($pageNumber, $itemsPerPage);
+        $db->orderBy(self::column('starts_at'))
+            ->desc()
+            ->paginate($pageNumber, $itemsPerPage);
 
         return $db->queryAll();
     }
@@ -268,15 +312,54 @@ final class EventMapper extends AbstractMapper
     public function fetchByCreatorId($creatorId, $pageNumber, $itemsPerPage)
     {
         $db = $this->db->select($this->getRichColumns())
-                       ->from(self::getTableName());
+            ->from(self::getTableName());
 
         $this->joinTranslation($db);
         $this->joinAuthor($db);
 
         $db->whereEquals(self::column('creator_id'), (int) $creatorId)
-           ->orderBy(self::column('starts_at'))
-           ->desc()
-           ->paginate($pageNumber, $itemsPerPage);
+            ->orderBy(self::column('starts_at'))
+            ->desc()
+            ->paginate($pageNumber, $itemsPerPage);
+
+        return $db->queryAll();
+    }
+
+    /**
+     * Fetches a paginated list of actual (not yet expired) events,
+     * nearest first.
+     *
+     * @param int $pageNumber
+     * @param int $itemsPerPage
+     * @return array
+     */
+    public function fetchUpcoming($pageNumber, $itemsPerPage)
+    {
+        $db = $this->createApprovedQuery();
+
+        $db->andWhere($this->getExpiryExpression(), '>=', $this->getNow())
+            ->orderBy(self::column('starts_at'))
+            ->asc()
+            ->paginate($pageNumber, $itemsPerPage);
+
+        return $db->queryAll();
+    }
+
+    /**
+     * Fetches a paginated list of expired events, most recently ended first.
+     *
+     * @param int $pageNumber
+     * @param int $itemsPerPage
+     * @return array
+     */
+    public function fetchPast($pageNumber, $itemsPerPage)
+    {
+        $db = $this->createApprovedQuery();
+
+        $db->andWhere($this->getExpiryExpression(), '<', $this->getNow())
+            ->orderBy(self::column('starts_at'))
+            ->desc()
+            ->paginate($pageNumber, $itemsPerPage);
 
         return $db->queryAll();
     }
@@ -290,16 +373,11 @@ final class EventMapper extends AbstractMapper
      */
     public function fetchApproved($pageNumber, $itemsPerPage)
     {
-        $db = $this->db->select($this->getRichColumns())
-                       ->from(self::getTableName());
+        $db = $this->createApprovedQuery();
 
-        $this->joinTranslation($db);
-        $this->joinAuthor($db);
-
-        $db->whereEquals(self::column('status'), EventEntity::STATUS_APPROVED)
-           ->orderBy(self::column('starts_at'))
-           ->asc()
-           ->paginate($pageNumber, $itemsPerPage);
+        $db->orderBy(self::column('starts_at'))
+            ->asc()
+            ->paginate($pageNumber, $itemsPerPage);
 
         return $db->queryAll();
     }
@@ -307,7 +385,7 @@ final class EventMapper extends AbstractMapper
     /**
      * Fetches approved events with valid coordinates for map rendering.
      *
-     * @param array $filters Optional filters: from, to, bbox
+     * @param array $filters Optional filters: from, to, bbox, period
      * @param int $limit Maximum number of points (max 1000)
      * @return array
      */
@@ -325,17 +403,26 @@ final class EventMapper extends AbstractMapper
         ];
 
         $db = $this->db->select($columns)
-                       ->from(self::getTableName());
+            ->from(self::getTableName());
 
         $this->joinTranslation($db);
 
         $db->whereEquals(self::column('status'), EventEntity::STATUS_APPROVED)
-           ->andWhere(self::column('latitude'), 'IS NOT', new RawSqlFragment('NULL'))
-           ->andWhere(self::column('longitude'), 'IS NOT', new RawSqlFragment('NULL'))
-           ->andWhere(self::column('latitude'), '>=', -90)
-           ->andWhere(self::column('latitude'), '<=', 90)
-           ->andWhere(self::column('longitude'), '>=', -180)
-           ->andWhere(self::column('longitude'), '<=', 180);
+            ->andWhere(self::column('latitude'), 'IS NOT', new RawSqlFragment('NULL'))
+            ->andWhere(self::column('longitude'), 'IS NOT', new RawSqlFragment('NULL'))
+            ->andWhere(self::column('latitude'), '>=', -90)
+            ->andWhere(self::column('latitude'), '<=', 90)
+            ->andWhere(self::column('longitude'), '>=', -180)
+            ->andWhere(self::column('longitude'), '<=', 180);
+
+        // Period filter: upcoming (default) | past | all
+        $period = isset($filters['period']) ? (string) $filters['period'] : 'upcoming';
+
+        if ($period === 'upcoming') {
+            $db->append(sprintf(" AND %s >= '%s'", $this->getExpiryExpression(), $this->getNow()));
+        } elseif ($period === 'past') {
+            $db->append(sprintf(" AND %s < '%s'", $this->getExpiryExpression(), $this->getNow()));
+        }
 
         // Date filters
         if (!empty($filters['from'])) {
@@ -360,15 +447,15 @@ final class EventMapper extends AbstractMapper
 
             if ($minLat >= -90 && $maxLat <= 90 && $minLng >= -180 && $maxLng <= 180) {
                 $db->andWhere(self::column('latitude'), '>=', $minLat)
-                   ->andWhere(self::column('latitude'), '<=', $maxLat)
-                   ->andWhere(self::column('longitude'), '>=', $minLng)
-                   ->andWhere(self::column('longitude'), '<=', $maxLng);
+                    ->andWhere(self::column('latitude'), '<=', $maxLat)
+                    ->andWhere(self::column('longitude'), '>=', $minLng)
+                    ->andWhere(self::column('longitude'), '<=', $maxLng);
             }
         }
 
         $db->orderBy(self::column('starts_at'))
-           ->asc()
-           ->limit($limit);
+            ->asc()
+            ->limit($limit);
 
         return $db->queryAll();
     }
@@ -382,9 +469,9 @@ final class EventMapper extends AbstractMapper
     public function countByStatus($status)
     {
         $db = $this->db->select()
-                       ->count('id', 'count')
-                       ->from(self::getTableName())
-                       ->whereEquals('status', $status);
+            ->count('id', 'count')
+            ->from(self::getTableName())
+            ->whereEquals('status', $status);
 
         return (int) $db->query('count');
     }
@@ -397,8 +484,8 @@ final class EventMapper extends AbstractMapper
     public function countAll()
     {
         $db = $this->db->select()
-                       ->count('id', 'count')
-                       ->from(self::getTableName());
+            ->count('id', 'count')
+            ->from(self::getTableName());
 
         return (int) $db->query('count');
     }
@@ -411,9 +498,9 @@ final class EventMapper extends AbstractMapper
     public function fetchStatusBreakdown()
     {
         $db = $this->db->select(['status'])
-                       ->count('id', 'count')
-                       ->from(self::getTableName())
-                       ->groupBy('status');
+            ->count('id', 'count')
+            ->from(self::getTableName())
+            ->groupBy('status');
 
         $result = ['pending' => 0, 'approved' => 0, 'rejected' => 0];
 
