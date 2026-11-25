@@ -1,12 +1,10 @@
 <?php
-
 /**
  * This file is part of the Bono CMS
  *
  * For the full copyright and license information, please view
  * the license file that was distributed with this source code
  */
-
 namespace Members;
 
 use Cms\AbstractCmsModule;
@@ -33,7 +31,6 @@ final class Module extends AbstractCmsModule
         $memberMapper = $this->getMapper('/Members/Storage/MySQL/MemberMapper');
         $changeMapper = $this->getMapper('/Members/Storage/MySQL/MemberChangeMapper');
         $avatarManager = $this->createAvatarImageManager();
-
         $memberManager = new MemberManager(
             $memberMapper,
             $this->getServiceLocator()->get('sessionBag'),
@@ -47,55 +44,48 @@ final class Module extends AbstractCmsModule
         $eventMapper = $this->getMapper('/Members/Storage/MySQL/EventMapper');
         $eventAnalyticsMapper = $this->getMapper('/Members/Storage/MySQL/EventAnalyticsMapper');
         $locationParser = new LocationParser();
-
         $ipHashSalt = isset($eventsConfig['ip_hash_salt']) ? (string) $eventsConfig['ip_hash_salt'] : '';
+
+        // Create EventService first so it can be injected into SiteService
+        $eventService = new EventService(
+            $eventMapper,
+            $locationParser,
+            $this->createCoverImageManager()
+        );
 
         return [
             'memberManager' => $memberManager,
-            'siteService'   => new SiteService($memberManager),
-
+            'eventService' => $eventService,
+            'siteService'   => new SiteService($memberManager, $eventService),
             'profileChangeService' => new ProfileChangeService(
                 $memberMapper,
                 $changeMapper,
                 $avatarManager,
                 $moderationConfig
             ),
-
             'chatService' => new ChatService(
                 $this->getMapper('/Members/Storage/MySQL/ConversationMapper'),
                 $this->getMapper('/Members/Storage/MySQL/ParticipantMapper'),
                 $this->getMapper('/Members/Storage/MySQL/MessageMapper'),
                 $memberManager
             ),
-
             'tagGroupService' => new TagGroupService(
                 $this->getMapper('/Members/Storage/MySQL/TagGroupMapper')
             ),
-
             'tagService' => new TagService(
                 $this->getMapper('/Members/Storage/MySQL/TagMapper')
             ),
-
             'memberTagService' => new MemberTagService(
                 $this->getMapper('/Members/Storage/MySQL/MemberTagMapper'),
                 $this->getMapper('/Members/Storage/MySQL/TagGroupMapper'),
                 $this->getMapper('/Members/Storage/MySQL/TagMapper')
             ),
-
             'inputNormalizer' => new InputNormalizer(
                 $this->getModuleManager()
-                     ->getModule('Cms')
-                     ->getService('languageManager')
+                    ->getModule('Cms')
+                    ->getService('languageManager')
             ),
-
             'locationParser' => $locationParser,
-
-            'eventService' => new EventService(
-                $eventMapper,
-                $locationParser,
-                $this->createCoverImageManager()
-            ),
-
             'eventAnalyticsService' => new EventAnalyticsService(
                 $eventAnalyticsMapper,
                 $eventMapper,
@@ -149,7 +139,6 @@ final class Module extends AbstractCmsModule
                     [1600, 900],
                 ],
             ],
-
             'original' => [
                 'prefix' => 'original',
             ],
