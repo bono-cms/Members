@@ -11,12 +11,16 @@ use Krystal\Widget\GridView\GridViewWidget;
     </a>
 
     <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-success" href="<?= $this->url('Members:Event@catalogAction'); ?>" target="_blank">
+            <i class="bi bi-box-arrow-up-right"></i> <?= $this->translate('View events on site'); ?>
+        </a>
+
         <a class="btn btn-info" href="<?= $this->url('Members:Admin:Event@dashboardAction'); ?>">
             <i class="bi bi-graph-up"></i> <?= $this->translate('Analytics'); ?>
         </a>
 
         <?php if (!empty($statusBreakdown['pending'])): ?>
-        <a class="btn btn-warning" href="<?= $this->url('Members:Admin:Event@indexAction') . '?status=pending'; ?>">
+        <a class="btn btn-warning" href="<?= $this->url('Members:Admin:Event@indexAction', ['status' => 'pending']); ?>">
             <i class="bi bi-hourglass-split"></i> <?= $this->translate('Pending'); ?> <span class="badge bg-light text-dark ms-1"><?= (int) $statusBreakdown['pending']; ?></span>
         </a>
         <?php endif; ?>
