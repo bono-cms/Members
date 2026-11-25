@@ -400,35 +400,37 @@ final class EventMapper extends AbstractMapper
             self::column('longitude'),
             self::column('location_name'),
             self::column('starts_at'),
+            self::column('ends_at'),
         ];
 
         $db = $this->db->select($columns)
-            ->from(self::getTableName());
+                       ->from(self::getTableName());
 
         $this->joinTranslation($db);
 
         $db->whereEquals(self::column('status'), EventEntity::STATUS_APPROVED)
-            ->andWhere(self::column('latitude'), 'IS NOT', new RawSqlFragment('NULL'))
-            ->andWhere(self::column('longitude'), 'IS NOT', new RawSqlFragment('NULL'))
-            ->andWhere(self::column('latitude'), '>=', -90)
-            ->andWhere(self::column('latitude'), '<=', 90)
-            ->andWhere(self::column('longitude'), '>=', -180)
-            ->andWhere(self::column('longitude'), '<=', 180);
+           ->andWhere(self::column('latitude'), 'IS NOT', new RawSqlFragment('NULL'))
+           ->andWhere(self::column('longitude'), 'IS NOT', new RawSqlFragment('NULL'))
+           ->andWhere(self::column('latitude'), '>=', -90)
+           ->andWhere(self::column('latitude'), '<=', 90)
+           ->andWhere(self::column('longitude'), '>=', -180)
+           ->andWhere(self::column('longitude'), '<=', 180);
 
         // Period filter: upcoming (default) | past | all
         $period = isset($filters['period']) ? (string) $filters['period'] : 'upcoming';
+        $expiryExpression = sprintf('COALESCE(%s, %s)', self::column('ends_at'), self::column('starts_at'));
+        $now = date('Y-m-d H:i:s');
 
         if ($period === 'upcoming') {
-            $db->append(sprintf(" AND %s >= '%s'", $this->getExpiryExpression(), $this->getNow()));
+            $db->append(sprintf(" AND %s >= '%s'", $expiryExpression, $now));
         } elseif ($period === 'past') {
-            $db->append(sprintf(" AND %s < '%s'", $this->getExpiryExpression(), $this->getNow()));
+            $db->append(sprintf(" AND %s < '%s'", $expiryExpression, $now));
         }
 
         // Date filters
         if (!empty($filters['from'])) {
             $db->andWhere(self::column('starts_at'), '>=', $filters['from']);
         }
-
         if (!empty($filters['to'])) {
             $db->andWhere(self::column('starts_at'), '<=', $filters['to']);
         }
@@ -439,7 +441,6 @@ final class EventMapper extends AbstractMapper
             $lng1 = (float) $filters['bbox'][1];
             $lat2 = (float) $filters['bbox'][2];
             $lng2 = (float) $filters['bbox'][3];
-
             $minLat = min($lat1, $lat2);
             $maxLat = max($lat1, $lat2);
             $minLng = min($lng1, $lng2);
@@ -447,15 +448,15 @@ final class EventMapper extends AbstractMapper
 
             if ($minLat >= -90 && $maxLat <= 90 && $minLng >= -180 && $maxLng <= 180) {
                 $db->andWhere(self::column('latitude'), '>=', $minLat)
-                    ->andWhere(self::column('latitude'), '<=', $maxLat)
-                    ->andWhere(self::column('longitude'), '>=', $minLng)
-                    ->andWhere(self::column('longitude'), '<=', $maxLng);
+                   ->andWhere(self::column('latitude'), '<=', $maxLat)
+                   ->andWhere(self::column('longitude'), '>=', $minLng)
+                   ->andWhere(self::column('longitude'), '<=', $maxLng);
             }
         }
 
         $db->orderBy(self::column('starts_at'))
-            ->asc()
-            ->limit($limit);
+           ->asc()
+           ->limit($limit);
 
         return $db->queryAll();
     }

@@ -31,16 +31,21 @@ final class Event extends AbstractController
     {
         $pageNumber = (int) $this->request->getQuery('page', 1);
         $eventService = $this->getModuleService('eventService');
+
         $events = $eventService->fetchUpcoming($pageNumber, 20);
+
+        // Fetch ALL non-expired events with coordinates for the map
+        $mapPoints = $eventService->fetchMapPoints(['period' => 'upcoming'], 1000);
 
         $page = new VirtualEntity();
         $page->setTitle($this->translator->translate('Events'))
-            ->setSeo(true);
+             ->setSeo(true);
 
         return $this->view->render('events-catalog', [
             'page' => $page,
             'events' => $events,
             'paginator' => $eventService->getPaginator(),
+            'mapPoints' => $mapPoints
         ]);
     }
 
