@@ -54,6 +54,10 @@ final class Event extends AbstractApiController
      *
      * Returns approved events with valid coordinates for map rendering.
      *
+     * By default, only non-expired events are returned (period=upcoming),
+     * matching the web catalog behavior. The mobile app can request
+     * past events or all events via the ?period= parameter.
+     *
      * @return string JSON
      */
     public function mapAction()
@@ -61,32 +65,32 @@ final class Event extends AbstractApiController
         $eventService = $this->getModuleService('eventService');
         $filters = [];
 
+        // Period filter: upcoming (default) | past | all
+        $period = $this->request->getQuery('period', 'upcoming');
+        if (in_array($period, ['upcoming', 'past', 'all'], true)) {
+            $filters['period'] = $period;
+        }
+
         // Date filters
         $from = $this->request->getQuery('from');
         $to = $this->request->getQuery('to');
-
         if ($from) {
             $filters['from'] = $from;
         }
-
         if ($to) {
             $filters['to'] = $to;
         }
 
         // Bounding box: minLat,minLng,maxLat,maxLng
         $bboxRaw = $this->request->getQuery('bbox');
-
         if ($bboxRaw) {
             $bbox = explode(',', $bboxRaw);
-
             if (count($bbox) === 4) {
                 $bbox = array_map('floatval', $bbox);
-
                 $minLat = min($bbox[0], $bbox[2]);
                 $maxLat = max($bbox[0], $bbox[2]);
                 $minLng = min($bbox[1], $bbox[3]);
                 $maxLng = max($bbox[1], $bbox[3]);
-
                 if (
                     $minLat >= -90 && $maxLat <= 90 &&
                     $minLng >= -180 && $maxLng <= 180
@@ -111,14 +115,12 @@ final class Event extends AbstractApiController
             $event['id'] = (int) $event['id'];
             $event['latitude'] = (float) $event['latitude'];
             $event['longitude'] = (float) $event['longitude'];
-
             // Link to the public event page
             $event['url'] = $this->createUrl(
                 'Members:Event@viewAction',
                 [$event['id']]
             );
         }
-
         unset($event);
 
         return $this->json([
