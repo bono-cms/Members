@@ -52,7 +52,7 @@ $this->getPluginBag()->appendScript($this->moduleAsset('event-analytics.js', 'Me
                         <div class="card border-0 shadow-sm h-100">
                             <div class="card-body text-center">
                                 <div class="text-muted small text-uppercase"><?= $this->translate('Event date'); ?></div>
-                                <div class="h6 mb-0"><?= htmlspecialchars(trim($event->getFormattedDate($locale) . ' ' . $event->getFormattedTime())); ?></div>
+                                <div class="h6 mb-0"><?= htmlspecialchars(trim($event->getFormattedDate($locale) . ' ' . $event->getFormattedTime($locale))); ?></div>
                             </div>
                         </div>
                     </div>
