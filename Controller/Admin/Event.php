@@ -31,28 +31,19 @@ final class Event extends AbstractController
     public function indexAction()
     {
         $pageNumber = (int) $this->request->getQuery('page', 1);
-        $statusFilter = $this->request->getQuery('status', '');
 
         $this->view->getPluginBag()->load(['preview']);
-
         $this->view->getBreadcrumbBag()
                    ->addOne('Members', 'Members:Admin:Members@indexAction')
                    ->addOne('Events');
 
         $eventService = $this->getModuleService('eventService');
 
-        $filters = [];
-
-        if ($statusFilter !== '' && in_array($statusFilter, ['pending', 'approved', 'rejected'], true)) {
-            $filters['status'] = $statusFilter;
-        }
-
-        $events = $eventService->fetchAllForAdmin($pageNumber, 15, $filters);
+        $filters = $this->request->getQuery('filter', []);
 
         return $this->view->render('events', [
-            'events'          => $events,
-            'paginator'       => $eventService->getPaginator(),
-            'statusFilter'    => $statusFilter,
+            'events' => $eventService->fetchAllForAdmin($pageNumber, 15, $filters),
+            'paginator' => $eventService->getPaginator(),
             'statusBreakdown' => $eventService->fetchStatusBreakdown(),
         ]);
     }

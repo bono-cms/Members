@@ -264,23 +264,25 @@ final class EventMapper extends AbstractMapper
      */
     public function fetchAllForAdmin($pageNumber, $itemsPerPage, array $filters = [])
     {
-        $status = isset($filters['status']) && $filters['status'] !== ''
-            ? $filters['status']
-            : null;
-
         $db = $this->db->select($this->getRichColumns())
-            ->from(self::getTableName());
+                       ->from(self::getTableName());
 
         $this->joinTranslation($db);
         $this->joinAuthor($db);
 
-        if ($status !== null) {
-            $db->whereEquals(self::column('status'), $status);
+        $db->whereEquals('1', '1');
+
+        if (!empty($filters['status'])) {
+            $db->andWhereEquals(self::column('status'), $filters['status']);
+        }
+
+        if (!empty($filters['title'])) {
+            $db->andWhereLike(EventTranslationMapper::column('title'), '%' . $filters['title'] . '%');
         }
 
         $db->orderBy(self::column('starts_at'))
-            ->desc()
-            ->paginate($pageNumber, $itemsPerPage);
+           ->desc()
+           ->paginate($pageNumber, $itemsPerPage);
 
         return $db->queryAll();
     }
